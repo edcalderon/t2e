@@ -338,8 +338,8 @@ export default function ExploreScreen() {
           {/* App Branding */}
           <View style={styles.brandingContainer}>
             <Image
-              source={require("../../assets/images/xquests-logo.png")}
-              style={styles.brandingLogo}
+              source={require("../../assets/images/small_logo.svg")}
+              style={[styles.brandingLogo, { tintColor: theme.colors.primary }]}
               contentFit="contain"
             />
             <Text style={styles.brandingTitle}>XQuests</Text>

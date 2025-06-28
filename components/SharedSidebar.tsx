@@ -91,16 +91,16 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
 
   return (
     <Animated.View style={[styles.sidebar, { width: sidebarWidth }]}>
-      {/* Custom X Logo */}
+      {/* Custom App Logo */}
       <View style={styles.logoContainer}>
         <View style={[
-          styles.xLogo,
-          sidebarCollapsed && styles.xLogoCollapsed
+          styles.appLogo,
+          sidebarCollapsed && styles.appLogoCollapsed
         ]}>
           <Image
             source={require("../assets/images/small_logo.svg")}
             style={[
-              styles.xLogoImage,
+              styles.appLogoImage,
               { tintColor: theme.colors.text }
             ]}
             contentFit="contain"
@@ -244,7 +244,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'flex-start',
   },
-  xLogo: {
+  appLogo: {
     width: 48,
     height: 48,
     alignItems: 'center',
@@ -255,11 +255,11 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  xLogoCollapsed: {
+  appLogoCollapsed: {
     alignSelf: 'center',
     marginLeft: 0,
   },
-  xLogoImage: {
+  appLogoImage: {
     width: 28,
     height: 28,
   },

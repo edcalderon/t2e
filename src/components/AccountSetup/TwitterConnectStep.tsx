@@ -160,11 +160,7 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
               <Check size={32} color={theme.colors.success} />
             </View>
             <View style={styles.twitterBadge}>
-              <Image
-                source={require("../../../assets/images/small_logo.svg")}
-                style={[styles.twitterBadgeImage, { tintColor: "#1DA1F2" }]}
-                contentFit="contain"
-              />
+              <Twitter size={20} color="#1DA1F2" />
             </View>
           </View>
           
@@ -310,11 +306,7 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
     <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
       <View style={styles.iconContainer}>
         <View style={styles.iconBackground}>
-          <Image
-            source={require("../../../assets/images/small_logo.svg")}
-            style={[styles.customXIcon, { tintColor: "#1DA1F2" }]}
-            contentFit="contain"
-          />
+          <Twitter size={40} color="#1DA1F2" />
         </View>
       </View>
       
@@ -355,11 +347,7 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
           </View>
         ) : (
           <>
-            <Image
-              source={require("../../../assets/images/small_logo.svg")}
-              style={[styles.connectButtonIcon, { tintColor: "#FFFFFF" }]}
-              contentFit="contain"
-            />
+            <Twitter size={20} color="#FFFFFF" />
             <Text style={styles.connectButtonText}>Connect with X</Text>
           </>
         )}
@@ -422,10 +410,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  customXIcon: {
-    width: 40,
-    height: 40,
-  },
   title: {
     fontSize: 24,
     fontWeight: '700',
@@ -485,10 +469,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     opacity: 0.6,
     shadowOpacity: 0.1,
   },
-  connectButtonIcon: {
-    width: 20,
-    height: 20,
-  },
   connectButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -541,10 +521,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: theme.colors.background,
-  },
-  twitterBadgeImage: {
-    width: 20,
-    height: 20,
   },
   successTitle: {
     fontSize: 20,
