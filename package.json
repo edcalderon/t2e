@@ -6,7 +6,6 @@
     "start": "npx expo start",
     "dev": "npx expo start --web",
     "build": "npx expo export",
-    "reset-project": "node ./scripts/reset-project.js",
     "android": "npx expo start --android",
     "ios": "npx expo start --ios",
     "web": "npx expo start --web",
