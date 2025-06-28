@@ -137,9 +137,19 @@ export default function HomeScreen() {
       outputRange: [0, 0, 1],
     });
 
+    const textMarginLeft = sidebarAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 20],
+    });
+
     const postButtonWidth = sidebarAnimation.interpolate({
       inputRange: [0, 1],
       outputRange: [56, 200],
+    });
+
+    const postButtonTextMarginLeft = sidebarAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 8],
     });
 
     return (
@@ -196,7 +206,7 @@ export default function HomeScreen() {
                     style={[
                       styles.navItemText,
                       isActive && styles.navItemTextActive,
-                      { opacity: textOpacity }
+                      { opacity: textOpacity, marginLeft: textMarginLeft }
                     ]}
                   >
                     {item.label}
@@ -214,7 +224,7 @@ export default function HomeScreen() {
             sidebarCollapsed && styles.postButtonCollapsed
           ]}>
             <Plus size={sidebarCollapsed ? 28 : 24} color="#FFFFFF" strokeWidth={2.5} />
-            <Animated.Text style={[styles.postButtonText, { opacity: textOpacity }]}>
+            <Animated.Text style={[styles.postButtonText, { opacity: textOpacity, marginLeft: postButtonTextMarginLeft }]}>
               Post
             </Animated.Text>
           </TouchableOpacity>
@@ -584,6 +594,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   navItem: {
     borderRadius: 24,
     marginVertical: 2,
+    overflow: 'hidden',
   },
   navItemCollapsed: {
     alignItems: 'center',
@@ -591,6 +602,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     width: 64,
     height: 64,
     alignSelf: 'center',
+    padding: 0,
+    margin: 0,
   },
   navItemActive: {
     backgroundColor: 'transparent',
@@ -604,26 +617,30 @@ const createStyles = (theme: any) => StyleSheet.create({
   navItemContentCollapsed: {
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 0,
-    paddingVertical: 16,
+    padding: 0,
+    margin: 0,
     width: '100%',
+    height: '100%',
   },
   iconWrapper: {
     position: 'relative',
-    width: 26,
-    height: 26,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconWrapperCollapsed: {
     width: 32,
     height: 32,
+    margin: 0,
+    padding: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navItemText: {
     fontSize: 20,
     fontWeight: '400',
     color: theme.colors.textSecondary,
-    marginLeft: 20,
   },
   navItemTextActive: {
     color: theme.colors.text,
@@ -674,7 +691,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
-    marginLeft: 8,
   },
   userProfile: {
     flexDirection: 'row',
