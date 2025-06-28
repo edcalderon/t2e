@@ -21,6 +21,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   const { theme } = useTheme();
   const { 
     user, 
+    session,
     isLoading, 
     isAuthenticated, 
     error, 
@@ -35,6 +36,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   const [scaleAnim] = useState(new Animated.Value(0.95));
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStage, setConnectionStage] = useState<'idle' | 'initiating' | 'redirecting' | 'processing' | 'completing'>('idle');
+  const [hasTriggeredSuccess, setHasTriggeredSuccess] = useState(false);
 
   useEffect(() => {
     Animated.parallel([
@@ -53,21 +55,25 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
 
   // Update parent component when authentication state changes
   useEffect(() => {
-    if (isAuthenticated && !isConnecting) {
+    if (isAuthenticated && !hasTriggeredSuccess) {
+      console.log('✅ Authentication detected, completing setup...');
+      setHasTriggeredSuccess(true);
       setConnectionStage('completing');
+      
       setTimeout(() => {
         onConnect(true);
         setIsConnecting(false);
         setConnectionStage('idle');
-      }, 1000);
+      }, 1500);
     }
-  }, [isAuthenticated, onConnect, isConnecting]);
+  }, [isAuthenticated, onConnect, hasTriggeredSuccess]);
 
   const handleConnect = async () => {
     if (isAuthenticated || isConnecting) return;
     
     setIsConnecting(true);
     setConnectionStage('initiating');
+    setHasTriggeredSuccess(false);
     clearError();
     
     try {
@@ -77,7 +83,10 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       
       if (result.success) {
         setConnectionStage('processing');
-        // Success will be handled by the useEffect above
+        console.log('🔄 OAuth completed, waiting for session...');
+        
+        // Wait for the auth state to update
+        // The useEffect above will handle the success case
       } else if (result.error?.type === 'email') {
         console.log('ℹ️ Twitter connection succeeded with email warning');
         setConnectionStage('completing');
@@ -103,6 +112,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     
     setIsConnecting(true);
     setConnectionStage('initiating');
+    setHasTriggeredSuccess(false);
     clearError();
     
     try {
@@ -122,7 +132,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       case 'redirecting':
         return 'Opening Twitter...';
       case 'processing':
-        return 'Processing...';
+        return 'Processing authentication...';
       case 'completing':
         return 'Completing setup...';
       default:
@@ -237,10 +247,19 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
                 )}
               </View>
             </View>
-          ) : (
+          ) : session ? (
             <View style={styles.basicSuccessInfo}>
               <Text style={styles.basicSuccessText}>
                 Your X account has been successfully connected!
+              </Text>
+              <Text style={styles.basicSuccessSubtext}>
+                Session ID: {session.user.id.slice(-8)}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.basicSuccessInfo}>
+              <Text style={styles.basicSuccessText}>
+                Authentication successful!
               </Text>
               <Text style={styles.basicSuccessSubtext}>
                 You can now participate in challenges and earn rewards.

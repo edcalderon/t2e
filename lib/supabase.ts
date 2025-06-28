@@ -46,33 +46,78 @@ console.log('🔗 Redirect URI:', redirectTo);
 export const createSessionFromUrl = async (url: string) => {
   console.log('🔍 Creating session from URL:', url.substring(0, 100) + '...');
   
-  const { params, errorCode } = QueryParams.getQueryParams(url);
+  try {
+    const { params, errorCode } = QueryParams.getQueryParams(url);
 
-  if (errorCode) {
-    console.error('❌ OAuth error code:', errorCode);
-    throw new Error(errorCode);
-  }
+    if (errorCode) {
+      console.error('❌ OAuth error code:', errorCode);
+      
+      // Handle specific error cases
+      if (errorCode === 'server_error') {
+        console.log('ℹ️ Server error detected - checking for existing session');
+        // Sometimes Twitter OAuth succeeds but returns server_error
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.log('✅ Found existing session despite server error');
+          return session;
+        }
+      }
+      
+      throw new Error(errorCode);
+    }
 
-  const { access_token, refresh_token } = params;
+    const { access_token, refresh_token } = params;
 
-  if (!access_token) {
-    console.warn('⚠️ No access token found in URL');
-    return null;
-  }
+    if (!access_token) {
+      console.warn('⚠️ No access token found in URL');
+      
+      // Check if we already have a session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        console.log('✅ Found existing session without new tokens');
+        return session;
+      }
+      
+      return null;
+    }
 
-  console.log('🎫 Setting session with tokens...');
-  const { data, error } = await supabase.auth.setSession({
-    access_token,
-    refresh_token,
-  });
+    console.log('🎫 Setting session with tokens...');
+    const { data, error } = await supabase.auth.setSession({
+      access_token,
+      refresh_token,
+    });
 
-  if (error) {
-    console.error('❌ Error setting session:', error);
+    if (error) {
+      console.error('❌ Error setting session:', error);
+      
+      // Check if session was created despite error
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        console.log('✅ Session exists despite setSession error');
+        return session;
+      }
+      
+      throw error;
+    }
+
+    console.log('✅ Session created successfully');
+    return data.session;
+  } catch (error) {
+    console.error('❌ Error in createSessionFromUrl:', error);
+    
+    // Last resort: check for any existing session
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        console.log('✅ Fallback: found existing session');
+        return session;
+      }
+    } catch (fallbackError) {
+      console.error('❌ Fallback session check failed:', fallbackError);
+    }
+    
     throw error;
   }
-
-  console.log('✅ Session created successfully');
-  return data.session;
 };
 
 // Perform OAuth (based on your example)
@@ -113,8 +158,48 @@ export const performOAuth = async () => {
 
     if (result.type === 'success' && result.url) {
       console.log('✅ OAuth success, creating session...');
-      const session = await createSessionFromUrl(result.url);
-      return { success: true, session };
+      
+      try {
+        const session = await createSessionFromUrl(result.url);
+        
+        if (session) {
+          console.log('✅ Session created from OAuth result');
+          return { success: true, session };
+        } else {
+          console.log('⚠️ No session created but no error - checking current session');
+          
+          // Wait a moment for session to be established
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          if (currentSession) {
+            console.log('✅ Found session after delay');
+            return { success: true, session: currentSession };
+          } else {
+            console.log('❌ No session found after OAuth success');
+            throw new Error('OAuth succeeded but no session was created');
+          }
+        }
+      } catch (sessionError: any) {
+        console.error('❌ Session creation error:', sessionError);
+        
+        // Check if it's an email-related error (common with Twitter)
+        if (sessionError.message?.toLowerCase().includes('email') || 
+            sessionError.message?.includes('server_error')) {
+          console.log('ℹ️ Email-related error detected - checking for session anyway');
+          
+          // Wait and check for session
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          const { data: { session: fallbackSession } } = await supabase.auth.getSession();
+          if (fallbackSession) {
+            console.log('✅ Session found despite email error');
+            return { success: true, session: fallbackSession };
+          }
+        }
+        
+        throw sessionError;
+      }
     } else if (result.type === 'cancel') {
       throw new Error('Authentication was cancelled');
     } else {

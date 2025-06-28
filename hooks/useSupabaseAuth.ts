@@ -190,7 +190,20 @@ export const useSupabaseAuth = () => {
       
       if (result.success) {
         console.log('✅ Twitter OAuth completed successfully');
-        return { success: true };
+        
+        // Wait a moment for the auth state to update
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Check if we now have a session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.log('✅ Session confirmed after OAuth');
+          return { success: true };
+        } else {
+          console.log('⚠️ OAuth succeeded but no session found - this might still be processing');
+          // Don't treat this as an error, the auth state change listener will handle it
+          return { success: true };
+        }
       } else {
         throw new Error(result.error || 'OAuth failed');
       }
