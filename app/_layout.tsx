@@ -14,6 +14,19 @@ import { Platform } from "react-native";
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
+const customTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: '#000000',
+    card: '#16181C',
+    text: '#E7E9EA',
+    border: '#2F3336',
+    notification: '#1D9BF0',
+    primary: '#1D9BF0',
+  },
+};
+
 export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
@@ -37,15 +50,16 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={DefaultTheme}>
+    <ThemeProvider value={customTheme}>
       <Stack
         screenOptions={({ route }) => ({
-          headerShown: !route.name.startsWith("tempobook"),
+          headerShown: false,
+          contentStyle: { backgroundColor: '#000000' },
         })}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style="light" backgroundColor="#000000" />
     </ThemeProvider>
   );
 }
