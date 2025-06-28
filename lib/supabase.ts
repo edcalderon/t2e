@@ -42,45 +42,78 @@ export const getTwitterUserData = (user: any) => {
     email: user.email,
     hasMetadata: !!user.user_metadata,
     metadataKeys: user.user_metadata ? Object.keys(user.user_metadata) : [],
+    hasIdentities: !!user.identities,
+    identitiesCount: user.identities?.length || 0,
   });
 
   const twitterData = user.user_metadata || {};
+  const twitterIdentity = user.identities?.find((identity: any) => identity.provider === 'twitter');
+  
+  // Merge data from user_metadata and identity data
+  const identityData = twitterIdentity?.identity_data || {};
   
   // Extract Twitter data with multiple fallback options
   const extractedData = {
     id: user.id,
-    email: user.email || twitterData.email,
+    email: user.email || 
+           twitterData.email || 
+           identityData.email ||
+           null, // Allow null email as Twitter doesn't always provide it
     username: twitterData.user_name || 
               twitterData.preferred_username || 
               twitterData.screen_name || 
               twitterData.username ||
+              identityData.user_name ||
+              identityData.screen_name ||
+              identityData.username ||
               user.email?.split('@')[0] || 
-              'user',
+              `user_${user.id.slice(-8)}`, // Fallback to user ID suffix
     displayName: twitterData.full_name || 
                  twitterData.name || 
                  twitterData.display_name ||
                  twitterData.user_name ||
-                 'User',
+                 identityData.full_name ||
+                 identityData.name ||
+                 identityData.display_name ||
+                 'Twitter User',
     avatar: twitterData.avatar_url || 
             twitterData.picture || 
             twitterData.profile_image_url ||
             twitterData.profile_image_url_https ||
+            identityData.avatar_url ||
+            identityData.picture ||
+            identityData.profile_image_url ||
             'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2',
     twitterId: twitterData.provider_id || 
                twitterData.sub || 
                twitterData.id_str ||
-               twitterData.id,
-    verified: twitterData.verified || false,
+               twitterData.id ||
+               identityData.provider_id ||
+               identityData.sub ||
+               identityData.id_str ||
+               identityData.id,
+    verified: twitterData.verified || 
+              identityData.verified || 
+              false,
     followerCount: twitterData.public_metrics?.followers_count || 
                    twitterData.followers_count || 
+                   identityData.public_metrics?.followers_count ||
+                   identityData.followers_count ||
                    0,
     twitterHandle: twitterData.user_name || 
                    twitterData.preferred_username || 
                    twitterData.screen_name ||
-                   twitterData.username,
+                   twitterData.username ||
+                   identityData.user_name ||
+                   identityData.screen_name ||
+                   identityData.username,
   };
 
-  console.log('✅ Extracted Twitter user data:', extractedData);
+  console.log('✅ Extracted Twitter user data:', {
+    ...extractedData,
+    email: extractedData.email ? '***@***.***' : 'No email provided',
+  });
+  
   return extractedData;
 };
 
@@ -173,9 +206,9 @@ export const buildOAuthUrl = (provider: string, redirectTo: string) => {
   return url;
 };
 
-// Token extraction helper
+// Enhanced token extraction helper
 export const extractTokensFromUrl = (url: string) => {
-  console.log('🔍 Extracting tokens from URL:', url);
+  console.log('🔍 Extracting tokens from URL:', url.substring(0, 100) + '...');
   
   try {
     const urlObj = new URL(url);
@@ -206,6 +239,7 @@ export const extractTokensFromUrl = (url: string) => {
       hasCode: !!tokens.code,
       hasError: !!tokens.error,
       type: tokens.type,
+      errorDescription: tokens.errorDescription,
     });
     
     return tokens;
@@ -220,4 +254,25 @@ export const extractTokensFromUrl = (url: string) => {
       type: null,
     };
   }
+};
+
+// Helper to validate Twitter OAuth configuration
+export const validateTwitterOAuthConfig = () => {
+  const issues = [];
+  
+  if (!supabaseUrl) {
+    issues.push('EXPO_PUBLIC_SUPABASE_URL is not set');
+  }
+  
+  if (!supabaseAnonKey) {
+    issues.push('EXPO_PUBLIC_SUPABASE_ANON_KEY is not set');
+  }
+  
+  if (issues.length > 0) {
+    console.error('❌ Twitter OAuth configuration issues:', issues);
+    return { valid: false, issues };
+  }
+  
+  console.log('✅ Twitter OAuth configuration is valid');
+  return { valid: true, issues: [] };
 };

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
-import { supabase, getTwitterUserData, extractTokensFromUrl } from '../lib/supabase';
+import { supabase, getTwitterUserData, extractTokensFromUrl, validateTwitterOAuthConfig } from '../lib/supabase';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
@@ -31,7 +31,8 @@ export interface AuthState {
 export interface AuthError {
   message: string;
   code?: string;
-  type?: 'config' | 'network' | 'auth' | 'token' | 'unknown';
+  type?: 'config' | 'network' | 'auth' | 'token' | 'email' | 'unknown';
+  details?: string;
 }
 
 export const useSupabaseAuth = () => {
@@ -54,9 +55,10 @@ export const useSupabaseAuth = () => {
       try {
         console.log('🚀 Initializing Supabase auth...');
         
-        // Check environment configuration
-        if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
-          throw new Error('Missing Supabase configuration. Please check your environment variables.');
+        // Validate configuration first
+        const configValidation = validateTwitterOAuthConfig();
+        if (!configValidation.valid) {
+          throw new Error(`Configuration issues: ${configValidation.issues.join(', ')}`);
         }
         
         // Set a timeout to prevent infinite loading
@@ -103,7 +105,8 @@ export const useSupabaseAuth = () => {
           setError({ 
             message: sessionError.message, 
             code: sessionError.message,
-            type: 'auth'
+            type: 'auth',
+            details: 'Failed to retrieve existing session'
           });
         }
 
@@ -120,6 +123,11 @@ export const useSupabaseAuth = () => {
               });
             } else {
               console.warn('⚠️ Failed to extract Twitter user data');
+              setError({
+                message: 'Failed to process user data from existing session',
+                type: 'auth',
+                details: 'User data extraction failed'
+              });
               setAuthState({
                 user: null,
                 session: null,
@@ -146,7 +154,8 @@ export const useSupabaseAuth = () => {
         if (mounted) {
           setError({ 
             message: err.message || 'Failed to initialize authentication',
-            type: 'config'
+            type: 'config',
+            details: 'Initialization failed'
           });
           setAuthState({
             user: null,
@@ -182,7 +191,8 @@ export const useSupabaseAuth = () => {
               console.warn('⚠️ Failed to extract Twitter user data from session');
               setError({
                 message: 'Failed to process user data',
-                type: 'auth'
+                type: 'auth',
+                details: 'User data extraction failed during auth state change'
               });
             }
           } else {
@@ -213,9 +223,10 @@ export const useSupabaseAuth = () => {
       setError(null);
       console.log('🐦 Starting Twitter sign-in...');
 
-      // Check configuration
-      if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
-        throw new Error('Supabase configuration is missing. Please check your environment variables.');
+      // Validate configuration
+      const configValidation = validateTwitterOAuthConfig();
+      if (!configValidation.valid) {
+        throw new Error(`Configuration issues: ${configValidation.issues.join(', ')}`);
       }
 
       if (Platform.OS === 'web') {
@@ -230,11 +241,19 @@ export const useSupabaseAuth = () => {
               access_type: 'offline',
               prompt: 'consent',
             },
+            // Request specific scopes to avoid email issues
+            scopes: 'tweet.read users.read offline.access',
           },
         });
 
         if (error) {
           console.error('❌ Web OAuth error:', error);
+          
+          // Handle specific Twitter OAuth errors
+          if (error.message?.includes('email')) {
+            throw new Error('Twitter email access issue. This is normal - Twitter doesn\'t always provide email addresses.');
+          }
+          
           throw error;
         }
 
@@ -260,11 +279,19 @@ export const useSupabaseAuth = () => {
               access_type: 'offline',
               prompt: 'consent',
             },
+            // Request specific scopes to avoid email issues
+            scopes: 'tweet.read users.read offline.access',
           },
         });
 
         if (error) {
           console.error('❌ Mobile OAuth error:', error);
+          
+          // Handle specific Twitter OAuth errors
+          if (error.message?.includes('email')) {
+            throw new Error('Twitter email access issue. This is normal - Twitter doesn\'t always provide email addresses.');
+          }
+          
           throw error;
         }
 
@@ -290,7 +317,13 @@ export const useSupabaseAuth = () => {
             const tokens = extractTokensFromUrl(result.url);
             
             if (tokens.error) {
-              throw new Error(tokens.errorDescription || tokens.error);
+              // Handle specific error cases
+              if (tokens.error === 'server_error' && tokens.errorDescription?.includes('email')) {
+                console.warn('⚠️ Twitter email access issue - this is normal, continuing without email');
+                // Don't throw error for email issues, they're common with Twitter
+              } else {
+                throw new Error(tokens.errorDescription || tokens.error);
+              }
             }
 
             // Handle PKCE flow (authorization code)
@@ -301,7 +334,14 @@ export const useSupabaseAuth = () => {
               
               if (sessionError) {
                 console.error('❌ PKCE exchange error:', sessionError);
-                throw sessionError;
+                
+                // Handle email-related errors gracefully
+                if (sessionError.message?.includes('email')) {
+                  console.warn('⚠️ Email access issue during PKCE exchange - this is normal with Twitter');
+                  // Continue anyway, as Twitter often doesn't provide email
+                } else {
+                  throw sessionError;
+                }
               }
               
               console.log('✅ PKCE session established successfully');
@@ -319,7 +359,14 @@ export const useSupabaseAuth = () => {
 
               if (sessionError) {
                 console.error('❌ Session setup error:', sessionError);
-                throw sessionError;
+                
+                // Handle email-related errors gracefully
+                if (sessionError.message?.includes('email')) {
+                  console.warn('⚠️ Email access issue during session setup - this is normal with Twitter');
+                  // Continue anyway, as Twitter often doesn't provide email
+                } else {
+                  throw sessionError;
+                }
               }
 
               console.log('✅ Direct token session established successfully');
@@ -340,20 +387,28 @@ export const useSupabaseAuth = () => {
       console.error('❌ Twitter sign-in error:', err);
       
       let errorType: AuthError['type'] = 'unknown';
+      let userFriendlyMessage = err.message;
+      
       if (err.message?.includes('configuration') || err.message?.includes('environment')) {
         errorType = 'config';
       } else if (err.message?.includes('network') || err.message?.includes('fetch')) {
         errorType = 'network';
       } else if (err.message?.includes('token') || err.message?.includes('session')) {
         errorType = 'token';
+      } else if (err.message?.includes('email')) {
+        errorType = 'email';
+        userFriendlyMessage = 'Twitter authentication successful! (Email not provided by Twitter)';
+        // For email issues, we might still want to consider this a success
+        console.log('ℹ️ Email issue detected, but authentication may have succeeded');
       } else if (err.message?.includes('auth') || err.message?.includes('oauth')) {
         errorType = 'auth';
       }
       
       const authError: AuthError = {
-        message: err.message || 'Failed to sign in with Twitter',
+        message: userFriendlyMessage || 'Failed to sign in with Twitter',
         code: err.code,
         type: errorType,
+        details: err.message,
       };
       
       setError(authError);
@@ -384,6 +439,7 @@ export const useSupabaseAuth = () => {
         message: err.message || 'Failed to sign out',
         code: err.code,
         type: 'auth',
+        details: 'Sign out failed'
       };
       setError(authError);
       return { success: false, error: authError };

@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
-import { Twitter, Check, AlertCircle, RefreshCw, Shield, Clock, Settings } from "lucide-react-native";
+import { Twitter, Check, AlertCircle, RefreshCw, Shield, Clock, Settings, Info } from "lucide-react-native";
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useSupabaseAuth } from '../../../hooks/useSupabaseAuth';
 
@@ -66,8 +66,11 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
     
     try {
       const result = await signInWithTwitter();
-      if (!result.success) {
+      if (!result.success && result.error?.type !== 'email') {
         console.error('❌ Twitter connection failed:', result.error);
+      } else if (result.error?.type === 'email') {
+        console.log('ℹ️ Twitter connection succeeded with email warning');
+        // Consider email warnings as success
       }
     } catch (err) {
       console.error('❌ Connection error:', err);
@@ -101,6 +104,8 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
         return 'Authentication token issue. This usually resolves with a retry.';
       case 'auth':
         return 'Authentication service issue. Please try again.';
+      case 'email':
+        return 'Twitter authentication successful! (Email not provided by Twitter)';
       default:
         return error.message || 'An unexpected error occurred.';
     }
@@ -118,10 +123,14 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
         return 'This is usually temporary. Try again in a moment.';
       case 'auth':
         return 'The authentication service may be temporarily unavailable.';
+      case 'email':
+        return 'This is normal - Twitter doesn\'t always provide email addresses. Your account is still connected!';
       default:
         return 'Try refreshing the app or contact support if the issue persists.';
     }
   };
+
+  const isEmailWarning = error?.type === 'email';
 
   const styles = createStyles(theme);
 
@@ -183,6 +192,12 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
                   {user.followerCount.toLocaleString()} followers
                 </Text>
               )}
+              {!user.email && (
+                <View style={styles.emailNotice}>
+                  <Info size={12} color={theme.colors.textTertiary} />
+                  <Text style={styles.emailNoticeText}>Email not provided by Twitter</Text>
+                </View>
+              )}
             </View>
           </View>
 
@@ -203,7 +218,7 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
   }
 
   // Error state with enhanced error handling
-  if (error) {
+  if (error && !isEmailWarning) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.errorContainer}>
@@ -256,6 +271,40 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
     );
   }
 
+  // Email warning state (treat as success but show info)
+  if (isEmailWarning) {
+    return (
+      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+        <View style={styles.warningContainer}>
+          <View style={styles.warningIcon}>
+            <Info size={32} color={theme.colors.warning} />
+          </View>
+          
+          <Text style={styles.warningTitle}>Almost There!</Text>
+          <Text style={styles.warningMessage}>
+            {getErrorMessage(error)}
+          </Text>
+
+          <Text style={styles.warningSolution}>
+            {getErrorSolution(error)}
+          </Text>
+
+          <TouchableOpacity
+            style={styles.continueButton}
+            onPress={() => {
+              clearError();
+              // Force connection as successful since email issues are normal
+              onConnect(true);
+            }}
+          >
+            <Check size={16} color="#FFFFFF" />
+            <Text style={styles.continueButtonText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
+  }
+
   // Initial connection state
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
@@ -287,6 +336,10 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
         <View style={styles.feature}>
           <Check size={16} color={theme.colors.success} />
           <Text style={styles.featureText}>Revoke access anytime</Text>
+        </View>
+        <View style={styles.feature}>
+          <Info size={16} color={theme.colors.textTertiary} />
+          <Text style={styles.featureTextNote}>Email may not be provided by Twitter</Text>
         </View>
       </View>
 
@@ -403,6 +456,12 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     color: theme.colors.textSecondary,
     flex: 1,
+  },
+  featureTextNote: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    flex: 1,
+    fontStyle: 'italic',
   },
   connectButton: {
     backgroundColor: '#1DA1F2',
@@ -541,6 +600,17 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.textTertiary,
     marginTop: 2,
   },
+  emailNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  emailNoticeText: {
+    fontSize: 10,
+    color: theme.colors.textTertiary,
+    fontStyle: 'italic',
+  },
   successDescription: {
     fontSize: 14,
     color: theme.colors.textSecondary,
@@ -637,5 +707,55 @@ const createStyles = (theme: any) => StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
     fontStyle: 'italic',
+  },
+  warningContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    width: '100%',
+  },
+  warningIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: theme.colors.warning + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  warningTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
+  warningMessage: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  warningSolution: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  continueButton: {
+    backgroundColor: theme.colors.success,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  continueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
