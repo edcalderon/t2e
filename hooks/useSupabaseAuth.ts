@@ -1,21 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Platform } from 'react-native';
 import { 
   supabase, 
   getTwitterUserData, 
-  extractTokensFromUrl, 
   validateTwitterOAuthConfig,
-  getRedirectUrl,
-  initiateTwitterOAuth,
+  performOAuth,
   handleTwitterOAuthError
 } from '../lib/supabase';
-import { makeRedirectUri } from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 import type { Session, User } from '@supabase/supabase-js';
-
-// Configure WebBrowser for authentication
-WebBrowser.maybeCompleteAuthSession();
 
 export interface TwitterUser {
   id: string;
@@ -54,7 +45,7 @@ export const useSupabaseAuth = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Initialize auth state with enhanced error handling
+  // Initialize auth state
   useEffect(() => {
     let mounted = true;
     let timeoutId: NodeJS.Timeout;
@@ -83,26 +74,8 @@ export const useSupabaseAuth = () => {
           }
         }, 10000); // 10 second timeout
 
-        // Get initial session with retry logic
-        let sessionAttempts = 0;
-        let session = null;
-        let sessionError = null;
-
-        while (sessionAttempts < 3 && !session && mounted) {
-          try {
-            console.log(`🔍 Session attempt ${sessionAttempts + 1}/3`);
-            const { data, error } = await supabase.auth.getSession();
-            session = data.session;
-            sessionError = error;
-            break;
-          } catch (err) {
-            sessionAttempts++;
-            if (sessionAttempts < 3) {
-              console.log(`⏳ Retrying session fetch in ${sessionAttempts}s...`);
-              await new Promise(resolve => setTimeout(resolve, sessionAttempts * 1000));
-            }
-          }
-        }
+        // Get initial session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (timeoutId) {
           clearTimeout(timeoutId);
@@ -118,23 +91,14 @@ export const useSupabaseAuth = () => {
           if (session?.user) {
             console.log('✅ Found existing session for user:', session.user.id);
             const twitterUser = getTwitterUserData(session.user);
-            if (twitterUser) {
-              setAuthState({
-                user: twitterUser,
-                session,
-                isLoading: false,
-                isAuthenticated: true,
-              });
-              setError(null); // Clear any previous errors
-            } else {
-              console.warn('⚠️ Failed to extract Twitter user data');
-              setAuthState({
-                user: null,
-                session: null,
-                isLoading: false,
-                isAuthenticated: false,
-              });
-            }
+            
+            setAuthState({
+              user: twitterUser,
+              session,
+              isLoading: false,
+              isAuthenticated: true,
+            });
+            setError(null);
           } else {
             console.log('ℹ️ No existing session found');
             setAuthState({
@@ -170,7 +134,7 @@ export const useSupabaseAuth = () => {
 
     initializeAuth();
 
-    // Listen for auth changes with enhanced logging
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Auth state changed:', event, session?.user?.id || 'No user');
@@ -178,28 +142,16 @@ export const useSupabaseAuth = () => {
         if (mounted) {
           if (session?.user) {
             const twitterUser = getTwitterUserData(session.user);
-            if (twitterUser) {
-              console.log('✅ Setting authenticated user:', twitterUser.username);
-              setAuthState({
-                user: twitterUser,
-                session,
-                isLoading: false,
-                isAuthenticated: true,
-              });
-              setError(null);
-              setRetryCount(0);
-            } else {
-              console.warn('⚠️ Failed to extract Twitter user data from session');
-              // Still set as authenticated but without extracted user data
-              setAuthState({
-                user: null,
-                session,
-                isLoading: false,
-                isAuthenticated: true, // Session exists, so we're authenticated
-              });
-            }
+            
+            setAuthState({
+              user: twitterUser,
+              session,
+              isLoading: false,
+              isAuthenticated: true,
+            });
+            setError(null);
+            setRetryCount(0);
           } else {
-            console.log('ℹ️ No session - setting as not authenticated');
             setAuthState({
               user: null,
               session: null,
@@ -221,7 +173,7 @@ export const useSupabaseAuth = () => {
     };
   }, []);
 
-  // Enhanced sign in with Twitter
+  // Sign in with Twitter using the simplified OAuth flow
   const signInWithTwitter = async (): Promise<{ success: boolean; error?: AuthError }> => {
     try {
       setError(null);
@@ -233,194 +185,14 @@ export const useSupabaseAuth = () => {
         throw new Error(`Configuration issues: ${configValidation.issues.join(', ')}`);
       }
 
-      if (Platform.OS === 'web') {
-        // Web authentication with enhanced error handling
-        console.log('🌐 Starting web OAuth flow...');
-        
-        const redirectUrl = getRedirectUrl();
-        
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: 'twitter',
-          options: {
-            redirectTo: redirectUrl,
-            queryParams: {
-              // Use minimal scopes to avoid email permission issues
-              scope: 'tweet.read users.read',
-            },
-          },
-        });
-
-        if (error) {
-          console.error('❌ Web OAuth error:', error);
-          
-          // Handle specific Twitter OAuth errors gracefully
-          const errorHandling = handleTwitterOAuthError(error);
-          
-          if (errorHandling.type === 'warning') {
-            console.log('ℹ️ Email-related error detected - this is normal for Twitter OAuth');
-            // Don't throw for email issues as they're common with Twitter
-            return { success: true };
-          }
-          
-          throw error;
-        }
-
-        console.log('✅ Web OAuth initiated successfully');
+      // Use the simplified OAuth flow
+      const result = await performOAuth();
+      
+      if (result.success) {
+        console.log('✅ Twitter OAuth completed successfully');
         return { success: true };
       } else {
-        // Mobile authentication with enhanced token handling
-        console.log('📱 Starting mobile OAuth flow...');
-        
-        const redirectUri = makeRedirectUri({
-          scheme: 'xquests',
-          path: 'auth/callback',
-        });
-
-        console.log('🔗 Mobile redirect URI:', redirectUri);
-
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: 'twitter',
-          options: {
-            redirectTo: redirectUri,
-            skipBrowserRedirect: true,
-            queryParams: {
-              // Use minimal scopes to avoid email permission issues
-              scope: 'tweet.read users.read',
-            },
-          },
-        });
-
-        if (error) {
-          console.error('❌ Mobile OAuth error:', error);
-          
-          // Handle specific Twitter OAuth errors gracefully
-          const errorHandling = handleTwitterOAuthError(error);
-          
-          if (errorHandling.type === 'warning') {
-            console.log('ℹ️ Email-related error detected - this is normal for Twitter OAuth');
-            // Don't throw for email issues as they're common with Twitter
-            return { success: true };
-          }
-          
-          throw error;
-        }
-
-        if (data.url) {
-          console.log('🌐 Opening OAuth URL...');
-          
-          // Open the OAuth URL in a browser
-          const result = await WebBrowser.openAuthSessionAsync(
-            data.url,
-            redirectUri,
-            {
-              showInRecents: true,
-              preferEphemeralSession: false,
-            }
-          );
-
-          console.log('📱 OAuth result:', result.type);
-
-          if (result.type === 'success' && result.url) {
-            console.log('✅ OAuth success, processing callback...');
-            
-            // Extract tokens from the callback URL
-            const tokens = extractTokensFromUrl(result.url);
-            
-            if (tokens.error) {
-              // Handle specific error cases gracefully
-              const errorHandling = handleTwitterOAuthError(tokens);
-              
-              if (errorHandling.type === 'warning') {
-                console.warn('⚠️ Twitter email access issue - this is normal, continuing without email');
-                // Don't throw error for email issues, they're common with Twitter
-                return { success: true };
-              } else {
-                throw new Error(tokens.errorDescription || tokens.error);
-              }
-            }
-
-            // Handle PKCE flow (authorization code)
-            if (tokens.code) {
-              console.log('🔐 Processing PKCE authorization code...');
-              
-              const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(tokens.code);
-              
-              if (sessionError) {
-                console.error('❌ PKCE exchange error:', sessionError);
-                
-                // Handle email-related errors gracefully
-                const errorHandling = handleTwitterOAuthError(sessionError);
-                
-                if (errorHandling.type === 'warning') {
-                  console.warn('⚠️ Email access issue during PKCE exchange - this is normal with Twitter');
-                  // Continue anyway, as Twitter often doesn't provide email
-                  return { success: true };
-                } else {
-                  throw sessionError;
-                }
-              }
-              
-              if (sessionData.session) {
-                console.log('✅ PKCE session established successfully');
-                // The auth state change listener will handle the session update
-                return { success: true };
-              } else {
-                console.warn('⚠️ No session data from PKCE exchange, but no error - treating as success');
-                return { success: true };
-              }
-            }
-            
-            // Handle implicit flow (direct tokens)
-            if (tokens.accessToken && tokens.refreshToken) {
-              console.log('🎫 Processing direct tokens...');
-              
-              const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-                access_token: tokens.accessToken,
-                refresh_token: tokens.refreshToken,
-              });
-
-              if (sessionError) {
-                console.error('❌ Session setup error:', sessionError);
-                
-                // Handle email-related errors gracefully
-                const errorHandling = handleTwitterOAuthError(sessionError);
-                
-                if (errorHandling.type === 'warning') {
-                  console.warn('⚠️ Email access issue during session setup - this is normal with Twitter');
-                  // Continue anyway, as Twitter often doesn't provide email
-                  return { success: true };
-                } else {
-                  throw sessionError;
-                }
-              }
-
-              if (sessionData.session) {
-                console.log('✅ Direct token session established successfully');
-                // The auth state change listener will handle the session update
-                return { success: true };
-              } else {
-                console.warn('⚠️ No session data from token setup, but no error - treating as success');
-                return { success: true };
-              }
-            }
-            
-            // If we get here, check if we have any session at all
-            console.log('🔍 Checking for existing session after OAuth...');
-            const { data: currentSession } = await supabase.auth.getSession();
-            if (currentSession.session) {
-              console.log('✅ Found session after OAuth completion');
-              return { success: true };
-            }
-            
-            throw new Error('No valid authentication tokens received from OAuth callback');
-          } else if (result.type === 'cancel') {
-            throw new Error('Authentication was cancelled by user');
-          } else {
-            throw new Error('Authentication failed or was dismissed');
-          }
-        } else {
-          throw new Error('No OAuth URL received from Supabase');
-        }
+        throw new Error(result.error || 'OAuth failed');
       }
     } catch (err: any) {
       console.error('❌ Twitter sign-in error:', err);
@@ -472,7 +244,7 @@ export const useSupabaseAuth = () => {
     }
   };
 
-  // Enhanced sign out
+  // Sign out
   const signOut = async (): Promise<{ success: boolean; error?: AuthError }> => {
     try {
       setError(null);

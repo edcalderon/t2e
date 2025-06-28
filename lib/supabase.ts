@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { makeRedirectUri } from 'expo-auth-session';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
+import * as WebBrowser from 'expo-web-browser';
 
 // Environment variables validation
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -11,17 +14,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Please add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file');
 }
 
-// Create Supabase client with enhanced configuration for Twitter OAuth
+// Required for web only
+WebBrowser.maybeCompleteAuthSession();
+
+// Create Supabase client with enhanced configuration
 export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   auth: {
-    // Use AsyncStorage for session persistence on mobile
     storage: Platform.OS !== 'web' ? AsyncStorage : undefined,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: Platform.OS === 'web',
-    // Enhanced OAuth settings for Twitter
-    flowType: 'pkce', // Use PKCE flow for better security
-    debug: __DEV__, // Enable debug mode in development
+    flowType: 'pkce',
+    debug: __DEV__,
   },
   global: {
     headers: {
@@ -29,6 +33,98 @@ export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
     },
   },
 });
+
+// Get redirect URI
+const redirectTo = makeRedirectUri({
+  scheme: 'xquests',
+  path: 'auth/callback',
+});
+
+console.log('🔗 Redirect URI:', redirectTo);
+
+// Create session from URL (based on your example)
+export const createSessionFromUrl = async (url: string) => {
+  console.log('🔍 Creating session from URL:', url.substring(0, 100) + '...');
+  
+  const { params, errorCode } = QueryParams.getQueryParams(url);
+
+  if (errorCode) {
+    console.error('❌ OAuth error code:', errorCode);
+    throw new Error(errorCode);
+  }
+
+  const { access_token, refresh_token } = params;
+
+  if (!access_token) {
+    console.warn('⚠️ No access token found in URL');
+    return null;
+  }
+
+  console.log('🎫 Setting session with tokens...');
+  const { data, error } = await supabase.auth.setSession({
+    access_token,
+    refresh_token,
+  });
+
+  if (error) {
+    console.error('❌ Error setting session:', error);
+    throw error;
+  }
+
+  console.log('✅ Session created successfully');
+  return data.session;
+};
+
+// Perform OAuth (based on your example)
+export const performOAuth = async () => {
+  console.log('🐦 Starting Twitter OAuth...');
+  
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'twitter',
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error) {
+      console.error('❌ OAuth initiation error:', error);
+      throw error;
+    }
+
+    if (!data.url) {
+      throw new Error('No OAuth URL received');
+    }
+
+    console.log('🌐 Opening OAuth URL...');
+    
+    // Open OAuth URL in browser
+    const result = await WebBrowser.openAuthSessionAsync(
+      data.url,
+      redirectTo,
+      {
+        showInRecents: true,
+        preferEphemeralSession: false,
+      }
+    );
+
+    console.log('📱 OAuth result:', result.type);
+
+    if (result.type === 'success' && result.url) {
+      console.log('✅ OAuth success, creating session...');
+      const session = await createSessionFromUrl(result.url);
+      return { success: true, session };
+    } else if (result.type === 'cancel') {
+      throw new Error('Authentication was cancelled');
+    } else {
+      throw new Error('Authentication failed or was dismissed');
+    }
+  } catch (error: any) {
+    console.error('❌ OAuth error:', error);
+    return { success: false, error: error.message };
+  }
+};
 
 // Enhanced helper function to get Twitter user data from Supabase user
 export const getTwitterUserData = (user: any) => {
@@ -44,7 +140,6 @@ export const getTwitterUserData = (user: any) => {
     metadataKeys: user.user_metadata ? Object.keys(user.user_metadata) : [],
     hasIdentities: !!user.identities,
     identitiesCount: user.identities?.length || 0,
-    rawUserData: __DEV__ ? user : '[Hidden in production]',
   });
 
   const twitterData = user.user_metadata || {};
@@ -119,56 +214,6 @@ export const getTwitterUserData = (user: any) => {
   return extractedData;
 };
 
-// Enhanced token extraction helper
-export const extractTokensFromUrl = (url: string) => {
-  console.log('🔍 Extracting tokens from URL:', url.substring(0, 100) + '...');
-  
-  try {
-    const urlObj = new URL(url);
-    
-    // Try to extract from hash fragment first (common for OAuth)
-    const hashParams = new URLSearchParams(urlObj.hash.substring(1));
-    const queryParams = new URLSearchParams(urlObj.search);
-    
-    // Check both hash and query parameters
-    const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
-    const code = hashParams.get('code') || queryParams.get('code');
-    const error = hashParams.get('error') || queryParams.get('error');
-    const errorDescription = hashParams.get('error_description') || queryParams.get('error_description');
-    
-    const tokens = {
-      accessToken,
-      refreshToken,
-      code,
-      error,
-      errorDescription,
-      type: hashParams.get('type') || queryParams.get('type'),
-    };
-    
-    console.log('🎯 Extracted tokens:', {
-      hasAccessToken: !!tokens.accessToken,
-      hasRefreshToken: !!tokens.refreshToken,
-      hasCode: !!tokens.code,
-      hasError: !!tokens.error,
-      type: tokens.type,
-      errorDescription: tokens.errorDescription,
-    });
-    
-    return tokens;
-  } catch (error) {
-    console.error('❌ Error extracting tokens:', error);
-    return {
-      accessToken: null,
-      refreshToken: null,
-      code: null,
-      error: 'token_extraction_failed',
-      errorDescription: 'Failed to extract tokens from URL',
-      type: null,
-    };
-  }
-};
-
 // Helper to check if an error is email-related (and therefore safe to ignore)
 export const isEmailRelatedError = (error: any): boolean => {
   if (!error) return false;
@@ -178,8 +223,7 @@ export const isEmailRelatedError = (error: any): boolean => {
   return errorMessage.includes('email') || 
          errorMessage.includes('user email') ||
          errorMessage.includes('external provider') ||
-         errorMessage.includes('server_error') ||
-         (error.error === 'server_error' && errorMessage.includes('email'));
+         errorMessage.includes('server_error');
 };
 
 // Helper to handle Twitter OAuth errors gracefully
@@ -228,65 +272,6 @@ export const validateTwitterOAuthConfig = () => {
   
   console.log('✅ Twitter OAuth configuration is valid');
   return { valid: true, issues: [] };
-};
-
-// Helper to get the correct redirect URL for the current environment
-export const getRedirectUrl = () => {
-  if (Platform.OS === 'web') {
-    // For web, use the current origin
-    if (typeof window !== 'undefined') {
-      const origin = window.location.origin;
-      const redirectUrl = `${origin}/auth/callback`;
-      console.log('🌐 Web redirect URL:', redirectUrl);
-      return redirectUrl;
-    }
-    return 'http://localhost:8081/auth/callback'; // Fallback for development
-  } else {
-    // For mobile, use the app scheme
-    const redirectUrl = 'xquests://auth/callback';
-    console.log('📱 Mobile redirect URL:', redirectUrl);
-    return redirectUrl;
-  }
-};
-
-// Enhanced Twitter OAuth initiation with email handling
-export const initiateTwitterOAuth = async () => {
-  try {
-    console.log('🐦 Initiating Twitter OAuth...');
-    console.log('ℹ️ Note: Twitter may not provide email - this is normal behavior');
-    
-    const redirectUrl = getRedirectUrl();
-    
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'twitter',
-      options: {
-        redirectTo: redirectUrl,
-        skipBrowserRedirect: Platform.OS !== 'web',
-        queryParams: {
-          // Request minimal scopes to reduce email permission issues
-          scope: 'tweet.read users.read',
-        },
-      },
-    });
-
-    if (error) {
-      console.error('❌ OAuth initiation error:', error);
-      
-      // Don't fail for email-related issues
-      if (error.message?.toLowerCase().includes('email')) {
-        console.log('ℹ️ Email-related OAuth issue detected - this is normal for Twitter');
-        return { success: true, data, warning: 'Email not available from Twitter' };
-      }
-      
-      throw error;
-    }
-
-    console.log('✅ OAuth initiated successfully');
-    return { success: true, data };
-  } catch (error: any) {
-    console.error('❌ Failed to initiate Twitter OAuth:', error);
-    return { success: false, error: error.message };
-  }
 };
 
 // Enhanced sign out function

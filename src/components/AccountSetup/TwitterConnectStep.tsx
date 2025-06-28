@@ -53,16 +53,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
 
   // Update parent component when authentication state changes
   useEffect(() => {
-    if (isAuthenticated && user) {
-      setConnectionStage('completing');
-      setTimeout(() => {
-        onConnect(true);
-        setIsConnecting(false);
-        setConnectionStage('idle');
-      }, 1000);
-    } else if (isAuthenticated && !user) {
-      // We have a session but no extracted user data - still consider it success
-      console.log('ℹ️ Authenticated but no user data extracted - treating as success');
+    if (isAuthenticated && !isConnecting) {
       setConnectionStage('completing');
       setTimeout(() => {
         onConnect(true);
@@ -70,7 +61,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
         setConnectionStage('idle');
       }, 1000);
     }
-  }, [isAuthenticated, user, onConnect]);
+  }, [isAuthenticated, onConnect, isConnecting]);
 
   const handleConnect = async () => {
     if (isAuthenticated || isConnecting) return;
