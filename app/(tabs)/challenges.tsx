@@ -11,7 +11,9 @@ import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
 import { Filter, Search } from "lucide-react-native";
 import ChallengeCard from "../../src/components/ChallengeCard";
+import SharedSidebar from "../../components/SharedSidebar";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useSidebar } from "../../contexts/SidebarContext";
 
 interface Challenge {
   id: string;
@@ -27,6 +29,7 @@ interface Challenge {
 
 export default function ChallengesScreen() {
   const { theme, isDark } = useTheme();
+  const { sidebarCollapsed, setSidebarCollapsed } = useSidebar();
   const styles = createStyles(theme);
   const [activeTab, setActiveTab] = useState<
     "available" | "active" | "completed"
@@ -128,109 +131,126 @@ export default function ChallengesScreen() {
         backgroundColor={theme.colors.background} 
       />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Challenges</Text>
-      </View>
+      <View style={styles.layout}>
+        <SharedSidebar 
+          sidebarCollapsed={sidebarCollapsed}
+          setSidebarCollapsed={setSidebarCollapsed}
+        />
 
-      {/* Search and Filter */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Search size={18} color={theme.colors.textSecondary} />
-          <Text style={styles.searchPlaceholder}>Search challenges...</Text>
-        </View>
-        <TouchableOpacity style={styles.filterButton}>
-          <Filter size={20} color={theme.colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          onPress={() => setActiveTab("available")}
-          style={[
-            styles.tab,
-            activeTab === "available" && styles.activeTab
-          ]}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "available" ? styles.activeTabText : styles.inactiveTabText
-            ]}
-          >
-            Available
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveTab("active")}
-          style={[
-            styles.tab,
-            activeTab === "active" && styles.activeTab
-          ]}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "active" ? styles.activeTabText : styles.inactiveTabText
-            ]}
-          >
-            Active
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveTab("completed")}
-          style={[
-            styles.tab,
-            activeTab === "completed" && styles.activeTab
-          ]}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "completed" ? styles.activeTabText : styles.inactiveTabText
-            ]}
-          >
-            Completed
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Challenge List */}
-      <ScrollView style={styles.challengeList}>
-        {displayChallenges.length > 0 ? (
-          displayChallenges.map((challenge) => (
-            <ChallengeCard
-              key={challenge.id}
-              title={challenge.title}
-              theme={challenge.theme}
-              reward={challenge.reward}
-              timeRemaining={challenge.timeRemaining}
-              requiredLikes={challenge.requiredLikes}
-              requiredRetweets={challenge.requiredRetweets}
-              requiredReplies={challenge.requiredReplies}
-              onSelect={() => handleSelectChallenge(challenge.id)}
-            />
-          ))
-        ) : (
-          <View style={styles.emptyState}>
-            <Image
-              source={require("../../assets/images/xquests-logo.png")}
-              style={styles.emptyStateImage}
-              contentFit="contain"
-            />
-            <Text style={styles.emptyStateText}>
-              No {activeTab} challenges found
-            </Text>
+        <View style={styles.mainContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Challenges</Text>
           </View>
-        )}
-      </ScrollView>
+
+          {/* Search and Filter */}
+          <View style={styles.searchContainer}>
+            <View style={styles.searchBar}>
+              <Search size={18} color={theme.colors.textSecondary} />
+              <Text style={styles.searchPlaceholder}>Search challenges...</Text>
+            </View>
+            <TouchableOpacity style={styles.filterButton}>
+              <Filter size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Tabs */}
+          <View style={styles.tabsContainer}>
+            <TouchableOpacity
+              onPress={() => setActiveTab("available")}
+              style={[
+                styles.tab,
+                activeTab === "available" && styles.activeTab
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "available" ? styles.activeTabText : styles.inactiveTabText
+                ]}
+              >
+                Available
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setActiveTab("active")}
+              style={[
+                styles.tab,
+                activeTab === "active" && styles.activeTab
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "active" ? styles.activeTabText : styles.inactiveTabText
+                ]}
+              >
+                Active
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setActiveTab("completed")}
+              style={[
+                styles.tab,
+                activeTab === "completed" && styles.activeTab
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "completed" ? styles.activeTabText : styles.inactiveTabText
+                ]}
+              >
+                Completed
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Challenge List */}
+          <ScrollView style={styles.challengeList}>
+            {displayChallenges.length > 0 ? (
+              displayChallenges.map((challenge) => (
+                <ChallengeCard
+                  key={challenge.id}
+                  title={challenge.title}
+                  theme={challenge.theme}
+                  reward={challenge.reward}
+                  timeRemaining={challenge.timeRemaining}
+                  requiredLikes={challenge.requiredLikes}
+                  requiredRetweets={challenge.requiredRetweets}
+                  requiredReplies={challenge.requiredReplies}
+                  onSelect={() => handleSelectChallenge(challenge.id)}
+                />
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Image
+                  source={require("../../assets/images/xquests-logo.png")}
+                  style={styles.emptyStateImage}
+                  contentFit="contain"
+                />
+                <Text style={styles.emptyStateText}>
+                  No {activeTab} challenges found
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
 
 const createStyles = (theme: any) => StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  layout: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  mainContent: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },

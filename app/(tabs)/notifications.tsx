@@ -9,7 +9,9 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Bell, Award, Star } from "lucide-react-native";
+import SharedSidebar from "../../components/SharedSidebar";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useSidebar } from "../../contexts/SidebarContext";
 
 interface Notification {
   id: string;
@@ -23,6 +25,7 @@ interface Notification {
 
 export default function NotificationsScreen() {
   const { theme, isDark } = useTheme();
+  const { sidebarCollapsed, setSidebarCollapsed } = useSidebar();
   const styles = createStyles(theme);
   const [notifications, setNotifications] = useState<Notification[]>([
     {
@@ -100,50 +103,67 @@ export default function NotificationsScreen() {
         backgroundColor={theme.colors.background} 
       />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Notifications</Text>
-      </View>
+      <View style={styles.layout}>
+        <SharedSidebar 
+          sidebarCollapsed={sidebarCollapsed}
+          setSidebarCollapsed={setSidebarCollapsed}
+        />
 
-      {/* Notification List */}
-      <ScrollView style={styles.scrollView}>
-        {notifications.map((notification) => (
-          <TouchableOpacity
-            key={notification.id}
-            style={[
-              styles.notificationItem,
-              notification.read ? styles.readNotification : styles.unreadNotification
-            ]}
-            onPress={() => markAsRead(notification.id)}
-          >
-            <View style={styles.notificationContent}>
-              <View style={styles.iconContainer}>
-                {getNotificationIcon(notification.type)}
-              </View>
-              <View style={styles.textContainer}>
-                <View style={styles.titleRow}>
-                  <Text style={styles.notificationTitle}>
-                    {notification.title}
-                  </Text>
-                  <Text style={styles.timestamp}>
-                    {notification.timestamp}
-                  </Text>
+        <View style={styles.mainContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Notifications</Text>
+          </View>
+
+          {/* Notification List */}
+          <ScrollView style={styles.scrollView}>
+            {notifications.map((notification) => (
+              <TouchableOpacity
+                key={notification.id}
+                style={[
+                  styles.notificationItem,
+                  notification.read ? styles.readNotification : styles.unreadNotification
+                ]}
+                onPress={() => markAsRead(notification.id)}
+              >
+                <View style={styles.notificationContent}>
+                  <View style={styles.iconContainer}>
+                    {getNotificationIcon(notification.type)}
+                  </View>
+                  <View style={styles.textContainer}>
+                    <View style={styles.titleRow}>
+                      <Text style={styles.notificationTitle}>
+                        {notification.title}
+                      </Text>
+                      <Text style={styles.timestamp}>
+                        {notification.timestamp}
+                      </Text>
+                    </View>
+                    <Text style={styles.notificationMessage}>{notification.message}</Text>
+                  </View>
+                  {!notification.read && (
+                    <View style={styles.unreadIndicator} />
+                  )}
                 </View>
-                <Text style={styles.notificationMessage}>{notification.message}</Text>
-              </View>
-              {!notification.read && (
-                <View style={styles.unreadIndicator} />
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
 
 const createStyles = (theme: any) => StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  layout: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  mainContent: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
