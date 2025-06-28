@@ -18,6 +18,26 @@ export interface Theme {
     borderLight: string;
     accent: string;
     overlay: string;
+    xqblue: {
+      light: string;
+      DEFAULT: string;
+      dark: string;
+    };
+    xqcyan: {
+      light: string;
+      DEFAULT: string;
+      dark: string;
+    };
+    xqpurple: {
+      light: string;
+      DEFAULT: string;
+      dark: string;
+    };
+    xqdark: {
+      light: string;
+      DEFAULT: string;
+      dark: string;
+    };
   };
   isDark: boolean;
 }
@@ -39,6 +59,26 @@ const lightTheme: Theme = {
     borderLight: '#F7F9FA',
     accent: '#794BC4',
     overlay: 'rgba(0, 0, 0, 0.4)',
+    xqblue: {
+      light: '#60A5FA',
+      DEFAULT: '#3B82F6',
+      dark: '#1D4ED8',
+    },
+    xqcyan: {
+      light: '#67E8F9',
+      DEFAULT: '#06B6D4',
+      dark: '#0891B2',
+    },
+    xqpurple: {
+      light: '#A78BFA',
+      DEFAULT: '#8B5CF6',
+      dark: '#7C3AED',
+    },
+    xqdark: {
+      light: '#6B7280',
+      DEFAULT: '#374151',
+      dark: '#1F2937',
+    },
   },
   isDark: false,
 };
@@ -60,6 +100,26 @@ const darkTheme: Theme = {
     borderLight: '#3E4144',
     accent: '#794BC4',
     overlay: 'rgba(0, 0, 0, 0.6)',
+    xqblue: {
+      light: '#60A5FA',
+      DEFAULT: '#3B82F6',
+      dark: '#1D4ED8',
+    },
+    xqcyan: {
+      light: '#67E8F9',
+      DEFAULT: '#06B6D4',
+      dark: '#0891B2',
+    },
+    xqpurple: {
+      light: '#A78BFA',
+      DEFAULT: '#8B5CF6',
+      dark: '#7C3AED',
+    },
+    xqdark: {
+      light: '#6B7280',
+      DEFAULT: '#374151',
+      dark: '#1F2937',
+    },
   },
   isDark: true,
 };
