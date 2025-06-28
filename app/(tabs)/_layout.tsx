@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { TouchableOpacity } from 'react-native';
 import { Chrome as Home, Award, Bell, Settings } from "lucide-react-native";
 import { useTheme } from '../../contexts/ThemeContext';
 import { Platform } from 'react-native';
