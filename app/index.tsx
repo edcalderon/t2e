@@ -151,7 +151,10 @@ export default function HomeScreen() {
       <Animated.View style={[styles.sidebar, { width: sidebarWidth }]}>
         {/* X Logo */}
         <View style={styles.logoContainer}>
-          <View style={styles.xLogo}>
+          <View style={[
+            styles.xLogo,
+            sidebarCollapsed && styles.xLogoCollapsed
+          ]}>
             <Text style={styles.xLogoText}>𝕏</Text>
           </View>
         </View>
@@ -172,19 +175,20 @@ export default function HomeScreen() {
                   styles.navItemContent,
                   sidebarCollapsed && styles.navItemContentCollapsed
                 ]}>
-                  <View style={styles.iconContainer}>
+                  <View style={[
+                    styles.iconContainer,
+                    sidebarCollapsed && styles.iconContainerCollapsed
+                  ]}>
                     <IconComponent 
                       size={26} 
                       color={isActive ? theme.colors.text : theme.colors.textSecondary}
                       strokeWidth={isActive ? 2.5 : 2}
                     />
-                    {item.badge && !sidebarCollapsed && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{item.badge}</Text>
-                      </View>
-                    )}
-                    {item.badge && sidebarCollapsed && (
-                      <View style={styles.badgeCollapsed}>
+                    {item.badge && (
+                      <View style={[
+                        styles.badge,
+                        sidebarCollapsed && styles.badgeCollapsed
+                      ]}>
                         <Text style={styles.badgeText}>{item.badge}</Text>
                       </View>
                     )}
@@ -231,7 +235,10 @@ export default function HomeScreen() {
             <Text style={styles.userHandle}>{userProfile.handle}</Text>
           </Animated.View>
           <TouchableOpacity 
-            style={styles.collapseButton}
+            style={[
+              styles.collapseButton,
+              sidebarCollapsed && styles.collapseButtonCollapsed
+            ]}
             onPress={toggleSidebar}
           >
             {sidebarCollapsed ? (
@@ -499,13 +506,18 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   logoContainer: {
     paddingVertical: 12,
-    paddingHorizontal: 12,
+    alignItems: 'flex-start',
   },
   xLogo: {
     width: 32,
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 12,
+  },
+  xLogoCollapsed: {
+    alignSelf: 'center',
+    marginLeft: 0,
   },
   xLogoText: {
     fontSize: 24,
@@ -532,10 +544,18 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   navItemContentCollapsed: {
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
   },
   iconContainer: {
     position: 'relative',
+    width: 26,
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainerCollapsed: {
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -568,8 +588,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'absolute',
-    top: -8,
-    right: -8,
+    top: -4,
+    right: 8,
   },
   badgeText: {
     color: '#FFFFFF',
@@ -614,6 +634,8 @@ const createStyles = (theme: any) => StyleSheet.create({
   userProfileCollapsed: {
     justifyContent: 'center',
     paddingHorizontal: 16,
+    flexDirection: 'column',
+    alignItems: 'center',
   },
   userAvatar: {
     width: 40,
@@ -635,6 +657,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   collapseButton: {
     padding: 4,
+  },
+  collapseButtonCollapsed: {
+    marginTop: 8,
+    alignSelf: 'center',
   },
   mainContent: {
     flex: 1,
