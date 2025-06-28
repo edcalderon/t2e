@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
-import { Twitter, Check, AlertCircle, RefreshCw, Shield, Clock } from "lucide-react-native";
+import { Twitter, Check, AlertCircle, RefreshCw, Shield, Clock, Settings } from "lucide-react-native";
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useSupabaseAuth } from '../../../hooks/useSupabaseAuth';
 
@@ -28,7 +28,8 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
     signInWithTwitter, 
     retry, 
     clearError,
-    isInitialized 
+    isInitialized,
+    retryCount 
   } = useSupabaseAuth();
   
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -66,10 +67,10 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
     try {
       const result = await signInWithTwitter();
       if (!result.success) {
-        console.error('Twitter connection failed:', result.error);
+        console.error('❌ Twitter connection failed:', result.error);
       }
     } catch (err) {
-      console.error('Connection error:', err);
+      console.error('❌ Connection error:', err);
     } finally {
       setIsConnecting(false);
     }
@@ -82,9 +83,43 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
     try {
       await retry();
     } catch (err) {
-      console.error('Retry error:', err);
+      console.error('❌ Retry error:', err);
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  const getErrorMessage = (error: any) => {
+    if (!error) return '';
+    
+    switch (error.type) {
+      case 'config':
+        return 'Configuration issue detected. Please check your Supabase setup.';
+      case 'network':
+        return 'Network connection issue. Please check your internet connection.';
+      case 'token':
+        return 'Authentication token issue. This usually resolves with a retry.';
+      case 'auth':
+        return 'Authentication service issue. Please try again.';
+      default:
+        return error.message || 'An unexpected error occurred.';
+    }
+  };
+
+  const getErrorSolution = (error: any) => {
+    if (!error) return '';
+    
+    switch (error.type) {
+      case 'config':
+        return 'Ensure EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are set in your .env file.';
+      case 'network':
+        return 'Check your internet connection and try again.';
+      case 'token':
+        return 'This is usually temporary. Try again in a moment.';
+      case 'auth':
+        return 'The authentication service may be temporarily unavailable.';
+      default:
+        return 'Try refreshing the app or contact support if the issue persists.';
     }
   };
 
@@ -163,7 +198,7 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
     );
   }
 
-  // Error state
+  // Error state with enhanced error handling
   if (error) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
@@ -174,7 +209,20 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
           
           <Text style={styles.errorTitle}>Connection Failed</Text>
           <Text style={styles.errorMessage}>
-            {error.message || 'Unable to connect to X. Please try again.'}
+            {getErrorMessage(error)}
+          </Text>
+
+          {error.type === 'config' && (
+            <View style={styles.configHelp}>
+              <Settings size={16} color={theme.colors.warning} />
+              <Text style={styles.configHelpText}>
+                Configuration Issue Detected
+              </Text>
+            </View>
+          )}
+
+          <Text style={styles.errorSolution}>
+            {getErrorSolution(error)}
           </Text>
 
           <TouchableOpacity
@@ -187,14 +235,18 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
             ) : (
               <>
                 <RefreshCw size={16} color="#FFFFFF" />
-                <Text style={styles.retryButtonText}>Try Again</Text>
+                <Text style={styles.retryButtonText}>
+                  Try Again {retryCount > 0 && `(${retryCount + 1})`}
+                </Text>
               </>
             )}
           </TouchableOpacity>
 
-          <Text style={styles.errorHint}>
-            Make sure you have a stable internet connection and try again.
-          </Text>
+          {retryCount > 2 && (
+            <Text style={styles.persistentErrorHint}>
+              If this issue persists, please check your Supabase configuration and internet connection.
+            </Text>
+          )}
         </View>
       </Animated.View>
     );
@@ -514,6 +566,29 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  configHelp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.warning + '10',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  configHelpText: {
+    fontSize: 12,
+    color: theme.colors.warning,
+    fontWeight: '600',
+  },
+  errorSolution: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 16,
     marginBottom: 24,
     paddingHorizontal: 20,
   },
@@ -532,10 +607,11 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  errorHint: {
-    fontSize: 12,
+  persistentErrorHint: {
+    fontSize: 11,
     color: theme.colors.textTertiary,
     textAlign: 'center',
     paddingHorizontal: 20,
+    fontStyle: 'italic',
   },
 });

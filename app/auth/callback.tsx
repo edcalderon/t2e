@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { supabase } from '../../lib/supabase';
+import { supabase, extractTokensFromUrl } from '../../lib/supabase';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Check, AlertCircle } from 'lucide-react-native';
+import { Check, AlertCircle, RefreshCw } from 'lucide-react-native';
 
 export default function AuthCallback() {
   const { theme } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
-  const [message, setMessage] = useState('Completing authentication...');
+  const [message, setMessage] = useState('Processing authentication...');
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   useEffect(() => {
     handleAuthCallback();
@@ -19,86 +20,130 @@ export default function AuthCallback() {
   const handleAuthCallback = async () => {
     try {
       setStatus('processing');
-      setMessage('Processing authentication...');
+      setMessage('🔍 Processing authentication callback...');
 
-      // Extract tokens from URL parameters (both query params and hash fragments)
-      const { 
-        access_token, 
-        refresh_token, 
-        error, 
-        error_description,
-        type 
-      } = params;
+      console.log('🔄 Auth callback started');
+      console.log('📋 Callback params:', params);
 
-      console.log('Auth callback params:', { access_token: !!access_token, refresh_token: !!refresh_token, error, type });
+      // Extract all possible parameters
+      const allParams = {
+        // Direct parameters
+        access_token: params.access_token,
+        refresh_token: params.refresh_token,
+        code: params.code,
+        error: params.error,
+        error_description: params.error_description,
+        type: params.type,
+        // URL-based extraction
+        ...extractTokensFromUrl(window?.location?.href || ''),
+      };
 
-      if (error) {
-        console.error('Auth callback error:', error, error_description);
+      console.log('🎯 All extracted parameters:', {
+        hasAccessToken: !!allParams.access_token,
+        hasRefreshToken: !!allParams.refresh_token,
+        hasCode: !!allParams.code,
+        hasError: !!allParams.error,
+        type: allParams.type,
+      });
+
+      if (__DEV__) {
+        setDebugInfo(allParams);
+      }
+
+      // Handle OAuth errors first
+      if (allParams.error) {
+        console.error('❌ OAuth error received:', allParams.error, allParams.error_description);
         setStatus('error');
-        setMessage(`Authentication failed: ${error_description || error}`);
+        setMessage(`Authentication failed: ${allParams.error_description || allParams.error}`);
         
-        // Redirect to home after showing error
         setTimeout(() => {
           router.replace('/(tabs)/');
         }, 3000);
         return;
       }
 
-      if (access_token && refresh_token) {
-        setMessage('Setting up your session...');
+      // Handle PKCE flow (authorization code)
+      if (allParams.code) {
+        console.log('🔐 Processing PKCE authorization code...');
+        setMessage('🔐 Exchanging authorization code for session...');
         
-        // Set the session with the tokens
-        const { data, error: sessionError } = await supabase.auth.setSession({
-          access_token: access_token as string,
-          refresh_token: refresh_token as string,
-        });
+        try {
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(allParams.code as string);
+          
+          if (exchangeError) {
+            console.error('❌ PKCE exchange error:', exchangeError);
+            throw new Error(`Code exchange failed: ${exchangeError.message}`);
+          }
 
-        if (sessionError) {
-          console.error('Session error:', sessionError);
-          setStatus('error');
-          setMessage(`Session setup failed: ${sessionError.message}`);
-          
-          setTimeout(() => {
-            router.replace('/(tabs)/');
-          }, 3000);
-          return;
+          if (data.session) {
+            console.log('✅ PKCE authentication successful:', data.session.user.id);
+            setStatus('success');
+            setMessage('✅ Authentication successful! Redirecting...');
+            
+            setTimeout(() => {
+              router.replace('/(tabs)/');
+            }, 2000);
+            return;
+          } else {
+            throw new Error('No session data received from code exchange');
+          }
+        } catch (codeError: any) {
+          console.error('❌ Code exchange error:', codeError);
+          throw new Error(`PKCE flow failed: ${codeError.message}`);
         }
-
-        if (data.session) {
-          console.log('Authentication successful:', data.session.user.id);
-          setStatus('success');
-          setMessage('Authentication successful! Redirecting...');
-          
-          // Redirect to home page after success
-          setTimeout(() => {
-            router.replace('/(tabs)/');
-          }, 2000);
-        } else {
-          setStatus('error');
-          setMessage('No session data received');
-          
-          setTimeout(() => {
-            router.replace('/(tabs)/');
-          }, 3000);
-        }
-      } else {
-        // No tokens found, might be initial redirect
-        console.log('No tokens found in callback, redirecting to home');
-        setStatus('error');
-        setMessage('No authentication tokens received');
-        
-        setTimeout(() => {
-          router.replace('/(tabs)/');
-        }, 2000);
       }
-    } catch (error) {
-      console.error('Auth callback processing error:', error);
+
+      // Handle implicit flow (direct tokens)
+      if (allParams.access_token && allParams.refresh_token) {
+        console.log('🎫 Processing direct access tokens...');
+        setMessage('🎫 Setting up session with tokens...');
+        
+        try {
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: allParams.access_token as string,
+            refresh_token: allParams.refresh_token as string,
+          });
+
+          if (sessionError) {
+            console.error('❌ Session setup error:', sessionError);
+            throw new Error(`Session setup failed: ${sessionError.message}`);
+          }
+
+          if (data.session) {
+            console.log('✅ Token authentication successful:', data.session.user.id);
+            setStatus('success');
+            setMessage('✅ Authentication successful! Redirecting...');
+            
+            setTimeout(() => {
+              router.replace('/(tabs)/');
+            }, 2000);
+            return;
+          } else {
+            throw new Error('No session data received from token setup');
+          }
+        } catch (tokenError: any) {
+          console.error('❌ Token setup error:', tokenError);
+          throw new Error(`Token flow failed: ${tokenError.message}`);
+        }
+      }
+
+      // If we get here, no valid authentication method was found
+      console.warn('⚠️ No valid authentication tokens or code found');
       setStatus('error');
-      setMessage('An unexpected error occurred during authentication');
+      setMessage('❌ No authentication tokens received. Please try signing in again.');
       
       setTimeout(() => {
         router.replace('/(tabs)/');
       }, 3000);
+
+    } catch (error: any) {
+      console.error('❌ Auth callback processing error:', error);
+      setStatus('error');
+      setMessage(`❌ Authentication failed: ${error.message}`);
+      
+      setTimeout(() => {
+        router.replace('/(tabs)/');
+      }, 4000);
     }
   };
 
@@ -110,7 +155,7 @@ export default function AuthCallback() {
         {status === 'processing' && (
           <>
             <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={styles.title}>Processing...</Text>
+            <Text style={styles.title}>Processing Authentication</Text>
           </>
         )}
         
@@ -138,6 +183,16 @@ export default function AuthCallback() {
           <Text style={styles.redirectText}>
             Redirecting you back to the app...
           </Text>
+        )}
+
+        {/* Debug information in development */}
+        {__DEV__ && debugInfo && (
+          <View style={styles.debugContainer}>
+            <Text style={styles.debugTitle}>Debug Info:</Text>
+            <Text style={styles.debugText}>
+              {JSON.stringify(debugInfo, null, 2)}
+            </Text>
+          </View>
         )}
       </View>
     </View>
@@ -190,5 +245,23 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.error + '20',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  debugContainer: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 8,
+    maxWidth: '100%',
+  },
+  debugTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
+  debugText: {
+    fontSize: 10,
+    color: theme.colors.textSecondary,
+    fontFamily: 'monospace',
   },
 });
