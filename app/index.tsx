@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
-import { Award, Plus, Search, Sparkles, TrendingUp, Users, Moon, Sun, Trophy, Bell, Mail, Bookmark, CreditCard, User, MoveHorizontal as MoreHorizontal, Zap, Chrome as Home, Settings, Menu, X } from "lucide-react-native";
+import { Award, Plus, Search, Sparkles, TrendingUp, Users, Moon, Sun, Trophy, Bell, Settings, Menu, MoreHorizontal } from "lucide-react-native";
 import ChallengeCard from "../src/components/ChallengeCard";
 import LeaderboardSection from "../src/components/LeaderboardSection";
 import AccountSetupModal from "../src/components/AccountSetupModal";
@@ -24,7 +24,7 @@ export default function HomeScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState('explore');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarAnimation] = useState(new Animated.Value(1));
   const [userProfile, setUserProfile] = useState({
@@ -120,15 +120,10 @@ export default function HomeScreen() {
   };
 
   const sidebarItems = [
-    { id: 'home', icon: Home, label: 'Home' },
     { id: 'explore', icon: Search, label: 'Explore' },
     { id: 'notifications', icon: Bell, label: 'Notifications', badge: 3 },
-    { id: 'messages', icon: Mail, label: 'Messages' },
-    { id: 'bookmarks', icon: Bookmark, label: 'Bookmarks' },
-    { id: 'monetization', icon: CreditCard, label: 'Monetization' },
-    { id: 'verified-orgs', icon: Award, label: 'Verified Orgs' },
-    { id: 'profile', icon: User, label: 'Profile' },
-    { id: 'more', icon: MoreHorizontal, label: 'More' },
+    { id: 'challenges', icon: Award, label: 'Challenges' },
+    { id: 'settings', icon: Settings, label: 'Settings' },
   ];
 
   const renderSidebar = () => {
@@ -175,10 +170,7 @@ export default function HomeScreen() {
                   styles.navItemContent,
                   sidebarCollapsed && styles.navItemContentCollapsed
                 ]}>
-                  <View style={[
-                    styles.iconContainer,
-                    sidebarCollapsed && styles.iconContainerCollapsed
-                  ]}>
+                  <View style={styles.iconWrapper}>
                     <IconComponent 
                       size={26} 
                       color={isActive ? theme.colors.text : theme.colors.textSecondary}
@@ -258,14 +250,10 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>
-            {activeTab === 'home' ? 'Home' : 
-             activeTab === 'explore' ? 'Explore' :
+            {activeTab === 'explore' ? 'Explore' :
              activeTab === 'notifications' ? 'Notifications' :
-             activeTab === 'messages' ? 'Messages' :
-             activeTab === 'bookmarks' ? 'Bookmarks' :
-             activeTab === 'monetization' ? 'Monetization' :
-             activeTab === 'verified-orgs' ? 'Verified Organizations' :
-             activeTab === 'profile' ? 'Profile' : 'More'}
+             activeTab === 'challenges' ? 'Challenges' :
+             activeTab === 'settings' ? 'Settings' : 'XQuests'}
           </Text>
 
           <View style={styles.headerActions}>
@@ -317,7 +305,7 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {activeTab === 'home' && (
+        {activeTab === 'explore' && (
           <>
             {/* Stats Cards */}
             <View style={styles.statsContainer}>
@@ -347,7 +335,10 @@ export default function HomeScreen() {
                   <Text style={styles.quickActionText}>New Tweet</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={styles.quickActionButton}>
+                <TouchableOpacity 
+                  style={styles.quickActionButton}
+                  onPress={() => setActiveTab('challenges')}
+                >
                   <Award size={20} color={theme.colors.primary} />
                   <Text style={styles.quickActionText}>Browse Challenges</Text>
                 </TouchableOpacity>
@@ -358,7 +349,7 @@ export default function HomeScreen() {
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Featured Challenges</Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => setActiveTab('challenges')}>
                   <Text style={styles.sectionLink}>View All</Text>
                 </TouchableOpacity>
               </View>
@@ -444,18 +435,70 @@ export default function HomeScreen() {
           </>
         )}
 
-        {activeTab !== 'home' && (
-          <View style={styles.placeholderContent}>
-            <Text style={styles.placeholderText}>
-              {activeTab === 'explore' ? 'Explore trending topics and discover new content' :
-               activeTab === 'notifications' ? 'Stay updated with your latest notifications' :
-               activeTab === 'messages' ? 'Connect with your community through direct messages' :
-               activeTab === 'bookmarks' ? 'Access your saved posts and content' :
-               activeTab === 'monetization' ? 'Track your earnings and monetization metrics' :
-               activeTab === 'verified-orgs' ? 'Manage your verified organization settings' :
-               activeTab === 'profile' ? 'View and edit your profile information' :
-               'Additional features and settings'}
-            </Text>
+        {activeTab === 'challenges' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>All Challenges</Text>
+            {challenges.map((challenge) => (
+              <ChallengeCard
+                key={challenge.id}
+                title={challenge.description}
+                theme={challenge.theme}
+                reward={challenge.reward}
+                timeRemaining={challenge.timeRemaining}
+                requiredLikes={challenge.requiredLikes}
+                requiredRetweets={challenge.requiredRetweets}
+                requiredReplies={5}
+                onSelect={() => handleSelectChallenge(challenge.id)}
+              />
+            ))}
+          </View>
+        )}
+
+        {activeTab === 'notifications' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Notifications</Text>
+            <View style={styles.notificationItem}>
+              <View style={[styles.activityIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                <Bell size={16} color={theme.colors.primary} />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityText}>
+                  New challenge available: <Text style={styles.highlight}>Crypto Education</Text>
+                </Text>
+                <Text style={styles.activityTime}>2 hours ago</Text>
+              </View>
+            </View>
+            <View style={styles.notificationItem}>
+              <View style={[styles.activityIcon, { backgroundColor: theme.colors.success + '20' }]}>
+                <Trophy size={16} color={theme.colors.success} />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityText}>
+                  Challenge completed! You earned <Text style={styles.highlight}>40 ALGO</Text>
+                </Text>
+                <Text style={styles.activityTime}>1 day ago</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {activeTab === 'settings' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Settings</Text>
+            <View style={styles.settingsContainer}>
+              <TouchableOpacity style={styles.settingItem}>
+                <Text style={styles.settingText}>Profile Settings</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.settingItem}>
+                <Text style={styles.settingText}>Wallet Configuration</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.settingItem}>
+                <Text style={styles.settingText}>Notification Preferences</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.settingItem}>
+                <Text style={styles.settingText}>Privacy & Security</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -540,22 +583,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    position: 'relative',
   },
   navItemContentCollapsed: {
     justifyContent: 'center',
-    paddingHorizontal: 0,
+    paddingHorizontal: 16,
   },
-  iconContainer: {
+  iconWrapper: {
     position: 'relative',
     width: 26,
     height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconContainerCollapsed: {
-    width: 56,
-    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -581,15 +617,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     right: -8,
   },
   badgeCollapsed: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'absolute',
-    top: -4,
-    right: 8,
+    top: -8,
+    right: -8,
   },
   badgeText: {
     color: '#FFFFFF',
@@ -870,17 +899,27 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: 4,
   },
-  placeholderContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 64,
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: theme.colors.border,
   },
-  placeholderText: {
+  settingsContainer: {
+    marginTop: 16,
+  },
+  settingItem: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  settingText: {
     fontSize: 16,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 24,
+    color: theme.colors.text,
+    fontWeight: '500',
   },
 });
