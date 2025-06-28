@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSupabaseAuth, TwitterUser } from '../hooks/useSupabaseAuth';
 
 interface User {
   id: string;
@@ -10,6 +11,12 @@ interface User {
   twitterConnected: boolean;
   walletConnected: boolean;
   selectedThemes: string[];
+  // Twitter-specific fields
+  displayName?: string;
+  twitterId?: string;
+  verified?: boolean;
+  followerCount?: number;
+  twitterHandle?: string;
 }
 
 interface AuthContextType {
@@ -21,6 +28,10 @@ interface AuthContextType {
   updateUser: (userData: Partial<User>) => Promise<void>;
   showSetupModal: boolean;
   setShowSetupModal: (show: boolean) => void;
+  // Supabase auth integration
+  twitterUser: TwitterUser | null;
+  isSupabaseAuthenticated: boolean;
+  signOutFromTwitter: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,9 +53,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [showSetupModal, setShowSetupModal] = useState(false);
 
+  // Integrate Supabase authentication
+  const { 
+    user: twitterUser, 
+    isAuthenticated: isSupabaseAuthenticated, 
+    isLoading: isSupabaseLoading,
+    signOut: supabaseSignOut 
+  } = useSupabaseAuth();
+
   useEffect(() => {
     loadUserData();
   }, []);
+
+  // Sync Supabase user with local user data
+  useEffect(() => {
+    if (twitterUser && isSupabaseAuthenticated) {
+      syncTwitterUser(twitterUser);
+    } else if (!isSupabaseAuthenticated && user?.twitterConnected) {
+      // If Supabase auth is lost but local user thinks they're connected, update local state
+      updateLocalUser({ twitterConnected: false });
+    }
+  }, [twitterUser, isSupabaseAuthenticated]);
 
   const loadUserData = async () => {
     try {
@@ -56,6 +85,64 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Error loading user data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const syncTwitterUser = async (twitterUserData: TwitterUser) => {
+    try {
+      const existingUser = await AsyncStorage.getItem('user');
+      let updatedUser: User;
+
+      if (existingUser) {
+        // Merge with existing user data
+        const parsed = JSON.parse(existingUser);
+        updatedUser = {
+          ...parsed,
+          id: twitterUserData.id,
+          username: twitterUserData.username,
+          email: twitterUserData.email || parsed.email,
+          avatar: twitterUserData.avatar,
+          twitterConnected: true,
+          displayName: twitterUserData.displayName,
+          twitterId: twitterUserData.twitterId,
+          verified: twitterUserData.verified,
+          followerCount: twitterUserData.followerCount,
+          twitterHandle: twitterUserData.twitterHandle,
+        };
+      } else {
+        // Create new user from Twitter data
+        updatedUser = {
+          id: twitterUserData.id,
+          username: twitterUserData.username,
+          email: twitterUserData.email || '',
+          avatar: twitterUserData.avatar,
+          twitterConnected: true,
+          walletConnected: false,
+          selectedThemes: [],
+          displayName: twitterUserData.displayName,
+          twitterId: twitterUserData.twitterId,
+          verified: twitterUserData.verified,
+          followerCount: twitterUserData.followerCount,
+          twitterHandle: twitterUserData.twitterHandle,
+        };
+      }
+
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    } catch (error) {
+      console.log('Error syncing Twitter user:', error);
+    }
+  };
+
+  const updateLocalUser = async (updates: Partial<User>) => {
+    if (!user) return;
+    
+    const updatedUser = { ...user, ...updates };
+    try {
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    } catch (error) {
+      console.log('Error updating local user:', error);
     }
   };
 
@@ -72,8 +159,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await AsyncStorage.removeItem('user');
       setUser(null);
+      
+      // Also sign out from Supabase if authenticated
+      if (isSupabaseAuthenticated) {
+        await supabaseSignOut();
+      }
     } catch (error) {
       console.log('Error removing user data:', error);
+    }
+  };
+
+  const signOutFromTwitter = async () => {
+    try {
+      await supabaseSignOut();
+      
+      // Update local user to reflect Twitter disconnection
+      if (user) {
+        await updateLocalUser({ 
+          twitterConnected: false,
+          twitterId: undefined,
+          twitterHandle: undefined,
+          verified: false,
+          followerCount: 0,
+        });
+      }
+    } catch (error) {
+      console.log('Error signing out from Twitter:', error);
     }
   };
 
@@ -89,18 +200,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const isAuthenticated = !!user;
+  // Determine overall authentication status
+  const isAuthenticated = !!user || isSupabaseAuthenticated;
+  const finalIsLoading = isLoading || isSupabaseLoading;
 
   return (
     <AuthContext.Provider value={{
       user,
       isAuthenticated,
-      isLoading,
+      isLoading: finalIsLoading,
       login,
       logout,
       updateUser,
       showSetupModal,
       setShowSetupModal,
+      twitterUser,
+      isSupabaseAuthenticated,
+      signOutFromTwitter,
     }}>
       {children}
     </AuthContext.Provider>
