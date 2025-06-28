@@ -122,7 +122,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       case 'redirecting':
         return 'Opening Twitter...';
       case 'processing':
-        return 'Processing authentication...';
+        return 'Processing...';
       case 'completing':
         return 'Completing setup...';
       default:
