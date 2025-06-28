@@ -24,8 +24,12 @@ function RootLayoutContent() {
 
   useEffect(() => {
     if (process.env.EXPO_PUBLIC_TEMPO && Platform.OS === "web") {
-      const { TempoDevtools } = require("tempo-devtools");
-      TempoDevtools.init();
+      // Use dynamic import to prevent Hermes compiler issues on native platforms
+      import("tempo-devtools").then(({ TempoDevtools }) => {
+        TempoDevtools.init();
+      }).catch((error) => {
+        console.warn("Failed to load tempo-devtools:", error);
+      });
     }
   }, []);
 
