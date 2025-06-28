@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
-import { Award, Plus, Search, Sparkles, TrendingUp, Users, Moon, Sun, Trophy, Bell, Settings, Menu, MoreHorizontal } from "lucide-react-native";
+import { Award, Plus, Search, Sparkles, TrendingUp, Users, Moon, Sun, Trophy, Bell, Settings, Menu, MoveHorizontal as MoreHorizontal } from "lucide-react-native";
 import ChallengeCard from "../src/components/ChallengeCard";
 import LeaderboardSection from "../src/components/LeaderboardSection";
 import AccountSetupModal from "../src/components/AccountSetupModal";
