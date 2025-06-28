@@ -113,38 +113,46 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
               ]}
               onPress={() => router.push(item.route)}
             >
-              <View style={[
-                styles.navItemContent,
-                sidebarCollapsed && styles.navItemContentCollapsed
-              ]}>
-                <View style={[
-                  styles.iconWrapper,
-                  sidebarCollapsed && styles.iconWrapperCollapsed
-                ]}>
+              {sidebarCollapsed ? (
+                // Collapsed mode - center icon directly
+                <View style={styles.collapsedIconContainer}>
                   <IconComponent 
-                    size={sidebarCollapsed ? 32 : 26} 
+                    size={28} 
                     color={isActive ? theme.colors.text : theme.colors.textSecondary}
                     strokeWidth={isActive ? 2.5 : 2}
                   />
                   {item.badge && (
-                    <View style={[
-                      styles.badge,
-                      sidebarCollapsed && styles.badgeCollapsed
-                    ]}>
+                    <View style={styles.badgeCollapsed}>
                       <Text style={styles.badgeText}>{item.badge}</Text>
                     </View>
                   )}
                 </View>
-                <Animated.Text 
-                  style={[
-                    styles.navItemText,
-                    isActive && styles.navItemTextActive,
-                    { opacity: textOpacity, marginLeft: textMarginLeft }
-                  ]}
-                >
-                  {item.label}
-                </Animated.Text>
-              </View>
+              ) : (
+                // Expanded mode - normal layout
+                <View style={styles.navItemContent}>
+                  <View style={styles.iconWrapper}>
+                    <IconComponent 
+                      size={26} 
+                      color={isActive ? theme.colors.text : theme.colors.textSecondary}
+                      strokeWidth={isActive ? 2.5 : 2}
+                    />
+                    {item.badge && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{item.badge}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Animated.Text 
+                    style={[
+                      styles.navItemText,
+                      isActive && styles.navItemTextActive,
+                      { opacity: textOpacity, marginLeft: textMarginLeft }
+                    ]}
+                  >
+                    {item.label}
+                  </Animated.Text>
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -241,8 +249,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     width: 64,
     height: 64,
     alignSelf: 'center',
-    padding: 0,
-    margin: 0,
   },
   navItemActive: {
     backgroundColor: 'transparent',
@@ -253,26 +259,17 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  navItemContentCollapsed: {
-    justifyContent: 'center',
+  collapsedIconContainer: {
+    width: 64,
+    height: 64,
     alignItems: 'center',
-    padding: 0,
-    margin: 0,
-    width: '100%',
-    height: '100%',
+    justifyContent: 'center',
+    position: 'relative',
   },
   iconWrapper: {
     position: 'relative',
     width: 28,
     height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconWrapperCollapsed: {
-    width: 32,
-    height: 32,
-    margin: 0,
-    padding: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -297,8 +294,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     right: -8,
   },
   badgeCollapsed: {
-    top: -12,
-    right: -12,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    top: 8,
+    right: 8,
   },
   badgeText: {
     color: '#FFFFFF',
