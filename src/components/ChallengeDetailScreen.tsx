@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
 import {
@@ -18,6 +19,7 @@ import {
   Edit3,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import { useTheme } from "../../contexts/ThemeContext";
 
 interface ChallengeDetailScreenProps {
   challenge?: {
@@ -53,6 +55,8 @@ const ChallengeDetailScreen = ({
   onClose = () => {},
   onPost = () => {},
 }: ChallengeDetailScreenProps) => {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const [tweetContent, setTweetContent] = useState(challenge.tweetTemplate);
   const [isPosting, setIsPosting] = useState(false);
   const [isPosted, setIsPosted] = useState(false);
@@ -116,89 +120,91 @@ const ChallengeDetailScreen = ({
     currentEngagement.replies >= challenge.requiredReplies;
 
   return (
-    <View className="flex-1 bg-white">
+    <View style={styles.container}>
       {/* Header */}
-      <View className="flex-row items-center p-4 border-b border-gray-200">
-        <TouchableOpacity onPress={onClose} className="mr-4">
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onClose} style={styles.backButton}>
           <ArrowLeft size={24} color="#000" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold flex-1">Challenge Details</Text>
+        <Text style={styles.headerTitle}>Challenge Details</Text>
       </View>
 
-      <ScrollView className="flex-1">
+      <ScrollView style={styles.scrollView}>
         {/* Challenge Info */}
-        <View className="p-4 bg-blue-50 rounded-lg m-4">
-          <Text className="text-lg font-bold">{challenge.title}</Text>
-          <Text className="text-gray-600 mt-1">{challenge.description}</Text>
+        <View style={styles.challengeInfo}>
+          <Text style={styles.challengeTitle}>{challenge.title}</Text>
+          <Text style={styles.challengeDescription}>{challenge.description}</Text>
 
-          <View className="flex-row items-center mt-3">
-            <View className="bg-blue-100 px-3 py-1 rounded-full">
-              <Text className="text-blue-800">{challenge.theme}</Text>
+          <View style={styles.challengeMeta}>
+            <View style={styles.themeTag}>
+              <Text style={styles.themeText}>{challenge.theme}</Text>
             </View>
-            <View className="flex-row items-center ml-auto">
+            <View style={styles.rewardContainer}>
               <Award size={16} color="#FFD700" />
-              <Text className="font-bold ml-1">{challenge.reward} ALGO</Text>
+              <Text style={styles.rewardText}>{challenge.reward} ALGO</Text>
             </View>
           </View>
 
-          <Text className="text-gray-500 mt-2">
+          <Text style={styles.timeRemaining}>
             Time remaining: {challenge.timeRemaining}
           </Text>
         </View>
 
         {/* Tweet Composer */}
-        <View className="bg-white rounded-lg mx-4 mb-4 p-4 border border-gray-200">
-          <View className="flex-row items-center mb-3">
+        <View style={styles.tweetComposer}>
+          <View style={styles.userInfo}>
             <Image
               source="https://api.dicebear.com/7.x/avataaars/svg?seed=user123"
-              style={{ width: 40, height: 40 }}
-              className="rounded-full"
+              style={styles.avatar}
             />
-            <View className="ml-2">
-              <Text className="font-bold">Your Twitter Handle</Text>
-              <Text className="text-gray-500">@yourusername</Text>
+            <View style={styles.userDetails}>
+              <Text style={styles.userName}>Your Twitter Handle</Text>
+              <Text style={styles.userHandle}>@yourusername</Text>
             </View>
-            <View className="ml-auto flex-row items-center">
+            <View style={styles.editButton}>
               <Edit3 size={16} color="#3B82F6" />
-              <Text className="text-blue-500 ml-1">Edit</Text>
+              <Text style={styles.editText}>Edit</Text>
             </View>
           </View>
 
-          <View className="border border-gray-200 rounded-lg p-3 min-h-[120px]">
+          <View style={styles.textInputContainer}>
             <TextInput
               multiline
               value={tweetContent}
               onChangeText={setTweetContent}
-              className="text-base"
+              style={styles.textInput}
               placeholder="What's happening?"
               editable={!isPosted}
             />
           </View>
 
-          <View className="flex-row justify-between items-center mt-3">
-            <Text className="text-gray-500">
+          <View style={styles.tweetFooter}>
+            <Text style={styles.characterCount}>
               {280 - tweetContent.length} characters left
             </Text>
             {!isPosted ? (
               <TouchableOpacity
                 onPress={handlePost}
                 disabled={isPosting}
-                className={`flex-row items-center px-4 py-2 rounded-full ${isPosting ? "bg-blue-300" : "bg-blue-500"}`}
+                style={[
+                  styles.postButton,
+                  isPosting ? styles.postButtonDisabled : styles.postButtonActive
+                ]}
               >
                 {isPosting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <>
                     <Send size={16} color="#fff" />
-                    <Text className="text-white font-bold ml-2">
+                    <Text style={styles.postButtonText}>
                       Post Tweet
                     </Text>
                   </>
                 )}
               </TouchableOpacity>
             ) : (
-              <View className="px-4 py-2 bg-green-500 rounded-full">
-                <Text className="text-white font-bold">Posted</Text>
+              <View style={styles.postedButton}>
+                <Text style={styles.postedButtonText}>Posted</Text>
               </View>
             )}
           </View>
@@ -206,88 +212,94 @@ const ChallengeDetailScreen = ({
 
         {/* Engagement Metrics */}
         {isPosted && (
-          <View className="bg-white rounded-lg mx-4 mb-4 p-4 border border-gray-200">
-            <Text className="font-bold text-lg mb-3">Engagement Metrics</Text>
+          <View style={styles.engagementMetrics}>
+            <Text style={styles.metricsTitle}>Engagement Metrics</Text>
 
-            <View className="flex-row justify-between mb-4">
-              <View className="items-center">
-                <View className="flex-row items-center">
+            <View style={styles.metricsRow}>
+              <View style={styles.metricItem}>
+                <View style={styles.metricHeader}>
                   <Heart size={16} color="#F43F5E" />
-                  <Text className="ml-1 font-bold">
+                  <Text style={styles.metricValue}>
                     {currentEngagement.likes}/{challenge.requiredLikes}
                   </Text>
                 </View>
-                <Text className="text-gray-500 text-sm mt-1">Likes</Text>
-                <View className="h-1 bg-gray-200 w-20 mt-2 rounded-full overflow-hidden">
+                <Text style={styles.metricLabel}>Likes</Text>
+                <View style={styles.progressBar}>
                   <View
-                    className="h-full bg-red-500 rounded-full"
-                    style={{
-                      width: `${(currentEngagement.likes / challenge.requiredLikes) * 100}%`,
-                    }}
+                    style={[
+                      styles.progressFillRed,
+                      {
+                        width: `${(currentEngagement.likes / challenge.requiredLikes) * 100}%`,
+                      }
+                    ]}
                   />
                 </View>
               </View>
 
-              <View className="items-center">
-                <View className="flex-row items-center">
+              <View style={styles.metricItem}>
+                <View style={styles.metricHeader}>
                   <Repeat size={16} color="#10B981" />
-                  <Text className="ml-1 font-bold">
+                  <Text style={styles.metricValue}>
                     {currentEngagement.retweets}/{challenge.requiredRetweets}
                   </Text>
                 </View>
-                <Text className="text-gray-500 text-sm mt-1">Retweets</Text>
-                <View className="h-1 bg-gray-200 w-20 mt-2 rounded-full overflow-hidden">
+                <Text style={styles.metricLabel}>Retweets</Text>
+                <View style={styles.progressBar}>
                   <View
-                    className="h-full bg-green-500 rounded-full"
-                    style={{
-                      width: `${(currentEngagement.retweets / challenge.requiredRetweets) * 100}%`,
-                    }}
+                    style={[
+                      styles.progressFillGreen,
+                      {
+                        width: `${(currentEngagement.retweets / challenge.requiredRetweets) * 100}%`,
+                      }
+                    ]}
                   />
                 </View>
               </View>
 
-              <View className="items-center">
-                <View className="flex-row items-center">
+              <View style={styles.metricItem}>
+                <View style={styles.metricHeader}>
                   <MessageCircle size={16} color="#3B82F6" />
-                  <Text className="ml-1 font-bold">
+                  <Text style={styles.metricValue}>
                     {currentEngagement.replies}/{challenge.requiredReplies}
                   </Text>
                 </View>
-                <Text className="text-gray-500 text-sm mt-1">Replies</Text>
-                <View className="h-1 bg-gray-200 w-20 mt-2 rounded-full overflow-hidden">
+                <Text style={styles.metricLabel}>Replies</Text>
+                <View style={styles.progressBar}>
                   <View
-                    className="h-full bg-blue-500 rounded-full"
-                    style={{
-                      width: `${(currentEngagement.replies / challenge.requiredReplies) * 100}%`,
-                    }}
+                    style={[
+                      styles.progressFillBlue,
+                      {
+                        width: `${(currentEngagement.replies / challenge.requiredReplies) * 100}%`,
+                      }
+                    ]}
                   />
                 </View>
               </View>
             </View>
 
             {isRewardEarned ? (
-              <View className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <Text className="text-green-800 font-bold text-center">
+              <View style={styles.rewardEarned}>
+                <Text style={styles.rewardEarnedTitle}>
                   Congratulations! You've earned {challenge.reward} ALGO
                 </Text>
-                <Text className="text-green-600 text-center mt-1">
+                <Text style={styles.rewardEarnedSubtitle}>
                   Tokens have been transferred to your wallet
                 </Text>
                 <TouchableOpacity
-                  className="bg-green-500 py-2 px-4 rounded-full mt-3 self-center"
+                  style={styles.returnButton}
                   onPress={() => router.push("/")}
                 >
-                  <Text className="text-white font-bold">
+                  <Text style={styles.returnButtonText}>
                     Return to Dashboard
                   </Text>
                 </TouchableOpacity>
               </View>
             ) : (
-              <View className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <Text className="text-blue-800 text-center">
+              <View style={styles.trackingStatus}>
+                <Text style={styles.trackingTitle}>
                   Tracking engagement metrics in real-time
                 </Text>
-                <Text className="text-blue-600 text-center mt-1">
+                <Text style={styles.trackingSubtitle}>
                   You'll earn rewards once all targets are met
                 </Text>
               </View>
@@ -296,30 +308,313 @@ const ChallengeDetailScreen = ({
         )}
 
         {/* Tips Section */}
-        <View className="bg-white rounded-lg mx-4 mb-8 p-4 border border-gray-200">
-          <Text className="font-bold text-lg mb-2">
+        <View style={styles.tipsSection}>
+          <Text style={styles.tipsTitle}>
             Tips for Better Engagement
           </Text>
-          <View className="flex-row items-center mb-2">
-            <View className="w-2 h-2 rounded-full bg-blue-500 mr-2" />
-            <Text>Add relevant hashtags to increase visibility</Text>
+          <View style={styles.tipItem}>
+            <View style={styles.tipBullet} />
+            <Text style={styles.tipText}>Add relevant hashtags to increase visibility</Text>
           </View>
-          <View className="flex-row items-center mb-2">
-            <View className="w-2 h-2 rounded-full bg-blue-500 mr-2" />
-            <Text>Post during peak hours (9am-11am, 1pm-3pm)</Text>
+          <View style={styles.tipItem}>
+            <View style={styles.tipBullet} />
+            <Text style={styles.tipText}>Post during peak hours (9am-11am, 1pm-3pm)</Text>
           </View>
-          <View className="flex-row items-center mb-2">
-            <View className="w-2 h-2 rounded-full bg-blue-500 mr-2" />
-            <Text>Include a question to encourage replies</Text>
+          <View style={styles.tipItem}>
+            <View style={styles.tipBullet} />
+            <Text style={styles.tipText}>Include a question to encourage replies</Text>
           </View>
-          <View className="flex-row items-center">
-            <View className="w-2 h-2 rounded-full bg-blue-500 mr-2" />
-            <Text>Add an image or GIF to increase engagement</Text>
+          <View style={styles.tipItem}>
+            <View style={styles.tipBullet} />
+            <Text style={styles.tipText}>Add an image or GIF to increase engagement</Text>
           </View>
         </View>
       </ScrollView>
     </View>
   );
 };
+
+const createStyles = (theme: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  challengeInfo: {
+    padding: 16,
+    backgroundColor: '#dbeafe',
+    borderRadius: 8,
+    margin: 16,
+  },
+  challengeTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  challengeDescription: {
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  challengeMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  themeTag: {
+    backgroundColor: '#bfdbfe',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+  },
+  themeText: {
+    color: '#1e40af',
+  },
+  rewardContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+  },
+  rewardText: {
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  timeRemaining: {
+    color: '#6b7280',
+    marginTop: 8,
+  },
+  tweetComposer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  userDetails: {
+    marginLeft: 8,
+  },
+  userName: {
+    fontWeight: 'bold',
+  },
+  userHandle: {
+    color: '#6b7280',
+  },
+  editButton: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editText: {
+    color: '#3b82f6',
+    marginLeft: 4,
+  },
+  textInputContainer: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 120,
+  },
+  textInput: {
+    fontSize: 16,
+    textAlignVertical: 'top',
+  },
+  tweetFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  characterCount: {
+    color: '#6b7280',
+  },
+  postButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  postButtonActive: {
+    backgroundColor: '#3b82f6',
+  },
+  postButtonDisabled: {
+    backgroundColor: '#93c5fd',
+  },
+  postButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  postedButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#10b981',
+    borderRadius: 16,
+  },
+  postedButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  engagementMetrics: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  metricsTitle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 12,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  metricItem: {
+    alignItems: 'center',
+  },
+  metricHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metricValue: {
+    marginLeft: 4,
+    fontWeight: 'bold',
+  },
+  metricLabel: {
+    color: '#6b7280',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#e5e7eb',
+    width: 80,
+    marginTop: 8,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFillRed: {
+    height: '100%',
+    backgroundColor: '#ef4444',
+    borderRadius: 2,
+  },
+  progressFillGreen: {
+    height: '100%',
+    backgroundColor: '#10b981',
+    borderRadius: 2,
+  },
+  progressFillBlue: {
+    height: '100%',
+    backgroundColor: '#3b82f6',
+    borderRadius: 2,
+  },
+  rewardEarned: {
+    backgroundColor: '#f0fdf4',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  rewardEarnedTitle: {
+    color: '#166534',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  rewardEarnedSubtitle: {
+    color: '#16a34a',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  returnButton: {
+    backgroundColor: '#10b981',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginTop: 12,
+    alignSelf: 'center',
+  },
+  returnButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  trackingStatus: {
+    backgroundColor: '#eff6ff',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  trackingTitle: {
+    color: '#1e40af',
+    textAlign: 'center',
+  },
+  trackingSubtitle: {
+    color: '#2563eb',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  tipsSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 32,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  tipsTitle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 8,
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  tipBullet: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#3b82f6',
+    marginRight: 8,
+  },
+  tipText: {
+    flex: 1,
+  },
+});
 
 export default ChallengeDetailScreen;

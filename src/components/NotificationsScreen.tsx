@@ -5,9 +5,11 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
 import { Bell, ChevronLeft, Check, Star, Award } from "lucide-react-native";
+import { useTheme } from "../../contexts/ThemeContext";
 
 interface Notification {
   id: string;
@@ -20,6 +22,8 @@ interface Notification {
 }
 
 export default function NotificationsScreen({ onBack = () => {} }) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: "1",
@@ -89,47 +93,44 @@ export default function NotificationsScreen({ onBack = () => {} }) {
     }
   };
 
-  const getNotificationBackground = (read: boolean) => {
-    return read ? "bg-white" : "bg-blue-50";
-  };
-
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View className="px-4 py-4 bg-xqdark flex-row items-center border-b border-gray-800">
-        <TouchableOpacity onPress={onBack} className="mr-4">
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <ChevronLeft size={24} color="#ffffff" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-white">Notifications</Text>
+        <Text style={styles.headerTitle}>Notifications</Text>
       </View>
 
       {/* Notification List */}
-      <ScrollView className="flex-1">
+      <ScrollView style={styles.scrollView}>
         {notifications.map((notification) => (
           <TouchableOpacity
             key={notification.id}
-            className={`p-4 border-b border-gray-100 ${getNotificationBackground(
-              notification.read,
-            )}`}
+            style={[
+              styles.notificationItem,
+              notification.read ? styles.readNotification : styles.unreadNotification
+            ]}
             onPress={() => markAsRead(notification.id)}
           >
-            <View className="flex-row">
-              <View className="mr-3 mt-1">
+            <View style={styles.notificationContent}>
+              <View style={styles.iconContainer}>
                 {getNotificationIcon(notification.type)}
               </View>
-              <View className="flex-1">
-                <View className="flex-row justify-between items-center mb-1">
-                  <Text className="font-bold text-base">
+              <View style={styles.textContainer}>
+                <View style={styles.titleRow}>
+                  <Text style={styles.notificationTitle}>
                     {notification.title}
                   </Text>
-                  <Text className="text-xs text-gray-500">
+                  <Text style={styles.timestamp}>
                     {notification.timestamp}
                   </Text>
                 </View>
-                <Text className="text-gray-700">{notification.message}</Text>
+                <Text style={styles.notificationMessage}>{notification.message}</Text>
               </View>
               {!notification.read && (
-                <View className="w-3 h-3 rounded-full bg-xqcyan ml-2 mt-2" />
+                <View style={styles.unreadIndicator} />
               )}
             </View>
           </TouchableOpacity>
@@ -138,3 +139,76 @@ export default function NotificationsScreen({ onBack = () => {} }) {
     </SafeAreaView>
   );
 }
+
+const createStyles = (theme: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: theme.colors?.xqdark || '#1e293b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  notificationItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  readNotification: {
+    backgroundColor: '#ffffff',
+  },
+  unreadNotification: {
+    backgroundColor: '#eff6ff',
+  },
+  notificationContent: {
+    flexDirection: 'row',
+  },
+  iconContainer: {
+    marginRight: 12,
+    marginTop: 4,
+  },
+  textContainer: {
+    flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  notificationTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  timestamp: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  notificationMessage: {
+    color: '#374151',
+  },
+  unreadIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: theme.colors?.xqcyan || '#22d3ee',
+    marginLeft: 8,
+    marginTop: 8,
+  },
+});

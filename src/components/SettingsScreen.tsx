@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Switch,
   SafeAreaView,
+  StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
 import {
@@ -18,8 +19,11 @@ import {
   LogOut,
   ChevronRight,
 } from "lucide-react-native";
+import { useTheme } from "../../contexts/ThemeContext";
 
 export default function SettingsScreen({ onBack = () => {} }) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [autoTweetEnabled, setAutoTweetEnabled] = useState(false);
@@ -92,27 +96,30 @@ export default function SettingsScreen({ onBack = () => {} }) {
   ];
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View className="px-4 py-4 bg-xqdark flex-row items-center border-b border-gray-800">
-        <TouchableOpacity onPress={onBack} className="mr-4">
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <ChevronLeft size={24} color="#ffffff" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-white">Settings</Text>
+        <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
       {/* Settings List */}
-      <ScrollView className="flex-1">
+      <ScrollView style={styles.scrollView}>
         {settingsSections.map((section) => (
-          <View key={section.title} className="mb-6">
-            <Text className="px-4 py-2 text-sm font-semibold text-gray-500 uppercase">
+          <View key={section.title} style={styles.section}>
+            <Text style={styles.sectionTitle}>
               {section.title}
             </Text>
-            <View className="bg-white rounded-md mx-4 overflow-hidden">
+            <View style={styles.sectionContent}>
               {section.items.map((item, index) => (
                 <TouchableOpacity
                   key={item.id}
-                  className={`flex-row items-center justify-between p-4 ${index < section.items.length - 1 ? "border-b border-gray-100" : ""}`}
+                  style={[
+                    styles.settingItem,
+                    index < section.items.length - 1 && styles.settingItemBorder
+                  ]}
                   onPress={() => {
                     if (
                       item.action === "navigate" ||
@@ -122,12 +129,15 @@ export default function SettingsScreen({ onBack = () => {} }) {
                     }
                   }}
                 >
-                  <View className="flex-row items-center">
-                    <View className="w-8 h-8 rounded-full bg-opacity-20 items-center justify-center">
+                  <View style={styles.settingItemLeft}>
+                    <View style={styles.iconContainer}>
                       {item.icon}
                     </View>
                     <Text
-                      className={`ml-3 font-medium ${item.danger ? "text-red-500" : "text-gray-800"}`}
+                      style={[
+                        styles.settingItemText,
+                        item.danger && styles.dangerText
+                      ]}
                     >
                       {item.title}
                     </Text>
@@ -151,15 +161,102 @@ export default function SettingsScreen({ onBack = () => {} }) {
           </View>
         ))}
 
-        <View className="items-center mb-8 mt-4">
+        <View style={styles.footer}>
           <Image
             source={require("../../assets/images/xquests-logo.png")}
-            style={{ width: 60, height: 60 }}
+            style={styles.footerLogo}
             contentFit="contain"
           />
-          <Text className="text-center text-gray-500 mt-2">XQuests v1.0.0</Text>
+          <Text style={styles.footerText}>XQuests v1.0.0</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const createStyles = (theme: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: theme.colors?.xqdark || '#1e293b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+  },
+  sectionContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 6,
+    marginHorizontal: 16,
+    overflow: 'hidden',
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  settingItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  settingItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingItemText: {
+    marginLeft: 12,
+    fontWeight: '500',
+    color: '#1f2937',
+  },
+  dangerText: {
+    color: '#ef4444',
+  },
+  footer: {
+    alignItems: 'center',
+    marginBottom: 32,
+    marginTop: 16,
+  },
+  footerLogo: {
+    width: 60,
+    height: 60,
+  },
+  footerText: {
+    textAlign: 'center',
+    color: '#6b7280',
+    marginTop: 8,
+  },
+});

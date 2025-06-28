@@ -5,9 +5,11 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
 import { ChevronLeft } from "lucide-react-native";
+import { useTheme } from "../../contexts/ThemeContext";
 
 interface Achievement {
   id: string;
@@ -20,6 +22,9 @@ interface Achievement {
 }
 
 export default function AchievementsScreen({ onBack = () => {} }) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
+
   const achievements: Achievement[] = [
     {
       id: "1",
@@ -69,18 +74,18 @@ export default function AchievementsScreen({ onBack = () => {} }) {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View className="px-4 py-4 bg-xqdark flex-row items-center border-b border-gray-800">
-        <TouchableOpacity onPress={onBack} className="mr-4">
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <ChevronLeft size={24} color="#ffffff" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-white">Achievements</Text>
+        <Text style={styles.headerTitle}>Achievements</Text>
       </View>
 
       {/* Achievements List */}
-      <ScrollView className="flex-1 p-4">
-        <Text className="text-lg font-semibold mb-4">
+      <ScrollView style={styles.scrollView}>
+        <Text style={styles.badgeCount}>
           {achievements.filter((a) => a.earned).length} of {achievements.length}{" "}
           Badges Earned
         </Text>
@@ -88,44 +93,52 @@ export default function AchievementsScreen({ onBack = () => {} }) {
         {achievements.map((achievement) => (
           <View
             key={achievement.id}
-            className={`bg-white rounded-lg p-4 mb-4 border ${achievement.earned ? "border-xqcyan" : "border-gray-200"}`}
+            style={[
+              styles.achievementCard,
+              achievement.earned ? styles.earnedCard : styles.unearnedCard
+            ]}
           >
-            <View className="flex-row">
+            <View style={styles.achievementRow}>
               <View
-                className={`w-16 h-16 rounded-lg items-center justify-center ${achievement.earned ? "opacity-100" : "opacity-40"}`}
+                style={[
+                  styles.iconContainer,
+                  achievement.earned ? styles.iconEarned : styles.iconUnearned
+                ]}
               >
                 <Image
                   source={getIconForAchievement(achievement.icon)}
-                  style={{ width: 60, height: 60 }}
+                  style={styles.iconImage}
                   contentFit="contain"
                 />
               </View>
-              <View className="ml-4 flex-1">
-                <View className="flex-row justify-between items-center">
-                  <Text className="font-bold text-lg">{achievement.name}</Text>
+              <View style={styles.achievementContent}>
+                <View style={styles.achievementHeader}>
+                  <Text style={styles.achievementName}>{achievement.name}</Text>
                   {achievement.earned && (
-                    <View className="bg-xqcyan/20 px-2 py-1 rounded">
-                      <Text className="text-xqcyan text-xs font-medium">
+                    <View style={styles.earnedBadge}>
+                      <Text style={styles.earnedText}>
                         Earned
                       </Text>
                     </View>
                   )}
                 </View>
-                <Text className="text-gray-600 mt-1">
+                <Text style={styles.achievementDescription}>
                   {achievement.description}
                 </Text>
 
                 {achievement.progress !== undefined && (
-                  <View className="mt-2">
-                    <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressBar}>
                       <View
-                        className="h-full bg-gradient-to-r from-xqcyan to-xqblue"
-                        style={{
-                          width: `${(achievement.progress / achievement.total!) * 100}%`,
-                        }}
+                        style={[
+                          styles.progressFill,
+                          {
+                            width: `${(achievement.progress / achievement.total!) * 100}%`,
+                          }
+                        ]}
                       />
                     </View>
-                    <Text className="text-xs text-gray-500 mt-1">
+                    <Text style={styles.progressText}>
                       {achievement.progress} / {achievement.total}
                     </Text>
                   </View>
@@ -138,3 +151,115 @@ export default function AchievementsScreen({ onBack = () => {} }) {
     </SafeAreaView>
   );
 }
+
+const createStyles = (theme: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: theme.colors?.xqdark || '#1e293b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  scrollView: {
+    flex: 1,
+    padding: 16,
+  },
+  badgeCount: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  achievementCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+  },
+  earnedCard: {
+    borderColor: theme.colors?.xqcyan || '#22d3ee',
+  },
+  unearnedCard: {
+    borderColor: '#e5e7eb',
+  },
+  achievementRow: {
+    flexDirection: 'row',
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconEarned: {
+    opacity: 1,
+  },
+  iconUnearned: {
+    opacity: 0.4,
+  },
+  iconImage: {
+    width: 60,
+    height: 60,
+  },
+  achievementContent: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  achievementHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  achievementName: {
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  earnedBadge: {
+    backgroundColor: 'rgba(34, 211, 238, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  earnedText: {
+    color: theme.colors?.xqcyan || '#22d3ee',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  achievementDescription: {
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  progressContainer: {
+    marginTop: 8,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: theme.colors?.xqcyan || '#22d3ee',
+  },
+  progressText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+});

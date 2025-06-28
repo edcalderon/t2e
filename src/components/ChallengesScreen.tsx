@@ -5,10 +5,12 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
 import { ChevronLeft, Filter, Search } from "lucide-react-native";
 import ChallengeCard from "./ChallengeCard";
+import { useTheme } from "../../contexts/ThemeContext";
 
 interface Challenge {
   id: string;
@@ -23,6 +25,8 @@ interface Challenge {
 }
 
 export default function ChallengesScreen({ onBack = () => {} }) {
+  const { theme } = useTheme();
+  const styles = createStyles(theme);
   const [activeTab, setActiveTab] = useState<
     "available" | "active" | "completed"
   >("available");
@@ -117,54 +121,72 @@ export default function ChallengesScreen({ onBack = () => {} }) {
   const displayChallenges = challenges[activeTab];
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-50">
+    <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View className="px-4 py-4 bg-xqdark flex-row items-center border-b border-gray-800">
-        <TouchableOpacity onPress={onBack} className="mr-4">
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <ChevronLeft size={24} color="#ffffff" />
         </TouchableOpacity>
-        <Text className="text-xl font-bold text-white">Challenges</Text>
+        <Text style={styles.headerTitle}>Challenges</Text>
       </View>
 
       {/* Search and Filter */}
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
-        <View className="flex-row items-center bg-gray-100 rounded-full px-3 py-2 flex-1 mr-2">
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
           <Search size={18} color="#6B7280" />
-          <Text className="ml-2 text-gray-400">Search challenges...</Text>
+          <Text style={styles.searchPlaceholder}>Search challenges...</Text>
         </View>
-        <TouchableOpacity className="p-2">
+        <TouchableOpacity style={styles.filterButton}>
           <Filter size={20} color="#6B7280" />
         </TouchableOpacity>
       </View>
 
       {/* Tabs */}
-      <View className="flex-row bg-white border-b border-gray-200">
+      <View style={styles.tabsContainer}>
         <TouchableOpacity
           onPress={() => setActiveTab("available")}
-          className={`flex-1 py-3 ${activeTab === "available" ? "border-b-2 border-xqcyan" : ""}`}
+          style={[
+            styles.tab,
+            activeTab === "available" && styles.activeTab
+          ]}
         >
           <Text
-            className={`text-center ${activeTab === "available" ? "text-xqcyan font-semibold" : "text-gray-500"}`}
+            style={[
+              styles.tabText,
+              activeTab === "available" ? styles.activeTabText : styles.inactiveTabText
+            ]}
           >
             Available
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setActiveTab("active")}
-          className={`flex-1 py-3 ${activeTab === "active" ? "border-b-2 border-xqcyan" : ""}`}
+          style={[
+            styles.tab,
+            activeTab === "active" && styles.activeTab
+          ]}
         >
           <Text
-            className={`text-center ${activeTab === "active" ? "text-xqcyan font-semibold" : "text-gray-500"}`}
+            style={[
+              styles.tabText,
+              activeTab === "active" ? styles.activeTabText : styles.inactiveTabText
+            ]}
           >
             Active
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setActiveTab("completed")}
-          className={`flex-1 py-3 ${activeTab === "completed" ? "border-b-2 border-xqcyan" : ""}`}
+          style={[
+            styles.tab,
+            activeTab === "completed" && styles.activeTab
+          ]}
         >
           <Text
-            className={`text-center ${activeTab === "completed" ? "text-xqcyan font-semibold" : "text-gray-500"}`}
+            style={[
+              styles.tabText,
+              activeTab === "completed" ? styles.activeTabText : styles.inactiveTabText
+            ]}
           >
             Completed
           </Text>
@@ -172,7 +194,7 @@ export default function ChallengesScreen({ onBack = () => {} }) {
       </View>
 
       {/* Challenge List */}
-      <ScrollView className="flex-1 px-4 py-4">
+      <ScrollView style={styles.challengeList}>
         {displayChallenges.length > 0 ? (
           displayChallenges.map((challenge) => (
             <ChallengeCard
@@ -188,13 +210,13 @@ export default function ChallengesScreen({ onBack = () => {} }) {
             />
           ))
         ) : (
-          <View className="items-center justify-center py-12">
+          <View style={styles.emptyState}>
             <Image
               source={require("../../assets/images/xquests-logo.png")}
-              style={{ width: 80, height: 80, opacity: 0.5 }}
+              style={styles.emptyStateImage}
               contentFit="contain"
             />
-            <Text className="text-gray-400 mt-4 text-center">
+            <Text style={styles.emptyStateText}>
               No {activeTab} challenges found
             </Text>
           </View>
@@ -203,3 +225,98 @@ export default function ChallengesScreen({ onBack = () => {} }) {
     </SafeAreaView>
   );
 }
+
+const createStyles = (theme: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: theme.colors?.xqdark || '#1e293b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  searchPlaceholder: {
+    marginLeft: 8,
+    color: '#9ca3af',
+  },
+  filterButton: {
+    padding: 8,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: theme.colors?.xqcyan || '#22d3ee',
+  },
+  tabText: {
+    textAlign: 'center',
+  },
+  activeTabText: {
+    color: theme.colors?.xqcyan || '#22d3ee',
+    fontWeight: '600',
+  },
+  inactiveTabText: {
+    color: '#6b7280',
+  },
+  challengeList: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  emptyStateImage: {
+    width: 80,
+    height: 80,
+    opacity: 0.5,
+  },
+  emptyStateText: {
+    color: '#9ca3af',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+});
