@@ -12,19 +12,20 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
-import { Award, Plus, Search, Sparkles, TrendingUp, Users, Moon, Sun, Trophy, Bell, Settings, Menu, MoveHorizontal as MoreHorizontal } from "lucide-react-native";
-import ChallengeCard from "../src/components/ChallengeCard";
-import LeaderboardSection from "../src/components/LeaderboardSection";
-import AccountSetupModal from "../src/components/AccountSetupModal";
-import { useTheme } from '../contexts/ThemeContext';
+import { Award, Plus, Search, Sparkles, TrendingUp, Users, Trophy, Bell, Settings, Menu, MoveHorizontal as MoreHorizontal } from "lucide-react-native";
+import { useRouter } from 'expo-router';
+import ChallengeCard from "../../src/components/ChallengeCard";
+import LeaderboardSection from "../../src/components/LeaderboardSection";
+import AccountSetupModal from "../../src/components/AccountSetupModal";
+import { useTheme } from '../../contexts/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
-export default function HomeScreen() {
+export default function ExploreScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
+  const router = useRouter();
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('explore');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarAnimation] = useState(new Animated.Value(1));
   const [userProfile, setUserProfile] = useState({
@@ -120,10 +121,10 @@ export default function HomeScreen() {
   };
 
   const sidebarItems = [
-    { id: 'explore', icon: Search, label: 'Explore' },
-    { id: 'notifications', icon: Bell, label: 'Notifications', badge: 3 },
-    { id: 'challenges', icon: Award, label: 'Challenges' },
-    { id: 'settings', icon: Settings, label: 'Settings' },
+    { id: 'explore', icon: Search, label: 'Explore', route: '/(tabs)/' },
+    { id: 'notifications', icon: Bell, label: 'Notifications', badge: 3, route: '/(tabs)/notifications' },
+    { id: 'challenges', icon: Award, label: 'Challenges', route: '/(tabs)/challenges' },
+    { id: 'settings', icon: Settings, label: 'Settings', route: '/(tabs)/settings' },
   ];
 
   const renderSidebar = () => {
@@ -168,7 +169,7 @@ export default function HomeScreen() {
         <View style={styles.navItems}>
           {sidebarItems.map((item) => {
             const IconComponent = item.icon;
-            const isActive = activeTab === item.id;
+            const isActive = item.id === 'explore';
             
             return (
               <TouchableOpacity
@@ -178,7 +179,7 @@ export default function HomeScreen() {
                   isActive && styles.navItemActive,
                   sidebarCollapsed && styles.navItemCollapsed
                 ]}
-                onPress={() => setActiveTab(item.id)}
+                onPress={() => router.push(item.route)}
               >
                 <View style={[
                   styles.navItemContent,
@@ -264,69 +265,73 @@ export default function HomeScreen() {
     );
   };
 
-  const renderMainContent = () => (
-    <View style={styles.mainContent}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>
-            {activeTab === 'explore' ? 'Explore' :
-             activeTab === 'notifications' ? 'Notifications' :
-             activeTab === 'challenges' ? 'Challenges' :
-             activeTab === 'settings' ? 'Settings' : 'XQuests'}
-          </Text>
+  const styles = createStyles(theme);
 
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.walletBadge}>
-              <Sparkles size={16} color={theme.colors.primary} />
-              <Text style={styles.walletAmount}>{userProfile.walletBalance}</Text>
-              <Text style={styles.walletCurrency}>ALGO</Text>
-            </TouchableOpacity>
-            
-            {/* Theme Toggle Button */}
-            <TouchableOpacity 
-              style={styles.themeToggle}
-              onPress={handleThemeToggle}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.themeToggleTrack,
-                  {
-                    backgroundColor: isDark ? theme.colors.primary : '#E5E7EB',
-                  },
-                ]}
-              >
-                <Animated.View
-                  style={[
-                    styles.themeToggleThumb,
-                    {
-                      transform: [
-                        {
-                          translateX: themeAnimation.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [2, 22],
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar 
+        style={isDark ? "light" : "dark"} 
+        backgroundColor={theme.colors.background} 
+      />
+
+      <View style={styles.layout}>
+        {renderSidebar()}
+        
+        <View style={styles.mainContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+              <Text style={styles.headerTitle}>Explore</Text>
+
+              <View style={styles.headerActions}>
+                <TouchableOpacity style={styles.walletBadge}>
+                  <Sparkles size={16} color={theme.colors.primary} />
+                  <Text style={styles.walletAmount}>{userProfile.walletBalance}</Text>
+                  <Text style={styles.walletCurrency}>ALGO</Text>
+                </TouchableOpacity>
+                
+                {/* Theme Toggle Button */}
+                <TouchableOpacity 
+                  style={styles.themeToggle}
+                  onPress={handleThemeToggle}
+                  activeOpacity={0.7}
                 >
-                  {isDark ? (
-                    <Moon size={12} color={theme.colors.primary} />
-                  ) : (
-                    <Sun size={12} color="#FFD700" />
-                  )}
-                </Animated.View>
+                  <View
+                    style={[
+                      styles.themeToggleTrack,
+                      {
+                        backgroundColor: isDark ? theme.colors.primary : '#E5E7EB',
+                      },
+                    ]}
+                  >
+                    <Animated.View
+                      style={[
+                        styles.themeToggleThumb,
+                        {
+                          transform: [
+                            {
+                              translateX: themeAnimation.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [2, 22],
+                              }),
+                            },
+                          ],
+                        },
+                      ]}
+                    >
+                      {isDark ? (
+                        <Text style={styles.themeIcon}>🌙</Text>
+                      ) : (
+                        <Text style={styles.themeIcon}>☀️</Text>
+                      )}
+                    </Animated.View>
+                  </View>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {activeTab === 'explore' && (
-          <>
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
             {/* Stats Cards */}
             <View style={styles.statsContainer}>
               <View style={styles.statsGrid}>
@@ -357,7 +362,7 @@ export default function HomeScreen() {
                 
                 <TouchableOpacity 
                   style={styles.quickActionButton}
-                  onPress={() => setActiveTab('challenges')}
+                  onPress={() => router.push('/(tabs)/challenges')}
                 >
                   <Award size={20} color={theme.colors.primary} />
                   <Text style={styles.quickActionText}>Browse Challenges</Text>
@@ -369,7 +374,7 @@ export default function HomeScreen() {
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Featured Challenges</Text>
-                <TouchableOpacity onPress={() => setActiveTab('challenges')}>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/challenges')}>
                   <Text style={styles.sectionLink}>View All</Text>
                 </TouchableOpacity>
               </View>
@@ -445,98 +450,15 @@ export default function HomeScreen() {
             {/* App Branding */}
             <View style={styles.brandingContainer}>
               <Image
-                source={require("../assets/images/xquests-logo.png")}
+                source={require("../../assets/images/xquests-logo.png")}
                 style={styles.brandingLogo}
                 contentFit="contain"
               />
               <Text style={styles.brandingTitle}>XQuests</Text>
               <Text style={styles.brandingSubtitle}>Tweet. Engage. Earn.</Text>
             </View>
-          </>
-        )}
-
-        {activeTab === 'challenges' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>All Challenges</Text>
-            {challenges.map((challenge) => (
-              <ChallengeCard
-                key={challenge.id}
-                title={challenge.description}
-                theme={challenge.theme}
-                reward={challenge.reward}
-                timeRemaining={challenge.timeRemaining}
-                requiredLikes={challenge.requiredLikes}
-                requiredRetweets={challenge.requiredRetweets}
-                requiredReplies={5}
-                onSelect={() => handleSelectChallenge(challenge.id)}
-              />
-            ))}
-          </View>
-        )}
-
-        {activeTab === 'notifications' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Notifications</Text>
-            <View style={styles.notificationItem}>
-              <View style={[styles.activityIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                <Bell size={16} color={theme.colors.primary} />
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityText}>
-                  New challenge available: <Text style={styles.highlight}>Crypto Education</Text>
-                </Text>
-                <Text style={styles.activityTime}>2 hours ago</Text>
-              </View>
-            </View>
-            <View style={styles.notificationItem}>
-              <View style={[styles.activityIcon, { backgroundColor: theme.colors.success + '20' }]}>
-                <Trophy size={16} color={theme.colors.success} />
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityText}>
-                  Challenge completed! You earned <Text style={styles.highlight}>40 ALGO</Text>
-                </Text>
-                <Text style={styles.activityTime}>1 day ago</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {activeTab === 'settings' && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Settings</Text>
-            <View style={styles.settingsContainer}>
-              <TouchableOpacity style={styles.settingItem}>
-                <Text style={styles.settingText}>Profile Settings</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.settingItem}>
-                <Text style={styles.settingText}>Wallet Configuration</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.settingItem}>
-                <Text style={styles.settingText}>Notification Preferences</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.settingItem}>
-                <Text style={styles.settingText}>Privacy & Security</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-      </ScrollView>
-    </View>
-  );
-
-  const styles = createStyles(theme);
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar 
-        style={isDark ? "light" : "dark"} 
-        backgroundColor={theme.colors.background} 
-      />
-
-      <View style={styles.layout}>
-        {renderSidebar()}
-        {renderMainContent()}
+          </ScrollView>
+        </View>
       </View>
 
       {/* Account Setup Modal */}
@@ -810,6 +732,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  themeIcon: {
+    fontSize: 12,
+  },
   scrollView: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -943,28 +868,5 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     color: theme.colors.textSecondary,
     marginTop: 4,
-  },
-  notificationItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: theme.colors.border,
-  },
-  settingsContainer: {
-    marginTop: 16,
-  },
-  settingItem: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  settingText: {
-    fontSize: 16,
-    color: theme.colors.text,
-    fontWeight: '500',
   },
 });
