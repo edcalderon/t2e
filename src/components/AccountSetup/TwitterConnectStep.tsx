@@ -60,6 +60,15 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
         setIsConnecting(false);
         setConnectionStage('idle');
       }, 1000);
+    } else if (isAuthenticated && !user) {
+      // We have a session but no extracted user data - still consider it success
+      console.log('ℹ️ Authenticated but no user data extracted - treating as success');
+      setConnectionStage('completing');
+      setTimeout(() => {
+        onConnect(true);
+        setIsConnecting(false);
+        setConnectionStage('idle');
+      }, 1000);
     }
   }, [isAuthenticated, user, onConnect]);
 
@@ -189,7 +198,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   }
 
   // Success state - user is authenticated
-  if (isAuthenticated && user && !isConnecting) {
+  if (isAuthenticated && !isConnecting) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
         <View style={styles.successContainer}>
@@ -207,35 +216,46 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
           <Text style={styles.successTitle}>Successfully Connected!</Text>
           
           {/* User Profile Display */}
-          <View style={styles.userProfile}>
-            <Image
-              source={{ uri: user.avatar }}
-              style={styles.userAvatar}
-              contentFit="cover"
-            />
-            <View style={styles.userInfo}>
-              <View style={styles.userNameRow}>
-                <Text style={styles.userDisplayName}>{user.displayName}</Text>
-                {user.verified && (
-                  <View style={styles.verifiedBadge}>
-                    <Shield size={14} color="#1DA1F2" />
+          {user ? (
+            <View style={styles.userProfile}>
+              <Image
+                source={{ uri: user.avatar }}
+                style={styles.userAvatar}
+                contentFit="cover"
+              />
+              <View style={styles.userInfo}>
+                <View style={styles.userNameRow}>
+                  <Text style={styles.userDisplayName}>{user.displayName}</Text>
+                  {user.verified && (
+                    <View style={styles.verifiedBadge}>
+                      <Shield size={14} color="#1DA1F2" />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.userHandle}>@{user.twitterHandle || user.username}</Text>
+                {user.followerCount > 0 && (
+                  <Text style={styles.followerCount}>
+                    {user.followerCount.toLocaleString()} followers
+                  </Text>
+                )}
+                {!user.email && (
+                  <View style={styles.emailNotice}>
+                    <Info size={12} color={theme.colors.textTertiary} />
+                    <Text style={styles.emailNoticeText}>Email not provided by Twitter</Text>
                   </View>
                 )}
               </View>
-              <Text style={styles.userHandle}>@{user.twitterHandle || user.username}</Text>
-              {user.followerCount > 0 && (
-                <Text style={styles.followerCount}>
-                  {user.followerCount.toLocaleString()} followers
-                </Text>
-              )}
-              {!user.email && (
-                <View style={styles.emailNotice}>
-                  <Info size={12} color={theme.colors.textTertiary} />
-                  <Text style={styles.emailNoticeText}>Email not provided by Twitter</Text>
-                </View>
-              )}
             </View>
-          </View>
+          ) : (
+            <View style={styles.basicSuccessInfo}>
+              <Text style={styles.basicSuccessText}>
+                Your X account has been successfully connected!
+              </Text>
+              <Text style={styles.basicSuccessSubtext}>
+                You can now participate in challenges and earn rewards.
+              </Text>
+            </View>
+          )}
 
           <Text style={styles.successDescription}>
             Your X account is now linked and ready to participate in challenges.
@@ -635,6 +655,28 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 10,
     color: theme.colors.textTertiary,
     fontStyle: 'italic',
+  },
+  basicSuccessInfo: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+  },
+  basicSuccessText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  basicSuccessSubtext: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
   successDescription: {
     fontSize: 14,

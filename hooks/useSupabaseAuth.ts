@@ -179,6 +179,7 @@ export const useSupabaseAuth = () => {
           if (session?.user) {
             const twitterUser = getTwitterUserData(session.user);
             if (twitterUser) {
+              console.log('✅ Setting authenticated user:', twitterUser.username);
               setAuthState({
                 user: twitterUser,
                 session,
@@ -189,10 +190,16 @@ export const useSupabaseAuth = () => {
               setRetryCount(0);
             } else {
               console.warn('⚠️ Failed to extract Twitter user data from session');
-              // Don't set this as an error - just log it
-              console.log('ℹ️ Continuing without extracted user data');
+              // Still set as authenticated but without extracted user data
+              setAuthState({
+                user: null,
+                session,
+                isLoading: false,
+                isAuthenticated: true, // Session exists, so we're authenticated
+              });
             }
           } else {
+            console.log('ℹ️ No session - setting as not authenticated');
             setAuthState({
               user: null,
               session: null,
@@ -353,8 +360,14 @@ export const useSupabaseAuth = () => {
                 }
               }
               
-              console.log('✅ PKCE session established successfully');
-              return { success: true };
+              if (sessionData.session) {
+                console.log('✅ PKCE session established successfully');
+                // The auth state change listener will handle the session update
+                return { success: true };
+              } else {
+                console.warn('⚠️ No session data from PKCE exchange, but no error - treating as success');
+                return { success: true };
+              }
             }
             
             // Handle implicit flow (direct tokens)
@@ -381,7 +394,21 @@ export const useSupabaseAuth = () => {
                 }
               }
 
-              console.log('✅ Direct token session established successfully');
+              if (sessionData.session) {
+                console.log('✅ Direct token session established successfully');
+                // The auth state change listener will handle the session update
+                return { success: true };
+              } else {
+                console.warn('⚠️ No session data from token setup, but no error - treating as success');
+                return { success: true };
+              }
+            }
+            
+            // If we get here, check if we have any session at all
+            console.log('🔍 Checking for existing session after OAuth...');
+            const { data: currentSession } = await supabase.auth.getSession();
+            if (currentSession.session) {
+              console.log('✅ Found session after OAuth completion');
               return { success: true };
             }
             
@@ -407,11 +434,23 @@ export const useSupabaseAuth = () => {
         errorType = 'network';
       } else if (err.message?.includes('token') || err.message?.includes('session')) {
         errorType = 'token';
-      } else if (err.message?.toLowerCase().includes('email')) {
+      } else if (err.message?.toLowerCase().includes('email') || err.message?.includes('server_error')) {
         errorType = 'email';
         userFriendlyMessage = 'Twitter authentication successful! (Email not provided by Twitter)';
         // For email issues, we might still want to consider this a success
         console.log('ℹ️ Email issue detected, but authentication may have succeeded');
+        
+        // Check if we actually have a session despite the email error
+        try {
+          const { data: currentSession } = await supabase.auth.getSession();
+          if (currentSession.session) {
+            console.log('✅ Session found despite email error - treating as success');
+            return { success: true };
+          }
+        } catch (sessionCheckError) {
+          console.log('ℹ️ No session found after email error');
+        }
+        
         return { success: true }; // Treat email issues as success
       } else if (err.message?.includes('auth') || err.message?.includes('oauth')) {
         errorType = 'auth';

@@ -44,6 +44,7 @@ export const getTwitterUserData = (user: any) => {
     metadataKeys: user.user_metadata ? Object.keys(user.user_metadata) : [],
     hasIdentities: !!user.identities,
     identitiesCount: user.identities?.length || 0,
+    rawUserData: __DEV__ ? user : '[Hidden in production]',
   });
 
   const twitterData = user.user_metadata || {};
