@@ -30,10 +30,7 @@ export default function AuthCallback() {
         // Direct parameters
         access_token: params.access_token,
         refresh_token: params.refresh_token,
-        code: params.code,
-        error: params.error,
         error_description: params.error_description,
-        type: params.type,
         // URL-based extraction
         ...extractTokensFromUrl(typeof window !== 'undefined' ? window.location.href : ''),
       };
@@ -41,9 +38,6 @@ export default function AuthCallback() {
       console.log('🎯 All extracted parameters:', {
         hasAccessToken: !!allParams.access_token,
         hasRefreshToken: !!allParams.refresh_token,
-        hasCode: !!allParams.code,
-        hasError: !!allParams.error,
-        type: allParams.type,
         errorDescription: allParams.error_description,
       });
 

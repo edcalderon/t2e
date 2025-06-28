@@ -5,20 +5,19 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Platform,
   ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
-import { Twitter, Check, AlertCircle, RefreshCw, Shield, Clock, Settings, Info } from "lucide-react-native";
+import { Svg, Path } from 'react-native-svg';
+import { Check, AlertCircle, RefreshCw, Shield, Clock, Settings, Info } from "lucide-react-native";
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useSupabaseAuth } from '../../../hooks/useSupabaseAuth';
 
 interface TwitterConnectStepProps {
   onConnect: (connected: boolean) => void;
-  isConnected: boolean;
 }
 
-export default function TwitterConnectStep({ onConnect, isConnected }: TwitterConnectStepProps) {
+export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProps) {
   const { theme } = useTheme();
   const { 
     user, 
@@ -161,7 +160,9 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
               <Check size={32} color={theme.colors.success} />
             </View>
             <View style={styles.twitterBadge}>
-              <Twitter size={20} color="#1DA1F2" />
+              <Svg width="20" height="20" viewBox="0 0 24 24">
+                <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="#1DA1F2" />
+              </Svg>
             </View>
           </View>
           
@@ -307,7 +308,9 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
     <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
       <View style={styles.iconContainer}>
         <View style={styles.iconBackground}>
-          <Twitter size={40} color="#1DA1F2" />
+          <Svg width="40" height="40" viewBox="0 0 24 24">
+            <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="#1DA1F2" />
+          </Svg>
         </View>
       </View>
       
@@ -348,7 +351,9 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
           </View>
         ) : (
           <>
-            <Twitter size={20} color="#FFFFFF" />
+            <Svg width="20" height="20" viewBox="0 0 24 24">
+              <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="#FFFFFF" />
+            </Svg>
             <Text style={styles.connectButtonText}>Connect with X</Text>
           </>
         )}
