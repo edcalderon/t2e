@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
-import { Twitter, Check, AlertCircle, RefreshCw, Shield } from "lucide-react-native";
+import { Twitter, Check, AlertCircle, RefreshCw, Shield, Clock } from "lucide-react-native";
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useSupabaseAuth } from '../../../hooks/useSupabaseAuth';
 
@@ -27,7 +27,8 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
     error, 
     signInWithTwitter, 
     retry, 
-    clearError 
+    clearError,
+    isInitialized 
   } = useSupabaseAuth();
   
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -89,13 +90,17 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
 
   const styles = createStyles(theme);
 
-  // Loading state
-  if (isLoading) {
+  // Show loading only if not initialized or actively connecting
+  if (!isInitialized || (isLoading && !isConnecting)) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Checking authentication...</Text>
+          <View style={styles.loadingIconContainer}>
+            <Clock size={32} color={theme.colors.primary} />
+            <ActivityIndicator size="small" color={theme.colors.primary} style={styles.loadingSpinner} />
+          </View>
+          <Text style={styles.loadingText}>Checking authentication status...</Text>
+          <Text style={styles.loadingSubtext}>This should only take a moment</Text>
         </View>
       </Animated.View>
     );
@@ -226,12 +231,12 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
       </View>
 
       <TouchableOpacity
-        style={[styles.connectButton, (isConnecting || isLoading) && styles.connectButtonDisabled]}
+        style={[styles.connectButton, isConnecting && styles.connectButtonDisabled]}
         onPress={handleConnect}
-        disabled={isConnecting || isLoading}
+        disabled={isConnecting}
       >
         {isConnecting ? (
-          <View style={styles.loadingContainer}>
+          <View style={styles.connectingContainer}>
             <ActivityIndicator size="small" color="#FFFFFF" />
             <Text style={styles.connectButtonText}>Connecting...</Text>
           </View>
@@ -258,14 +263,30 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingVertical: 20,
   },
   loadingContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     paddingVertical: 40,
+    gap: 16,
+  },
+  loadingIconContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 60,
+    height: 60,
+  },
+  loadingSpinner: {
+    position: 'absolute',
   },
   loadingText: {
     fontSize: 16,
+    color: theme.colors.text,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  loadingSubtext: {
+    fontSize: 14,
     color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
   iconContainer: {
     alignItems: 'center',
@@ -341,6 +362,11 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  connectingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   disclaimerText: {
     fontSize: 12,
