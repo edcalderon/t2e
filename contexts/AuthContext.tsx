@@ -58,7 +58,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user: twitterUser, 
     isAuthenticated: isSupabaseAuthenticated, 
     isLoading: isSupabaseLoading,
-    signOut: supabaseSignOut 
+    signOut: supabaseSignOut,
+    session
   } = useSupabaseAuth();
 
   useEffect(() => {
@@ -67,13 +68,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Sync Supabase user with local user data
   useEffect(() => {
-    if (twitterUser && isSupabaseAuthenticated) {
-      syncTwitterUser(twitterUser);
+    if (isSupabaseAuthenticated) {
+      if (twitterUser) {
+        // We have full Twitter user data
+        console.log('✅ Syncing full Twitter user data');
+        syncTwitterUser(twitterUser);
+      } else if (session?.user) {
+        // We have a session but no extracted Twitter data - create basic user
+        console.log('✅ Creating basic user from session data');
+        createBasicUserFromSession(session.user);
+      }
     } else if (!isSupabaseAuthenticated && user?.twitterConnected) {
       // If Supabase auth is lost but local user thinks they're connected, update local state
+      console.log('ℹ️ Supabase auth lost, updating local user state');
       updateLocalUser({ twitterConnected: false });
     }
-  }, [twitterUser, isSupabaseAuthenticated]);
+  }, [twitterUser, isSupabaseAuthenticated, session]);
 
   const loadUserData = async () => {
     try {
@@ -85,6 +95,58 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Error loading user data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const createBasicUserFromSession = async (sessionUser: any) => {
+    try {
+      const existingUser = await AsyncStorage.getItem('user');
+      let updatedUser: User;
+
+      // Extract basic info from session user
+      const basicUserData = {
+        id: sessionUser.id,
+        username: sessionUser.user_metadata?.user_name || 
+                 sessionUser.user_metadata?.preferred_username || 
+                 sessionUser.email?.split('@')[0] || 
+                 `user_${sessionUser.id.slice(-8)}`,
+        email: sessionUser.email || '',
+        avatar: sessionUser.user_metadata?.avatar_url || 
+               sessionUser.user_metadata?.picture ||
+               'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2',
+        displayName: sessionUser.user_metadata?.full_name || 
+                    sessionUser.user_metadata?.name || 
+                    'Twitter User',
+        twitterId: sessionUser.user_metadata?.provider_id || sessionUser.id,
+        verified: sessionUser.user_metadata?.verified || false,
+        followerCount: sessionUser.user_metadata?.followers_count || 0,
+        twitterHandle: sessionUser.user_metadata?.user_name || 
+                      sessionUser.user_metadata?.preferred_username,
+      };
+
+      if (existingUser) {
+        // Merge with existing user data
+        const parsed = JSON.parse(existingUser);
+        updatedUser = {
+          ...parsed,
+          ...basicUserData,
+          twitterConnected: true,
+        };
+      } else {
+        // Create new user from session data
+        updatedUser = {
+          ...basicUserData,
+          twitterConnected: true,
+          walletConnected: false,
+          selectedThemes: [],
+        };
+      }
+
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      console.log('✅ Created basic user from session:', updatedUser.username);
+    } catch (error) {
+      console.log('Error creating basic user from session:', error);
     }
   };
 
@@ -129,6 +191,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
+      console.log('✅ Synced Twitter user:', updatedUser.username);
     } catch (error) {
       console.log('Error syncing Twitter user:', error);
     }

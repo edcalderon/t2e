@@ -31,6 +31,8 @@ export default function AuthCallback() {
         access_token: params.access_token,
         refresh_token: params.refresh_token,
         error_description: params.error_description,
+        error: params.error,
+        code: params.code,
         // URL-based extraction
         ...extractTokensFromUrl(typeof window !== 'undefined' ? window.location.href : ''),
       };
@@ -38,7 +40,9 @@ export default function AuthCallback() {
       console.log('🎯 All extracted parameters:', {
         hasAccessToken: !!allParams.access_token,
         hasRefreshToken: !!allParams.refresh_token,
+        hasCode: !!allParams.code,
         errorDescription: allParams.error_description,
+        error: allParams.error,
       });
 
       if (__DEV__) {
@@ -56,9 +60,19 @@ export default function AuthCallback() {
           setStatus('warning');
           setMessage('✅ Twitter authentication successful!\n\n⚠️ Email not provided by Twitter (this is completely normal)');
           
-          setTimeout(() => {
-            router.replace('/(tabs)/');
-          }, 3000);
+          // Check if we have a session despite the email error
+          setTimeout(async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              console.log('✅ Session found despite email error');
+              setStatus('success');
+              setMessage('✅ Authentication successful! Redirecting...');
+            }
+            
+            setTimeout(() => {
+              router.replace('/(tabs)/');
+            }, 2000);
+          }, 1000);
           return;
         }
         
@@ -90,9 +104,19 @@ export default function AuthCallback() {
               setStatus('warning');
               setMessage('✅ Twitter authentication successful!\n\n⚠️ Email not provided by Twitter (this is normal)');
               
-              setTimeout(() => {
-                router.replace('/(tabs)/');
-              }, 3000);
+              // Check for session anyway
+              setTimeout(async () => {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                  console.log('✅ Session established despite email warning');
+                  setStatus('success');
+                  setMessage('✅ Authentication successful! Redirecting...');
+                }
+                
+                setTimeout(() => {
+                  router.replace('/(tabs)/');
+                }, 2000);
+              }, 1000);
               return;
             }
             
@@ -118,6 +142,19 @@ export default function AuthCallback() {
             }, 2000);
             return;
           } else {
+            // No session but no error - check if session exists anyway
+            console.log('⚠️ No session data from exchange, checking current session...');
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              console.log('✅ Found existing session after exchange');
+              setStatus('success');
+              setMessage('✅ Authentication successful!');
+              setTimeout(() => {
+                router.replace('/(tabs)/');
+              }, 2000);
+              return;
+            }
+            
             throw new Error('No session data received from code exchange');
           }
         } catch (codeError: any) {
@@ -184,7 +221,22 @@ export default function AuthCallback() {
       }
 
       // If we get here, no valid authentication method was found
-      console.warn('⚠️ No valid authentication tokens or code found');
+      // But check if we have a session anyway (sometimes OAuth completes without explicit tokens)
+      console.log('🔍 No explicit tokens found, checking for existing session...');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        console.log('✅ Found existing session without explicit tokens');
+        setStatus('success');
+        setMessage('✅ Authentication successful!');
+        
+        setTimeout(() => {
+          router.replace('/(tabs)/');
+        }, 2000);
+        return;
+      }
+
+      console.warn('⚠️ No valid authentication tokens or session found');
       setStatus('error');
       setMessage('❌ No authentication tokens received. Please try signing in again.');
       

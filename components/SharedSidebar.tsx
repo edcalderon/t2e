@@ -19,7 +19,7 @@ interface SharedSidebarProps {
 
 export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }: SharedSidebarProps) {
   const { theme } = useTheme();
-  const { user, isAuthenticated, setShowSetupModal } = useAuth();
+  const { user, isAuthenticated, setShowSetupModal, twitterUser, isSupabaseAuthenticated } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarAnimation] = useState(new Animated.Value(sidebarCollapsed ? 0 : 1));
@@ -87,6 +87,42 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
     outputRange: [0, 8],
   });
 
+  // Get user display data - prioritize local user, fallback to twitter user, then guest
+  const getUserDisplayData = () => {
+    if (user) {
+      return {
+        username: user.username,
+        displayName: user.displayName || user.username,
+        avatar: user.avatar,
+        isGuest: false,
+      };
+    } else if (twitterUser) {
+      return {
+        username: twitterUser.username,
+        displayName: twitterUser.displayName,
+        avatar: twitterUser.avatar,
+        isGuest: false,
+      };
+    } else if (isSupabaseAuthenticated) {
+      // We have a session but no user data - show basic authenticated state
+      return {
+        username: 'Twitter User',
+        displayName: 'Connected User',
+        avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2',
+        isGuest: false,
+      };
+    } else {
+      // Guest user
+      return {
+        username: 'Guest User',
+        displayName: 'Guest User',
+        avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2',
+        isGuest: true,
+      };
+    }
+  };
+
+  const userDisplayData = getUserDisplayData();
   const styles = createStyles(theme);
 
   return (
@@ -191,27 +227,32 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
           styles.userProfile,
           sidebarCollapsed && styles.userProfileCollapsed
         ]}
-        onPress={() => !isAuthenticated && setShowSetupModal(true)}
+        onPress={() => userDisplayData.isGuest && setShowSetupModal(true)}
       >
         <Image
-          source={{ 
-            uri: isAuthenticated && user?.avatar 
-              ? user.avatar 
-              : "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2" 
-          }}
+          source={{ uri: userDisplayData.avatar }}
           style={[
             styles.userAvatar,
             sidebarCollapsed && styles.userAvatarCollapsed,
-            !isAuthenticated && styles.userAvatarDisabled
+            userDisplayData.isGuest && styles.userAvatarDisabled
           ]}
         />
         <Animated.View style={[styles.userInfo, { opacity: textOpacity }]}>
           <Text style={styles.userName}>
-            {isAuthenticated && user ? user.username : "Guest User"}
+            {userDisplayData.displayName}
           </Text>
           <Text style={styles.userHandle}>
-            {isAuthenticated && user ? `@${user.username.toLowerCase()}` : "Not connected"}
+            {userDisplayData.isGuest 
+              ? "Not connected" 
+              : `@${userDisplayData.username.toLowerCase()}`
+            }
           </Text>
+          {isAuthenticated && !userDisplayData.isGuest && (
+            <View style={styles.connectedIndicator}>
+              <View style={styles.connectedDot} />
+              <Text style={styles.connectedText}>Connected</Text>
+            </View>
+          )}
         </Animated.View>
         <TouchableOpacity 
           style={[
@@ -403,6 +444,23 @@ const createStyles = (theme: any) => StyleSheet.create({
   userHandle: {
     fontSize: 15,
     color: theme.colors.textSecondary,
+  },
+  connectedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  connectedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.success,
+    marginRight: 4,
+  },
+  connectedText: {
+    fontSize: 11,
+    color: theme.colors.success,
+    fontWeight: '500',
   },
   collapseButton: {
     padding: 4,
