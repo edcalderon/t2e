@@ -415,6 +415,9 @@ export const useSupabaseAuth = () => {
         return { success: true }; // Treat email issues as success
       } else if (err.message?.includes('auth') || err.message?.includes('oauth')) {
         errorType = 'auth';
+      } else if (err.message?.includes('cancelled') || err.message?.includes('cancel')) {
+        errorType = 'auth';
+        userFriendlyMessage = 'Authentication was cancelled';
       }
       
       const authError: AuthError = {

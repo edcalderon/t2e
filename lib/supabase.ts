@@ -177,6 +177,7 @@ export const isEmailRelatedError = (error: any): boolean => {
   return errorMessage.includes('email') || 
          errorMessage.includes('user email') ||
          errorMessage.includes('external provider') ||
+         errorMessage.includes('server_error') ||
          (error.error === 'server_error' && errorMessage.includes('email'));
 };
 
@@ -188,6 +189,15 @@ export const handleTwitterOAuthError = (error: any) => {
       type: 'warning',
       message: 'Twitter authentication successful! (Email not provided by Twitter)',
       canContinue: true,
+    };
+  }
+  
+  // Handle user cancellation
+  if (error.message?.includes('cancel') || error.message?.includes('dismiss')) {
+    return {
+      type: 'error',
+      message: 'Authentication was cancelled',
+      canContinue: false,
     };
   }
   

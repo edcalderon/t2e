@@ -34,6 +34,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.95));
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionStage, setConnectionStage] = useState<'idle' | 'initiating' | 'redirecting' | 'processing' | 'completing'>('idle');
 
   useEffect(() => {
     Animated.parallel([
@@ -53,42 +54,79 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   // Update parent component when authentication state changes
   useEffect(() => {
     if (isAuthenticated && user) {
-      onConnect(true);
+      setConnectionStage('completing');
+      setTimeout(() => {
+        onConnect(true);
+        setIsConnecting(false);
+        setConnectionStage('idle');
+      }, 1000);
     }
   }, [isAuthenticated, user, onConnect]);
 
   const handleConnect = async () => {
-    if (isAuthenticated) return;
+    if (isAuthenticated || isConnecting) return;
     
     setIsConnecting(true);
+    setConnectionStage('initiating');
     clearError();
     
     try {
+      setConnectionStage('redirecting');
+      
       const result = await signInWithTwitter();
-      if (!result.success && result.error?.type !== 'email') {
-        console.error('❌ Twitter connection failed:', result.error);
+      
+      if (result.success) {
+        setConnectionStage('processing');
+        // Success will be handled by the useEffect above
       } else if (result.error?.type === 'email') {
         console.log('ℹ️ Twitter connection succeeded with email warning');
-        // Consider email warnings as success
-        onConnect(true);
+        setConnectionStage('completing');
+        setTimeout(() => {
+          onConnect(true);
+          setIsConnecting(false);
+          setConnectionStage('idle');
+        }, 1000);
+      } else {
+        console.error('❌ Twitter connection failed:', result.error);
+        setIsConnecting(false);
+        setConnectionStage('idle');
       }
     } catch (err) {
       console.error('❌ Connection error:', err);
-    } finally {
       setIsConnecting(false);
+      setConnectionStage('idle');
     }
   };
 
   const handleRetry = async () => {
+    if (isConnecting) return;
+    
     setIsConnecting(true);
+    setConnectionStage('initiating');
     clearError();
     
     try {
       await retry();
+      setConnectionStage('processing');
     } catch (err) {
       console.error('❌ Retry error:', err);
-    } finally {
       setIsConnecting(false);
+      setConnectionStage('idle');
+    }
+  };
+
+  const getConnectionStageText = () => {
+    switch (connectionStage) {
+      case 'initiating':
+        return 'Initiating connection...';
+      case 'redirecting':
+        return 'Opening Twitter...';
+      case 'processing':
+        return 'Processing authentication...';
+      case 'completing':
+        return 'Completing setup...';
+      default:
+        return 'Connect with X';
     }
   };
 
@@ -151,7 +189,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   }
 
   // Success state - user is authenticated
-  if (isAuthenticated && user) {
+  if (isAuthenticated && user && !isConnecting) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
         <View style={styles.successContainer}>
@@ -216,7 +254,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   }
 
   // Error state with enhanced error handling
-  if (error && !isEmailWarning) {
+  if (error && !isEmailWarning && !isConnecting) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.errorContainer}>
@@ -243,7 +281,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
           </Text>
 
           <TouchableOpacity
-            style={styles.retryButton}
+            style={[styles.retryButton, isConnecting && styles.retryButtonDisabled]}
             onPress={handleRetry}
             disabled={isConnecting}
           >
@@ -270,7 +308,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   }
 
   // Email warning state (treat as success but show info)
-  if (isEmailWarning) {
+  if (isEmailWarning && !isConnecting) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.warningContainer}>
@@ -303,7 +341,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     );
   }
 
-  // Initial connection state
+  // Initial connection state or connecting state
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
       <View style={styles.iconContainer}>
@@ -340,14 +378,18 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       </View>
 
       <TouchableOpacity
-        style={[styles.connectButton, isConnecting && styles.connectButtonDisabled]}
+        style={[
+          styles.connectButton, 
+          isConnecting && styles.connectButtonDisabled
+        ]}
         onPress={handleConnect}
         disabled={isConnecting}
+        activeOpacity={isConnecting ? 1 : 0.7}
       >
         {isConnecting ? (
           <View style={styles.connectingContainer}>
             <ActivityIndicator size="small" color="#FFFFFF" />
-            <Text style={styles.connectButtonText}>Connecting...</Text>
+            <Text style={styles.connectButtonText}>{getConnectionStageText()}</Text>
           </View>
         ) : (
           <>
@@ -470,9 +512,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+    minHeight: 56,
   },
   connectButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.7,
     shadowOpacity: 0.1,
   },
   connectButtonText: {
@@ -677,6 +720,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 16,
+    minHeight: 48,
+  },
+  retryButtonDisabled: {
+    opacity: 0.6,
   },
   retryButtonText: {
     color: '#FFFFFF',
@@ -734,6 +781,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    minHeight: 48,
   },
   continueButtonText: {
     color: '#FFFFFF',
