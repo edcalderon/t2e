@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
-import { Award, Plus, Search, Sparkles, TrendingUp, Users, Moon, Sun, Trophy, Bell, Mail, Bookmark, CreditCard, User, MoveHorizontal as MoreHorizontal, Zap, Chrome as Home, Settings } from "lucide-react-native";
+import { Award, Plus, Search, Sparkles, TrendingUp, Users, Moon, Sun, Trophy, Bell, Mail, Bookmark, CreditCard, User, MoveHorizontal as MoreHorizontal, Zap, Chrome as Home, Settings, Menu, X } from "lucide-react-native";
 import ChallengeCard from "../src/components/ChallengeCard";
 import LeaderboardSection from "../src/components/LeaderboardSection";
 import AccountSetupModal from "../src/components/AccountSetupModal";
@@ -25,6 +25,8 @@ export default function HomeScreen() {
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarAnimation] = useState(new Animated.Value(1));
   const [userProfile, setUserProfile] = useState({
     name: "Alex Johnson",
     handle: "@alexjohnson",
@@ -91,6 +93,15 @@ export default function HomeScreen() {
     }
   }, [isFirstTimeUser]);
 
+  // Animate sidebar collapse/expand
+  useEffect(() => {
+    Animated.timing(sidebarAnimation, {
+      toValue: sidebarCollapsed ? 0 : 1,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [sidebarCollapsed]);
+
   const handleSetupComplete = () => {
     setIsFirstTimeUser(false);
     setShowSetupModal(false);
@@ -102,6 +113,10 @@ export default function HomeScreen() {
 
   const handleThemeToggle = () => {
     toggleTheme();
+  };
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
   };
 
   const sidebarItems = [
@@ -116,70 +131,119 @@ export default function HomeScreen() {
     { id: 'more', icon: MoreHorizontal, label: 'More' },
   ];
 
-  const renderSidebar = () => (
-    <View style={styles.sidebar}>
-      {/* X Logo */}
-      <View style={styles.logoContainer}>
-        <View style={styles.xLogo}>
-          <Text style={styles.xLogoText}>𝕏</Text>
-        </View>
-      </View>
+  const renderSidebar = () => {
+    const sidebarWidth = sidebarAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [88, 275],
+    });
 
-      {/* Navigation Items */}
-      <View style={styles.navItems}>
-        {sidebarItems.map((item) => {
-          const IconComponent = item.icon;
-          const isActive = activeTab === item.id;
-          
-          return (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.navItem, isActive && styles.navItemActive]}
-              onPress={() => setActiveTab(item.id)}
-            >
-              <View style={styles.navItemContent}>
-                <IconComponent 
-                  size={26} 
-                  color={isActive ? theme.colors.text : theme.colors.textSecondary}
-                  strokeWidth={isActive ? 2.5 : 2}
-                />
-                <Text style={[
-                  styles.navItemText,
-                  isActive && styles.navItemTextActive
+    const textOpacity = sidebarAnimation.interpolate({
+      inputRange: [0, 0.5, 1],
+      outputRange: [0, 0, 1],
+    });
+
+    const postButtonWidth = sidebarAnimation.interpolate({
+      inputRange: [0, 1],
+      outputRange: [56, 200],
+    });
+
+    return (
+      <Animated.View style={[styles.sidebar, { width: sidebarWidth }]}>
+        {/* X Logo */}
+        <View style={styles.logoContainer}>
+          <View style={styles.xLogo}>
+            <Text style={styles.xLogoText}>𝕏</Text>
+          </View>
+        </View>
+
+        {/* Navigation Items */}
+        <View style={styles.navItems}>
+          {sidebarItems.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = activeTab === item.id;
+            
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.navItem, isActive && styles.navItemActive]}
+                onPress={() => setActiveTab(item.id)}
+              >
+                <View style={[
+                  styles.navItemContent,
+                  sidebarCollapsed && styles.navItemContentCollapsed
                 ]}>
-                  {item.label}
-                </Text>
-                {item.badge && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{item.badge}</Text>
+                  <View style={styles.iconContainer}>
+                    <IconComponent 
+                      size={26} 
+                      color={isActive ? theme.colors.text : theme.colors.textSecondary}
+                      strokeWidth={isActive ? 2.5 : 2}
+                    />
+                    {item.badge && !sidebarCollapsed && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{item.badge}</Text>
+                      </View>
+                    )}
+                    {item.badge && sidebarCollapsed && (
+                      <View style={styles.badgeCollapsed}>
+                        <Text style={styles.badgeText}>{item.badge}</Text>
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Post Button */}
-      <TouchableOpacity style={styles.postButton}>
-        <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
-        <Text style={styles.postButtonText}>Post</Text>
-      </TouchableOpacity>
-
-      {/* User Profile */}
-      <TouchableOpacity style={styles.userProfile}>
-        <Image
-          source={{ uri: userProfile.avatar }}
-          style={styles.userAvatar}
-        />
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>{userProfile.name}</Text>
-          <Text style={styles.userHandle}>{userProfile.handle}</Text>
+                  <Animated.Text 
+                    style={[
+                      styles.navItemText,
+                      isActive && styles.navItemTextActive,
+                      { opacity: textOpacity }
+                    ]}
+                  >
+                    {item.label}
+                  </Animated.Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-        <MoreHorizontal size={20} color={theme.colors.textSecondary} />
-      </TouchableOpacity>
-    </View>
-  );
+
+        {/* Post Button */}
+        <Animated.View style={[styles.postButtonContainer, { width: postButtonWidth }]}>
+          <TouchableOpacity style={[
+            styles.postButton,
+            sidebarCollapsed && styles.postButtonCollapsed
+          ]}>
+            <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
+            <Animated.Text style={[styles.postButtonText, { opacity: textOpacity }]}>
+              Post
+            </Animated.Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* User Profile */}
+        <TouchableOpacity style={[
+          styles.userProfile,
+          sidebarCollapsed && styles.userProfileCollapsed
+        ]}>
+          <Image
+            source={{ uri: userProfile.avatar }}
+            style={styles.userAvatar}
+          />
+          <Animated.View style={[styles.userInfo, { opacity: textOpacity }]}>
+            <Text style={styles.userName}>{userProfile.name}</Text>
+            <Text style={styles.userHandle}>{userProfile.handle}</Text>
+          </Animated.View>
+          <TouchableOpacity 
+            style={styles.collapseButton}
+            onPress={toggleSidebar}
+          >
+            {sidebarCollapsed ? (
+              <Menu size={20} color={theme.colors.textSecondary} />
+            ) : (
+              <MoreHorizontal size={20} color={theme.colors.textSecondary} />
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
 
   const renderMainContent = () => (
     <View style={styles.mainContent}>
@@ -426,7 +490,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
   },
   sidebar: {
-    width: 275,
     backgroundColor: theme.colors.background,
     borderRightWidth: 1,
     borderRightColor: theme.colors.border,
@@ -467,6 +530,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingVertical: 12,
     position: 'relative',
   },
+  navItemContentCollapsed: {
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  iconContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   navItemText: {
     fontSize: 20,
     fontWeight: '400',
@@ -484,12 +556,30 @@ const createStyles = (theme: any) => StyleSheet.create({
     height: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 8,
+    position: 'absolute',
+    top: -8,
+    right: -8,
+  },
+  badgeCollapsed: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    top: -8,
+    right: -8,
   },
   badgeText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
+  },
+  postButtonContainer: {
+    marginVertical: 16,
+    marginHorizontal: 12,
+    alignItems: 'center',
   },
   postButton: {
     backgroundColor: theme.colors.primary,
@@ -499,8 +589,13 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 16,
-    marginHorizontal: 12,
+    width: '100%',
+  },
+  postButtonCollapsed: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    paddingHorizontal: 0,
   },
   postButtonText: {
     color: '#FFFFFF',
@@ -515,6 +610,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 24,
     marginBottom: 8,
+  },
+  userProfileCollapsed: {
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
   userAvatar: {
     width: 40,
@@ -533,6 +632,9 @@ const createStyles = (theme: any) => StyleSheet.create({
   userHandle: {
     fontSize: 15,
     color: theme.colors.textSecondary,
+  },
+  collapseButton: {
+    padding: 4,
   },
   mainContent: {
     flex: 1,
