@@ -163,16 +163,23 @@ export default function HomeScreen() {
             return (
               <TouchableOpacity
                 key={item.id}
-                style={[styles.navItem, isActive && styles.navItemActive]}
+                style={[
+                  styles.navItem,
+                  isActive && styles.navItemActive,
+                  sidebarCollapsed && styles.navItemCollapsed
+                ]}
                 onPress={() => setActiveTab(item.id)}
               >
                 <View style={[
                   styles.navItemContent,
                   sidebarCollapsed && styles.navItemContentCollapsed
                 ]}>
-                  <View style={styles.iconWrapper}>
+                  <View style={[
+                    styles.iconWrapper,
+                    sidebarCollapsed && styles.iconWrapperCollapsed
+                  ]}>
                     <IconComponent 
-                      size={26} 
+                      size={sidebarCollapsed ? 32 : 26} 
                       color={isActive ? theme.colors.text : theme.colors.textSecondary}
                       strokeWidth={isActive ? 2.5 : 2}
                     />
@@ -206,7 +213,7 @@ export default function HomeScreen() {
             styles.postButton,
             sidebarCollapsed && styles.postButtonCollapsed
           ]}>
-            <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
+            <Plus size={sidebarCollapsed ? 28 : 24} color="#FFFFFF" strokeWidth={2.5} />
             <Animated.Text style={[styles.postButtonText, { opacity: textOpacity }]}>
               Post
             </Animated.Text>
@@ -220,7 +227,10 @@ export default function HomeScreen() {
         ]}>
           <Image
             source={{ uri: userProfile.avatar }}
-            style={styles.userAvatar}
+            style={[
+              styles.userAvatar,
+              sidebarCollapsed && styles.userAvatarCollapsed
+            ]}
           />
           <Animated.View style={[styles.userInfo, { opacity: textOpacity }]}>
             <Text style={styles.userName}>{userProfile.name}</Text>
@@ -234,7 +244,7 @@ export default function HomeScreen() {
             onPress={toggleSidebar}
           >
             {sidebarCollapsed ? (
-              <Menu size={20} color={theme.colors.textSecondary} />
+              <Menu size={24} color={theme.colors.textSecondary} />
             ) : (
               <MoreHorizontal size={20} color={theme.colors.textSecondary} />
             )}
@@ -575,6 +585,13 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: 24,
     marginVertical: 2,
   },
+  navItemCollapsed: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 64,
+    height: 64,
+    alignSelf: 'center',
+  },
   navItemActive: {
     backgroundColor: 'transparent',
   },
@@ -586,7 +603,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   navItemContentCollapsed: {
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    alignItems: 'center',
+    paddingHorizontal: 0,
+    paddingVertical: 16,
+    width: '100%',
   },
   iconWrapper: {
     position: 'relative',
@@ -594,6 +614,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     height: 26,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconWrapperCollapsed: {
+    width: 32,
+    height: 32,
   },
   navItemText: {
     fontSize: 20,
@@ -617,8 +641,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     right: -8,
   },
   badgeCollapsed: {
-    top: -8,
-    right: -8,
+    top: -12,
+    right: -12,
   },
   badgeText: {
     color: '#FFFFFF',
@@ -641,9 +665,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     width: '100%',
   },
   postButtonCollapsed: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     paddingHorizontal: 0,
   },
   postButtonText: {
@@ -662,7 +686,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   userProfileCollapsed: {
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     flexDirection: 'column',
     alignItems: 'center',
   },
@@ -670,6 +694,11 @@ const createStyles = (theme: any) => StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+  },
+  userAvatarCollapsed: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   userInfo: {
     flex: 1,
@@ -688,7 +717,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     padding: 4,
   },
   collapseButtonCollapsed: {
-    marginTop: 8,
+    marginTop: 12,
     alignSelf: 'center',
   },
   mainContent: {
