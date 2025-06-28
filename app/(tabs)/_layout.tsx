@@ -16,6 +16,14 @@ export default function TabLayout() {
           paddingBottom: 8,
           paddingTop: 8,
           height: 60,
+          elevation: 8,
+          shadowColor: theme.colors.text,
+          shadowOffset: {
+            width: 0,
+            height: -2,
+          },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
         },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textSecondary,
@@ -24,14 +32,21 @@ export default function TabLayout() {
           fontWeight: '500',
           marginTop: 4,
         },
+        tabBarIconStyle: {
+          marginTop: 4,
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ size, color }) => (
-            <Home size={size} color={color} />
+          tabBarIcon: ({ size, color, focused }) => (
+            <Home 
+              size={focused ? size + 2 : size} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
           ),
         }}
       />
@@ -39,8 +54,12 @@ export default function TabLayout() {
         name="challenges"
         options={{
           title: 'Challenges',
-          tabBarIcon: ({ size, color }) => (
-            <Award size={size} color={color} />
+          tabBarIcon: ({ size, color, focused }) => (
+            <Award 
+              size={focused ? size + 2 : size} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
           ),
         }}
       />
@@ -48,8 +67,12 @@ export default function TabLayout() {
         name="notifications"
         options={{
           title: 'Notifications',
-          tabBarIcon: ({ size, color }) => (
-            <Bell size={size} color={color} />
+          tabBarIcon: ({ size, color, focused }) => (
+            <Bell 
+              size={focused ? size + 2 : size} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
           ),
         }}
       />
@@ -57,8 +80,12 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ size, color }) => (
-            <Settings size={size} color={color} />
+          tabBarIcon: ({ size, color, focused }) => (
+            <Settings 
+              size={focused ? size + 2 : size} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
           ),
         }}
       />

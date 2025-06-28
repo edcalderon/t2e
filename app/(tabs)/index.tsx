@@ -22,17 +22,17 @@ import {
   Sun,
   Trophy
 } from "lucide-react-native";
+import { router } from 'expo-router';
 import ChallengeCard from "../../src/components/ChallengeCard";
 import LeaderboardSection from "../../src/components/LeaderboardSection";
 import AccountSetupModal from "../../src/components/AccountSetupModal";
 import { useTheme } from '../../contexts/ThemeContext';
-import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
-  const [isFirstTimeUser, setIsFirstTimeUser] = useState(true);
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false); // Changed to false to avoid modal on every load
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [userProfile, setUserProfile] = useState({
     name: "Alex Johnson",
@@ -111,6 +111,18 @@ export default function HomeScreen() {
 
   const handleThemeToggle = () => {
     toggleTheme();
+  };
+
+  const handleNavigateToChallenges = () => {
+    router.push('/(tabs)/challenges');
+  };
+
+  const handleNavigateToNotifications = () => {
+    router.push('/(tabs)/notifications');
+  };
+
+  const handleNavigateToSettings = () => {
+    router.push('/(tabs)/settings');
   };
 
   const styles = createStyles(theme);
@@ -222,7 +234,7 @@ export default function HomeScreen() {
             
             <TouchableOpacity 
               style={styles.quickActionButton}
-              onPress={() => router.push('/(tabs)/challenges')}
+              onPress={handleNavigateToChallenges}
             >
               <Award size={20} color={theme.colors.primary} />
               <Text style={styles.quickActionText}>Browse Challenges</Text>
@@ -234,7 +246,7 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Featured Challenges</Text>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/challenges')}>
+            <TouchableOpacity onPress={handleNavigateToChallenges}>
               <Text style={styles.sectionLink}>View All</Text>
             </TouchableOpacity>
           </View>
