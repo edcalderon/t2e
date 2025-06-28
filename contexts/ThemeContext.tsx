@@ -146,7 +146,7 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [isDark, setIsDark] = useState(false); // Default to light theme
+  const [isDark, setIsDark] = useState(true); // Default to dark theme like X
 
   useEffect(() => {
     loadThemePreference();
