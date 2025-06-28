@@ -12,7 +12,9 @@ import { Image } from "expo-image";
 import { Filter, Search } from "lucide-react-native";
 import ChallengeCard from "../../src/components/ChallengeCard";
 import ResponsiveLayout from "../../components/ResponsiveLayout";
+import AccountSetupModal from "../../src/components/AccountSetupModal";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface Challenge {
   id: string;
@@ -28,6 +30,7 @@ interface Challenge {
 
 export default function ChallengesScreen() {
   const { theme, isDark } = useTheme();
+  const { isAuthenticated, showSetupModal, setShowSetupModal } = useAuth();
   const styles = createStyles(theme);
   const [activeTab, setActiveTab] = useState<
     "available" | "active" | "completed"
@@ -76,7 +79,7 @@ export default function ChallengesScreen() {
           "Share how web3 communities can better onboard new members",
       },
     ],
-    active: [
+    active: isAuthenticated ? [
       {
         id: "4",
         title: "NFT Use Cases Beyond Art",
@@ -89,8 +92,8 @@ export default function ChallengesScreen() {
         description:
           "Discuss practical NFT applications beyond digital art and collectibles",
       },
-    ],
-    completed: [
+    ] : [],
+    completed: isAuthenticated ? [
       {
         id: "5",
         title: "DeFi Explained",
@@ -113,11 +116,19 @@ export default function ChallengesScreen() {
         requiredReplies: 3,
         description: "Share why Algorand is a strong blockchain platform",
       },
-    ],
+    ] : [],
   });
 
   const handleSelectChallenge = (challengeId: string) => {
+    if (!isAuthenticated) {
+      setShowSetupModal(true);
+      return;
+    }
     console.log(`Selected challenge: ${challengeId}`);
+  };
+
+  const handleSetupComplete = () => {
+    setShowSetupModal(false);
   };
 
   const displayChallenges = challenges[activeTab];
@@ -145,6 +156,18 @@ export default function ChallengesScreen() {
             <Filter size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         </View>
+
+        {/* Authentication Banner */}
+        {!isAuthenticated && (
+          <TouchableOpacity 
+            style={styles.authBanner}
+            onPress={() => setShowSetupModal(true)}
+          >
+            <Text style={styles.authBannerText}>
+              Connect your account to participate in challenges and track your progress
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
@@ -177,7 +200,7 @@ export default function ChallengesScreen() {
                 activeTab === "active" ? styles.activeTabText : styles.inactiveTabText
               ]}
             >
-              Active
+              Active ({isAuthenticated ? challenges.active.length : 0})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -193,7 +216,7 @@ export default function ChallengesScreen() {
                 activeTab === "completed" ? styles.activeTabText : styles.inactiveTabText
               ]}
             >
-              Completed
+              Completed ({isAuthenticated ? challenges.completed.length : 0})
             </Text>
           </TouchableOpacity>
         </View>
@@ -221,13 +244,30 @@ export default function ChallengesScreen() {
                 style={styles.emptyStateImage}
                 contentFit="contain"
               />
-              <Text style={styles.emptyStateText}>
-                No {activeTab} challenges found
-              </Text>
+              {!isAuthenticated ? (
+                <TouchableOpacity onPress={() => setShowSetupModal(true)}>
+                  <Text style={styles.emptyStateText}>
+                    Connect your account to see your {activeTab} challenges
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.emptyStateText}>
+                  No {activeTab} challenges found
+                </Text>
+              )}
             </View>
           )}
         </ScrollView>
       </ResponsiveLayout>
+
+      {/* Account Setup Modal */}
+      {showSetupModal && (
+        <AccountSetupModal
+          isVisible={showSetupModal}
+          onComplete={handleSetupComplete}
+          onClose={() => setShowSetupModal(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -276,6 +316,21 @@ const createStyles = (theme: any) => StyleSheet.create({
   filterButton: {
     padding: 8,
   },
+  authBanner: {
+    backgroundColor: theme.colors.primary + '10',
+    marginHorizontal: 16,
+    marginVertical: 12,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '30',
+  },
+  authBannerText: {
+    color: theme.colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
+    textAlign: 'center',
+  },
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: theme.colors.background,
@@ -319,5 +374,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: 16,
     textAlign: 'center',
+    textDecorationLine: 'underline',
   },
 });

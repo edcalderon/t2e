@@ -10,7 +10,9 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { Bell, Award, Star } from "lucide-react-native";
 import ResponsiveLayout from "../../components/ResponsiveLayout";
+import AccountSetupModal from "../../src/components/AccountSetupModal";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface Notification {
   id: string;
@@ -24,53 +26,57 @@ interface Notification {
 
 export default function NotificationsScreen() {
   const { theme, isDark } = useTheme();
+  const { isAuthenticated, showSetupModal, setShowSetupModal } = useAuth();
   const styles = createStyles(theme);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      type: "reward",
-      title: "Reward Received!",
-      message:
-        "You earned 25 ALGO for completing the Tech Innovation challenge.",
-      timestamp: "2 hours ago",
-      read: false,
-    },
-    {
-      id: "2",
-      type: "challenge",
-      title: "New Challenge Available",
-      message:
-        "A new Crypto Education challenge is now available. Earn up to 40 ALGO!",
-      timestamp: "5 hours ago",
-      read: false,
-    },
-    {
-      id: "3",
-      type: "achievement",
-      title: "Achievement Unlocked",
-      message:
-        "You've earned the 'Retweet Hero' badge for getting 100+ retweets!",
-      timestamp: "1 day ago",
-      read: true,
-    },
-    {
-      id: "4",
-      type: "system",
-      title: "Welcome to XQuests",
-      message:
-        "Complete your profile to start earning rewards for your tweets.",
-      timestamp: "2 days ago",
-      read: true,
-    },
-    {
-      id: "5",
-      type: "reward",
-      title: "Bonus Reward!",
-      message: "You received a 10 ALGO bonus for consistent engagement.",
-      timestamp: "3 days ago",
-      read: true,
-    },
-  ]);
+  
+  const [notifications, setNotifications] = useState<Notification[]>(
+    isAuthenticated ? [
+      {
+        id: "1",
+        type: "reward",
+        title: "Reward Received!",
+        message:
+          "You earned 25 ALGO for completing the Tech Innovation challenge.",
+        timestamp: "2 hours ago",
+        read: false,
+      },
+      {
+        id: "2",
+        type: "challenge",
+        title: "New Challenge Available",
+        message:
+          "A new Crypto Education challenge is now available. Earn up to 40 ALGO!",
+        timestamp: "5 hours ago",
+        read: false,
+      },
+      {
+        id: "3",
+        type: "achievement",
+        title: "Achievement Unlocked",
+        message:
+          "You've earned the 'Retweet Hero' badge for getting 100+ retweets!",
+        timestamp: "1 day ago",
+        read: true,
+      },
+      {
+        id: "4",
+        type: "system",
+        title: "Welcome to XQuests",
+        message:
+          "Complete your profile to start earning rewards for your tweets.",
+        timestamp: "2 days ago",
+        read: true,
+      },
+      {
+        id: "5",
+        type: "reward",
+        title: "Bonus Reward!",
+        message: "You received a 10 ALGO bonus for consistent engagement.",
+        timestamp: "3 days ago",
+        read: true,
+      },
+    ] : []
+  );
 
   const markAsRead = (id: string) => {
     setNotifications(
@@ -78,6 +84,10 @@ export default function NotificationsScreen() {
         notif.id === id ? { ...notif, read: true } : notif,
       ),
     );
+  };
+
+  const handleSetupComplete = () => {
+    setShowSetupModal(false);
   };
 
   const getNotificationIcon = (type: string) => {
@@ -107,40 +117,80 @@ export default function NotificationsScreen() {
           <Text style={styles.headerTitle}>Notifications</Text>
         </View>
 
+        {/* Authentication Banner */}
+        {!isAuthenticated && (
+          <TouchableOpacity 
+            style={styles.authBanner}
+            onPress={() => setShowSetupModal(true)}
+          >
+            <Bell size={20} color={theme.colors.primary} />
+            <Text style={styles.authBannerText}>
+              Connect your account to receive notifications about rewards and challenges
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Notification List */}
         <ScrollView style={styles.scrollView}>
-          {notifications.map((notification) => (
-            <TouchableOpacity
-              key={notification.id}
-              style={[
-                styles.notificationItem,
-                notification.read ? styles.readNotification : styles.unreadNotification
-              ]}
-              onPress={() => markAsRead(notification.id)}
-            >
-              <View style={styles.notificationContent}>
-                <View style={styles.iconContainer}>
-                  {getNotificationIcon(notification.type)}
-                </View>
-                <View style={styles.textContainer}>
-                  <View style={styles.titleRow}>
-                    <Text style={styles.notificationTitle}>
-                      {notification.title}
-                    </Text>
-                    <Text style={styles.timestamp}>
-                      {notification.timestamp}
-                    </Text>
+          {notifications.length > 0 ? (
+            notifications.map((notification) => (
+              <TouchableOpacity
+                key={notification.id}
+                style={[
+                  styles.notificationItem,
+                  notification.read ? styles.readNotification : styles.unreadNotification
+                ]}
+                onPress={() => markAsRead(notification.id)}
+              >
+                <View style={styles.notificationContent}>
+                  <View style={styles.iconContainer}>
+                    {getNotificationIcon(notification.type)}
                   </View>
-                  <Text style={styles.notificationMessage}>{notification.message}</Text>
+                  <View style={styles.textContainer}>
+                    <View style={styles.titleRow}>
+                      <Text style={styles.notificationTitle}>
+                        {notification.title}
+                      </Text>
+                      <Text style={styles.timestamp}>
+                        {notification.timestamp}
+                      </Text>
+                    </View>
+                    <Text style={styles.notificationMessage}>{notification.message}</Text>
+                  </View>
+                  {!notification.read && (
+                    <View style={styles.unreadIndicator} />
+                  )}
                 </View>
-                {!notification.read && (
-                  <View style={styles.unreadIndicator} />
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Bell size={48} color={theme.colors.textTertiary} />
+              <Text style={styles.emptyStateTitle}>No notifications yet</Text>
+              {!isAuthenticated ? (
+                <TouchableOpacity onPress={() => setShowSetupModal(true)}>
+                  <Text style={styles.emptyStateLink}>
+                    Connect your account to start receiving notifications
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.emptyStateText}>
+                  You'll see notifications about rewards, challenges, and achievements here
+                </Text>
+              )}
+            </View>
+          )}
         </ScrollView>
       </ResponsiveLayout>
+
+      {/* Account Setup Modal */}
+      {showSetupModal && (
+        <AccountSetupModal
+          isVisible={showSetupModal}
+          onComplete={handleSetupComplete}
+          onClose={() => setShowSetupModal(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -161,6 +211,24 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.text,
+  },
+  authBanner: {
+    backgroundColor: theme.colors.primary + '10',
+    marginHorizontal: 16,
+    marginVertical: 12,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '30',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  authBannerText: {
+    color: theme.colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
+    flex: 1,
   },
   scrollView: {
     flex: 1,
@@ -212,5 +280,32 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.primary,
     marginLeft: 8,
     marginTop: 8,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  emptyStateLink: {
+    fontSize: 14,
+    color: theme.colors.primary,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
 });

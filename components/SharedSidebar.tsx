@@ -10,6 +10,7 @@ import { Image } from "expo-image";
 import { Award, Plus, Search, Bell, Settings, Menu, MoveHorizontal as MoreHorizontal } from "lucide-react-native";
 import { useRouter, usePathname } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SharedSidebarProps {
   sidebarCollapsed: boolean;
@@ -18,15 +19,10 @@ interface SharedSidebarProps {
 
 export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }: SharedSidebarProps) {
   const { theme } = useTheme();
+  const { user, isAuthenticated, setShowSetupModal } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarAnimation] = useState(new Animated.Value(sidebarCollapsed ? 0 : 1));
-  
-  const [userProfile] = useState({
-    name: "Alex Johnson",
-    handle: "@alexjohnson",
-    avatar: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-  });
 
   // Animate sidebar collapse/expand
   useEffect(() => {
@@ -41,9 +37,17 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
     setSidebarCollapsed(!sidebarCollapsed);
   };
 
+  const handleNewPost = () => {
+    if (!isAuthenticated) {
+      setShowSetupModal(true);
+      return;
+    }
+    console.log('Creating new post');
+  };
+
   const sidebarItems = [
     { id: 'explore', icon: Search, label: 'Explore', route: '/(tabs)/' },
-    { id: 'notifications', icon: Bell, label: 'Notifications', badge: 3, route: '/(tabs)/notifications' },
+    { id: 'notifications', icon: Bell, label: 'Notifications', badge: isAuthenticated ? 3 : 0, route: '/(tabs)/notifications' },
     { id: 'challenges', icon: Award, label: 'Challenges', route: '/(tabs)/challenges' },
     { id: 'settings', icon: Settings, label: 'Settings', route: '/(tabs)/settings' },
   ];
@@ -121,7 +125,7 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
                     color={isActive ? theme.colors.text : theme.colors.textSecondary}
                     strokeWidth={isActive ? 2.5 : 2}
                   />
-                  {item.badge && (
+                  {item.badge > 0 && (
                     <View style={styles.badgeCollapsed}>
                       <Text style={styles.badgeText}>{item.badge}</Text>
                     </View>
@@ -136,7 +140,7 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
                       color={isActive ? theme.colors.text : theme.colors.textSecondary}
                       strokeWidth={isActive ? 2.5 : 2}
                     />
-                    {item.badge && (
+                    {item.badge > 0 && (
                       <View style={styles.badge}>
                         <Text style={styles.badgeText}>{item.badge}</Text>
                       </View>
@@ -160,10 +164,13 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
 
       {/* Post Button */}
       <Animated.View style={[styles.postButtonContainer, { width: postButtonWidth }]}>
-        <TouchableOpacity style={[
-          styles.postButton,
-          sidebarCollapsed && styles.postButtonCollapsed
-        ]}>
+        <TouchableOpacity 
+          style={[
+            styles.postButton,
+            sidebarCollapsed && styles.postButtonCollapsed
+          ]}
+          onPress={handleNewPost}
+        >
           <Plus size={sidebarCollapsed ? 28 : 24} color="#FFFFFF" strokeWidth={2.5} />
           <Animated.Text style={[styles.postButtonText, { opacity: textOpacity, marginLeft: postButtonTextMarginLeft }]}>
             Post
@@ -172,20 +179,32 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
       </Animated.View>
 
       {/* User Profile */}
-      <TouchableOpacity style={[
-        styles.userProfile,
-        sidebarCollapsed && styles.userProfileCollapsed
-      ]}>
+      <TouchableOpacity 
+        style={[
+          styles.userProfile,
+          sidebarCollapsed && styles.userProfileCollapsed
+        ]}
+        onPress={() => !isAuthenticated && setShowSetupModal(true)}
+      >
         <Image
-          source={{ uri: userProfile.avatar }}
+          source={{ 
+            uri: isAuthenticated && user?.avatar 
+              ? user.avatar 
+              : "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2" 
+          }}
           style={[
             styles.userAvatar,
-            sidebarCollapsed && styles.userAvatarCollapsed
+            sidebarCollapsed && styles.userAvatarCollapsed,
+            !isAuthenticated && styles.userAvatarDisabled
           ]}
         />
         <Animated.View style={[styles.userInfo, { opacity: textOpacity }]}>
-          <Text style={styles.userName}>{userProfile.name}</Text>
-          <Text style={styles.userHandle}>{userProfile.handle}</Text>
+          <Text style={styles.userName}>
+            {isAuthenticated && user ? user.username : "Guest User"}
+          </Text>
+          <Text style={styles.userHandle}>
+            {isAuthenticated && user ? `@${user.username.toLowerCase()}` : "Not connected"}
+          </Text>
         </Animated.View>
         <TouchableOpacity 
           style={[
@@ -358,6 +377,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
+  },
+  userAvatarDisabled: {
+    opacity: 0.6,
   },
   userInfo: {
     flex: 1,

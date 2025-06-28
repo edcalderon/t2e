@@ -18,19 +18,15 @@ import LeaderboardSection from "../../src/components/LeaderboardSection";
 import AccountSetupModal from "../../src/components/AccountSetupModal";
 import ResponsiveLayout from "../../components/ResponsiveLayout";
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function ExploreScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
+  const { user, isAuthenticated, showSetupModal, setShowSetupModal } = useAuth();
   const router = useRouter();
-  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
-  const [showSetupModal, setShowSetupModal] = useState(false);
   
-  const [userProfile, setUserProfile] = useState({
-    walletBalance: "245.75",
-  });
-
   const [challenges, setChallenges] = useState([
     {
       id: "1",
@@ -63,13 +59,6 @@ export default function ExploreScreen() {
     },
   ]);
 
-  const [stats] = useState({
-    totalEarned: "1,247.50",
-    thisWeek: "+127.25",
-    rank: "#47",
-    streak: "12 days",
-  });
-
   // Animation for theme toggle
   const [themeAnimation] = useState(new Animated.Value(isDark ? 1 : 0));
 
@@ -81,25 +70,52 @@ export default function ExploreScreen() {
     }).start();
   }, [isDark]);
 
-  useEffect(() => {
-    if (isFirstTimeUser) {
-      setShowSetupModal(true);
-    }
-  }, [isFirstTimeUser]);
-
   const handleSetupComplete = () => {
-    setIsFirstTimeUser(false);
     setShowSetupModal(false);
   };
 
   const handleSelectChallenge = (challengeId: string) => {
+    if (!isAuthenticated) {
+      setShowSetupModal(true);
+      return;
+    }
     console.log(`Selected challenge: ${challengeId}`);
+  };
+
+  const handleNewTweet = () => {
+    if (!isAuthenticated) {
+      setShowSetupModal(true);
+      return;
+    }
+    console.log('Creating new tweet');
   };
 
   const handleThemeToggle = () => {
     toggleTheme();
   };
 
+  // Get user stats or show zeros
+  const getStats = () => {
+    if (!isAuthenticated || !user) {
+      return {
+        totalEarned: "0.00",
+        thisWeek: "+0.00",
+        rank: "#--",
+        streak: "0 days",
+        walletBalance: "0.00",
+      };
+    }
+
+    return {
+      totalEarned: "1,247.50",
+      thisWeek: "+127.25",
+      rank: "#47",
+      streak: "12 days",
+      walletBalance: "245.75",
+    };
+  };
+
+  const stats = getStats();
   const styles = createStyles(theme);
 
   return (
@@ -116,9 +132,12 @@ export default function ExploreScreen() {
             <Text style={styles.headerTitle}>Explore</Text>
 
             <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.walletBadge}>
+              <TouchableOpacity 
+                style={styles.walletBadge}
+                onPress={() => !isAuthenticated && setShowSetupModal(true)}
+              >
                 <Sparkles size={16} color={theme.colors.primary} />
-                <Text style={styles.walletAmount}>{userProfile.walletBalance}</Text>
+                <Text style={styles.walletAmount}>{stats.walletBalance}</Text>
                 <Text style={styles.walletCurrency}>ALGO</Text>
               </TouchableOpacity>
               
@@ -164,22 +183,43 @@ export default function ExploreScreen() {
         </View>
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* Authentication Status Banner */}
+          {!isAuthenticated && (
+            <TouchableOpacity 
+              style={styles.authBanner}
+              onPress={() => setShowSetupModal(true)}
+            >
+              <View style={styles.authBannerContent}>
+                <Sparkles size={20} color={theme.colors.primary} />
+                <Text style={styles.authBannerText}>
+                  Connect your account to start earning rewards
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Stats Cards */}
           <View style={styles.statsContainer}>
             <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
+              <TouchableOpacity 
+                style={styles.statCard}
+                onPress={() => !isAuthenticated && setShowSetupModal(true)}
+              >
                 <TrendingUp size={20} color={theme.colors.success} />
                 <Text style={styles.statValue}>{stats.totalEarned}</Text>
                 <Text style={styles.statLabel}>Total Earned</Text>
-                <Text style={styles.statChange}>+{stats.thisWeek} this week</Text>
-              </View>
+                <Text style={styles.statChange}>{stats.thisWeek} this week</Text>
+              </TouchableOpacity>
               
-              <View style={styles.statCard}>
+              <TouchableOpacity 
+                style={styles.statCard}
+                onPress={() => !isAuthenticated && setShowSetupModal(true)}
+              >
                 <Trophy size={20} color={theme.colors.warning} />
                 <Text style={styles.statValue}>{stats.rank}</Text>
                 <Text style={styles.statLabel}>Global Rank</Text>
                 <Text style={styles.statChange}>{stats.streak} streak</Text>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -187,7 +227,10 @@ export default function ExploreScreen() {
           <View style={styles.quickActionsContainer}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.quickActions}>
-              <TouchableOpacity style={styles.quickActionButton}>
+              <TouchableOpacity 
+                style={styles.quickActionButton}
+                onPress={handleNewTweet}
+              >
                 <Plus size={20} color={theme.colors.primary} />
                 <Text style={styles.quickActionText}>New Tweet</Text>
               </TouchableOpacity>
@@ -230,7 +273,7 @@ export default function ExploreScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Top Performers</Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => !isAuthenticated && setShowSetupModal(true)}>
                 <Text style={styles.sectionLink}>View All</Text>
               </TouchableOpacity>
             </View>
@@ -242,41 +285,54 @@ export default function ExploreScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Recent Activity</Text>
             
-            <TouchableOpacity style={styles.activityItem}>
-              <View style={[styles.activityIcon, { backgroundColor: theme.colors.warning + '20' }]}>
-                <Trophy size={16} color={theme.colors.warning} />
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityText}>
-                  You earned <Text style={styles.highlight}>25 ALGO</Text> from the Tech Innovation challenge
-                </Text>
-                <Text style={styles.activityTime}>2 hours ago</Text>
-              </View>
-            </TouchableOpacity>
+            {isAuthenticated ? (
+              <>
+                <TouchableOpacity style={styles.activityItem}>
+                  <View style={[styles.activityIcon, { backgroundColor: theme.colors.warning + '20' }]}>
+                    <Trophy size={16} color={theme.colors.warning} />
+                  </View>
+                  <View style={styles.activityContent}>
+                    <Text style={styles.activityText}>
+                      You earned <Text style={styles.highlight}>25 ALGO</Text> from the Tech Innovation challenge
+                    </Text>
+                    <Text style={styles.activityTime}>2 hours ago</Text>
+                  </View>
+                </TouchableOpacity>
 
-            <TouchableOpacity style={styles.activityItem}>
-              <View style={[styles.activityIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                <Users size={16} color={theme.colors.primary} />
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityText}>
-                  You moved up to <Text style={styles.highlight}>rank #47</Text> on the global leaderboard
-                </Text>
-                <Text style={styles.activityTime}>5 hours ago</Text>
-              </View>
-            </TouchableOpacity>
+                <TouchableOpacity style={styles.activityItem}>
+                  <View style={[styles.activityIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                    <Users size={16} color={theme.colors.primary} />
+                  </View>
+                  <View style={styles.activityContent}>
+                    <Text style={styles.activityText}>
+                      You moved up to <Text style={styles.highlight}>rank #47</Text> on the global leaderboard
+                    </Text>
+                    <Text style={styles.activityTime}>5 hours ago</Text>
+                  </View>
+                </TouchableOpacity>
 
-            <TouchableOpacity style={styles.activityItem}>
-              <View style={[styles.activityIcon, { backgroundColor: theme.colors.success + '20' }]}>
-                <Award size={16} color={theme.colors.success} />
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityText}>
-                  New achievement unlocked: <Text style={styles.highlight}>Tweet Master</Text>
+                <TouchableOpacity style={styles.activityItem}>
+                  <View style={[styles.activityIcon, { backgroundColor: theme.colors.success + '20' }]}>
+                    <Award size={16} color={theme.colors.success} />
+                  </View>
+                  <View style={styles.activityContent}>
+                    <Text style={styles.activityText}>
+                      New achievement unlocked: <Text style={styles.highlight}>Tweet Master</Text>
+                    </Text>
+                    <Text style={styles.activityTime}>1 day ago</Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity 
+                style={styles.emptyActivityState}
+                onPress={() => setShowSetupModal(true)}
+              >
+                <Text style={styles.emptyActivityText}>
+                  Connect your account to see your activity
                 </Text>
-                <Text style={styles.activityTime}>1 day ago</Text>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* App Branding */}
@@ -297,6 +353,7 @@ export default function ExploreScreen() {
         <AccountSetupModal
           isVisible={showSetupModal}
           onComplete={handleSetupComplete}
+          onClose={() => setShowSetupModal(false)}
         />
       )}
     </SafeAreaView>
@@ -384,6 +441,26 @@ const createStyles = (theme: any) => StyleSheet.create({
   scrollView: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  authBanner: {
+    backgroundColor: theme.colors.primary + '10',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '30',
+  },
+  authBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  authBannerText: {
+    color: theme.colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
   },
   statsContainer: {
     paddingHorizontal: 16,
@@ -494,6 +571,15 @@ const createStyles = (theme: any) => StyleSheet.create({
   highlight: {
     color: theme.colors.primary,
     fontWeight: '600',
+  },
+  emptyActivityState: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  emptyActivityText: {
+    fontSize: 15,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
   brandingContainer: {
     alignItems: 'center',

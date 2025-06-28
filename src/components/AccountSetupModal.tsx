@@ -13,6 +13,7 @@ import {
 import { Image } from "expo-image";
 import { X, ArrowRight, Check, Wallet, Settings, Twitter, Eye, EyeOff, CircleAlert as AlertCircle, Sparkles } from "lucide-react-native";
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface AccountSetupModalProps {
   isVisible?: boolean;
@@ -28,6 +29,7 @@ const AccountSetupModal = ({
   onComplete = () => {},
 }: AccountSetupModalProps) => {
   const { theme } = useTheme();
+  const { login } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [twitterConnected, setTwitterConnected] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
@@ -179,7 +181,21 @@ const AccountSetupModal = ({
     }
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    // Create user object and save to auth context
+    const userData = {
+      id: Date.now().toString(),
+      username: formData.username,
+      email: formData.email,
+      avatar: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+      walletAddress: walletConnected ? "ALGO...X7K9" : undefined,
+      twitterConnected,
+      walletConnected,
+      selectedThemes,
+    };
+
+    await login(userData);
+
     Animated.timing(scaleAnim, {
       toValue: 1.1,
       duration: 200,

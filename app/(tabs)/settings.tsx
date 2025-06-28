@@ -12,14 +12,25 @@ import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
 import { User, Wallet, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight } from "lucide-react-native";
 import ResponsiveLayout from "../../components/ResponsiveLayout";
+import AccountSetupModal from "../../src/components/AccountSetupModal";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function SettingsScreen() {
   const { theme, isDark } = useTheme();
+  const { user, isAuthenticated, logout, showSetupModal, setShowSetupModal } = useAuth();
   const styles = createStyles(theme);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [autoTweetEnabled, setAutoTweetEnabled] = useState(false);
+
+  const handleSetupComplete = () => {
+    setShowSetupModal(false);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   const settingsSections = [
     {
@@ -30,12 +41,14 @@ export default function SettingsScreen() {
           title: "Profile Information",
           icon: <User size={20} color={theme.colors.primary} />,
           action: "navigate",
+          requiresAuth: true,
         },
         {
           id: "wallet",
           title: "Wallet Settings",
           icon: <Wallet size={20} color={theme.colors.primary} />,
           action: "navigate",
+          requiresAuth: true,
         },
       ],
     },
@@ -49,6 +62,7 @@ export default function SettingsScreen() {
           action: "toggle",
           value: notificationsEnabled,
           onToggle: setNotificationsEnabled,
+          requiresAuth: true,
         },
         {
           id: "darkMode",
@@ -57,6 +71,7 @@ export default function SettingsScreen() {
           action: "toggle",
           value: darkModeEnabled,
           onToggle: setDarkModeEnabled,
+          requiresAuth: false,
         },
         {
           id: "autoTweet",
@@ -65,6 +80,7 @@ export default function SettingsScreen() {
           action: "toggle",
           value: autoTweetEnabled,
           onToggle: setAutoTweetEnabled,
+          requiresAuth: true,
         },
       ],
     },
@@ -76,14 +92,16 @@ export default function SettingsScreen() {
           title: "Help & Support",
           icon: <HelpCircle size={20} color={theme.colors.primary} />,
           action: "navigate",
+          requiresAuth: false,
         },
-        {
+        ...(isAuthenticated ? [{
           id: "logout",
           title: "Log Out",
           icon: <LogOut size={20} color={theme.colors.error} />,
           action: "button",
           danger: true,
-        },
+          requiresAuth: true,
+        }] : []),
       ],
     },
   ];
@@ -101,6 +119,33 @@ export default function SettingsScreen() {
           <Text style={styles.headerTitle}>Settings</Text>
         </View>
 
+        {/* Authentication Banner */}
+        {!isAuthenticated && (
+          <TouchableOpacity 
+            style={styles.authBanner}
+            onPress={() => setShowSetupModal(true)}
+          >
+            <User size={20} color={theme.colors.primary} />
+            <Text style={styles.authBannerText}>
+              Connect your account to access all settings and features
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* User Profile Section */}
+        {isAuthenticated && user && (
+          <View style={styles.userSection}>
+            <Image
+              source={{ uri: user.avatar || "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2" }}
+              style={styles.userAvatar}
+            />
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{user.username}</Text>
+              <Text style={styles.userEmail}>{user.email}</Text>
+            </View>
+          </View>
+        )}
+
         {/* Settings List */}
         <ScrollView style={styles.scrollView}>
           {settingsSections.map((section) => (
@@ -114,13 +159,18 @@ export default function SettingsScreen() {
                     key={item.id}
                     style={[
                       styles.settingItem,
-                      index < section.items.length - 1 && styles.settingItemBorder
+                      index < section.items.length - 1 && styles.settingItemBorder,
+                      (item.requiresAuth && !isAuthenticated) && styles.settingItemDisabled
                     ]}
                     onPress={() => {
-                      if (
-                        item.action === "navigate" ||
-                        item.action === "button"
-                      ) {
+                      if (item.requiresAuth && !isAuthenticated) {
+                        setShowSetupModal(true);
+                        return;
+                      }
+
+                      if (item.id === "logout") {
+                        handleLogout();
+                      } else if (item.action === "navigate" || item.action === "button") {
                         console.log(`Pressed ${item.title}`);
                       }
                     }}
@@ -132,7 +182,8 @@ export default function SettingsScreen() {
                       <Text
                         style={[
                           styles.settingItemText,
-                          item.danger && styles.dangerText
+                          item.danger && styles.dangerText,
+                          (item.requiresAuth && !isAuthenticated) && styles.disabledText
                         ]}
                       >
                         {item.title}
@@ -145,11 +196,15 @@ export default function SettingsScreen() {
                         thumbColor={item.value ? "#ffffff" : theme.colors.surface}
                         onValueChange={item.onToggle}
                         value={item.value}
+                        disabled={item.requiresAuth && !isAuthenticated}
                       />
                     )}
 
                     {item.action === "navigate" && (
-                      <ChevronRight size={20} color={theme.colors.textSecondary} />
+                      <ChevronRight 
+                        size={20} 
+                        color={(item.requiresAuth && !isAuthenticated) ? theme.colors.textTertiary : theme.colors.textSecondary} 
+                      />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -167,6 +222,15 @@ export default function SettingsScreen() {
           </View>
         </ScrollView>
       </ResponsiveLayout>
+
+      {/* Account Setup Modal */}
+      {showSetupModal && (
+        <AccountSetupModal
+          isVisible={showSetupModal}
+          onComplete={handleSetupComplete}
+          onClose={() => setShowSetupModal(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -187,6 +251,55 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.text,
+  },
+  authBanner: {
+    backgroundColor: theme.colors.primary + '10',
+    marginHorizontal: 16,
+    marginVertical: 12,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '30',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  authBannerText: {
+    color: theme.colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
+    flex: 1,
+  },
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: 16,
+    marginVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  userAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  userInfo: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  userName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
   },
   scrollView: {
     flex: 1,
@@ -218,6 +331,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: theme.colors.border,
   },
+  settingItemDisabled: {
+    opacity: 0.6,
+  },
   settingItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -236,6 +352,9 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   dangerText: {
     color: theme.colors.error,
+  },
+  disabledText: {
+    color: theme.colors.textTertiary,
   },
   footer: {
     alignItems: 'center',

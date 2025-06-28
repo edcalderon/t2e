@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from "react-nati
 import { Image } from "expo-image";
 import { ChevronRight } from "lucide-react-native";
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 type LeaderboardUser = {
   id: string;
@@ -66,16 +67,33 @@ export default function LeaderboardSection({
   ],
 }: LeaderboardSectionProps) {
   const { theme } = useTheme();
+  const { isAuthenticated, setShowSetupModal } = useAuth();
   const [activeTab, setActiveTab] = useState<"global" | "friends">("global");
   const styles = createStyles(theme);
 
-  const displayUsers = activeTab === "global" ? globalUsers : friendsUsers;
+  const displayUsers = activeTab === "global" ? globalUsers : (isAuthenticated ? friendsUsers : []);
+
+  const handleViewAll = () => {
+    if (!isAuthenticated) {
+      setShowSetupModal(true);
+      return;
+    }
+    console.log('View all leaderboard');
+  };
+
+  const handleTabChange = (tab: "global" | "friends") => {
+    if (tab === "friends" && !isAuthenticated) {
+      setShowSetupModal(true);
+      return;
+    }
+    setActiveTab(tab);
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Leaderboard</Text>
-        <TouchableOpacity style={styles.viewAllButton}>
+        <TouchableOpacity style={styles.viewAllButton} onPress={handleViewAll}>
           <Text style={styles.viewAllText}>View All</Text>
           <ChevronRight size={16} color={theme.colors.primary} />
         </TouchableOpacity>
@@ -84,7 +102,7 @@ export default function LeaderboardSection({
       {/* Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
-          onPress={() => setActiveTab("global")}
+          onPress={() => handleTabChange("global")}
           style={[
             styles.tab,
             activeTab === "global" && styles.activeTab
@@ -100,7 +118,7 @@ export default function LeaderboardSection({
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => setActiveTab("friends")}
+          onPress={() => handleTabChange("friends")}
           style={[
             styles.tab,
             activeTab === "friends" && styles.activeTab
@@ -109,10 +127,11 @@ export default function LeaderboardSection({
           <Text
             style={[
               styles.tabText,
-              activeTab === "friends" && styles.activeTabText
+              activeTab === "friends" && styles.activeTabText,
+              !isAuthenticated && styles.disabledTabText
             ]}
           >
-            Friends
+            Friends {!isAuthenticated && "(Login required)"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -126,30 +145,46 @@ export default function LeaderboardSection({
 
       {/* Leaderboard List */}
       <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false}>
-        {displayUsers.map((user, index) => (
-          <View
-            key={user.id}
-            style={[
-              styles.userRow,
-              index < displayUsers.length - 1 && styles.userRowBorder
-            ]}
-          >
-            <View style={styles.userInfo}>
-              <Text style={styles.rank}>{index + 1}</Text>
-              <Image
-                source={{ uri: user.profileImage }}
-                style={styles.avatar}
-              />
-              <Text style={styles.username}>{user.username}</Text>
+        {displayUsers.length > 0 ? (
+          displayUsers.map((user, index) => (
+            <View
+              key={user.id}
+              style={[
+                styles.userRow,
+                index < displayUsers.length - 1 && styles.userRowBorder
+              ]}
+            >
+              <View style={styles.userInfo}>
+                <Text style={styles.rank}>{index + 1}</Text>
+                <Image
+                  source={{ uri: user.profileImage }}
+                  style={styles.avatar}
+                />
+                <Text style={styles.username}>{user.username}</Text>
+              </View>
+              <Text style={styles.engagement}>
+                {user.engagementScore.toLocaleString()}
+              </Text>
+              <Text style={styles.rewards}>
+                {user.rewardsEarned} ALGO
+              </Text>
             </View>
-            <Text style={styles.engagement}>
-              {user.engagementScore.toLocaleString()}
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>
+              {activeTab === "friends" && !isAuthenticated 
+                ? "Connect your account to see friends leaderboard"
+                : "No users found"
+              }
             </Text>
-            <Text style={styles.rewards}>
-              {user.rewardsEarned} ALGO
-            </Text>
+            {activeTab === "friends" && !isAuthenticated && (
+              <TouchableOpacity onPress={() => setShowSetupModal(true)}>
+                <Text style={styles.emptyStateLink}>Connect Account</Text>
+              </TouchableOpacity>
+            )}
           </View>
-        ))}
+        )}
       </ScrollView>
     </View>
   );
@@ -215,6 +250,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   activeTabText: {
     color: theme.colors.primary,
     fontWeight: '600',
+  },
+  disabledTabText: {
+    color: theme.colors.textTertiary,
+    fontSize: 12,
   },
   columnHeaders: {
     flexDirection: 'row',
@@ -282,5 +321,21 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     color: theme.colors.success,
     fontWeight: '600',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptyStateLink: {
+    fontSize: 14,
+    color: theme.colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
