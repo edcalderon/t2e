@@ -7,20 +7,39 @@ import {
   SafeAreaView,
   StyleSheet,
   Dimensions,
+  Animated,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
-import { Bell, Award, History, Settings, ChevronRight, Chrome as Home, Trophy, Plus, Search, MoveHorizontal as MoreHorizontal, Sparkles, TrendingUp, Users } from "lucide-react-native";
+import { 
+  Bell, 
+  Award, 
+  History, 
+  Settings, 
+  ChevronRight, 
+  Chrome as Home, 
+  Trophy, 
+  Plus, 
+  Search, 
+  MoveHorizontal as MoreHorizontal, 
+  Sparkles, 
+  TrendingUp, 
+  Users,
+  Moon,
+  Sun
+} from "lucide-react-native";
 import ChallengeCard from "../src/components/ChallengeCard";
 import LeaderboardSection from "../src/components/LeaderboardSection";
 import AccountSetupModal from "../src/components/AccountSetupModal";
 import NotificationsScreen from "../src/components/NotificationsScreen";
 import SettingsScreen from "../src/components/SettingsScreen";
 import ChallengesScreen from "../src/components/ChallengesScreen";
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 export default function MainDashboard() {
+  const { theme, toggleTheme, isDark } = useTheme();
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(true);
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [activeScreen, setActiveScreen] = useState<
@@ -75,6 +94,17 @@ export default function MainDashboard() {
     streak: "12 days",
   });
 
+  // Animation for theme toggle
+  const [themeAnimation] = useState(new Animated.Value(isDark ? 1 : 0));
+
+  useEffect(() => {
+    Animated.timing(themeAnimation, {
+      toValue: isDark ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [isDark]);
+
   useEffect(() => {
     if (isFirstTimeUser) {
       setShowSetupModal(true);
@@ -88,6 +118,10 @@ export default function MainDashboard() {
 
   const handleSelectChallenge = (challengeId) => {
     console.log(`Selected challenge: ${challengeId}`);
+  };
+
+  const handleThemeToggle = () => {
+    toggleTheme();
   };
 
   const renderScreen = () => {
@@ -105,6 +139,8 @@ export default function MainDashboard() {
   };
 
   const renderHomeScreen = () => {
+    const styles = createStyles(theme);
+    
     return (
       <>
         {/* Header */}
@@ -123,13 +159,53 @@ export default function MainDashboard() {
 
             <View style={styles.headerActions}>
               <TouchableOpacity style={styles.walletBadge}>
-                <Sparkles size={16} color="#1D9BF0" />
+                <Sparkles size={16} color={theme.colors.primary} />
                 <Text style={styles.walletAmount}>{userProfile.walletBalance}</Text>
                 <Text style={styles.walletCurrency}>ALGO</Text>
               </TouchableOpacity>
               
               <TouchableOpacity style={styles.headerButton}>
-                <Search size={20} color="#71767B" />
+                <Search size={20} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+
+              {/* Theme Toggle Button */}
+              <TouchableOpacity 
+                style={styles.themeToggle}
+                onPress={handleThemeToggle}
+              >
+                <Animated.View
+                  style={[
+                    styles.themeToggleTrack,
+                    {
+                      backgroundColor: themeAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [theme.colors.border, theme.colors.primary],
+                      }),
+                    },
+                  ]}
+                >
+                  <Animated.View
+                    style={[
+                      styles.themeToggleThumb,
+                      {
+                        transform: [
+                          {
+                            translateX: themeAnimation.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [2, 22],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    {isDark ? (
+                      <Moon size={12} color={theme.colors.primary} />
+                    ) : (
+                      <Sun size={12} color="#FFD700" />
+                    )}
+                  </Animated.View>
+                </Animated.View>
               </TouchableOpacity>
             </View>
           </View>
@@ -140,14 +216,14 @@ export default function MainDashboard() {
           <View style={styles.statsContainer}>
             <View style={styles.statsGrid}>
               <View style={styles.statCard}>
-                <TrendingUp size={20} color="#00BA7C" />
+                <TrendingUp size={20} color={theme.colors.success} />
                 <Text style={styles.statValue}>{stats.totalEarned}</Text>
                 <Text style={styles.statLabel}>Total Earned</Text>
                 <Text style={styles.statChange}>+{stats.thisWeek} this week</Text>
               </View>
               
               <View style={styles.statCard}>
-                <Trophy size={20} color="#FFD700" />
+                <Trophy size={20} color={theme.colors.warning} />
                 <Text style={styles.statValue}>{stats.rank}</Text>
                 <Text style={styles.statLabel}>Global Rank</Text>
                 <Text style={styles.statChange}>{stats.streak} streak</Text>
@@ -160,7 +236,7 @@ export default function MainDashboard() {
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.quickActions}>
               <TouchableOpacity style={styles.quickActionButton}>
-                <Plus size={20} color="#1D9BF0" />
+                <Plus size={20} color={theme.colors.primary} />
                 <Text style={styles.quickActionText}>New Tweet</Text>
               </TouchableOpacity>
               
@@ -168,7 +244,7 @@ export default function MainDashboard() {
                 style={styles.quickActionButton}
                 onPress={() => setActiveScreen("challenges")}
               >
-                <Award size={20} color="#1D9BF0" />
+                <Award size={20} color={theme.colors.primary} />
                 <Text style={styles.quickActionText}>Browse Challenges</Text>
               </TouchableOpacity>
             </View>
@@ -215,8 +291,8 @@ export default function MainDashboard() {
             <Text style={styles.sectionTitle}>Recent Activity</Text>
             
             <TouchableOpacity style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Trophy size={16} color="#FFD700" />
+              <View style={[styles.activityIcon, { backgroundColor: theme.colors.warning + '20' }]}>
+                <Trophy size={16} color={theme.colors.warning} />
               </View>
               <View style={styles.activityContent}>
                 <Text style={styles.activityText}>
@@ -227,8 +303,8 @@ export default function MainDashboard() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Users size={16} color="#1D9BF0" />
+              <View style={[styles.activityIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                <Users size={16} color={theme.colors.primary} />
               </View>
               <View style={styles.activityContent}>
                 <Text style={styles.activityText}>
@@ -239,8 +315,8 @@ export default function MainDashboard() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Award size={16} color="#00BA7C" />
+              <View style={[styles.activityIcon, { backgroundColor: theme.colors.success + '20' }]}>
+                <Award size={16} color={theme.colors.success} />
               </View>
               <View style={styles.activityContent}>
                 <Text style={styles.activityText}>
@@ -266,9 +342,14 @@ export default function MainDashboard() {
     );
   };
 
+  const styles = createStyles(theme);
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" backgroundColor="#000000" />
+      <StatusBar 
+        style={isDark ? "light" : "dark"} 
+        backgroundColor={theme.colors.background} 
+      />
 
       {renderScreen()}
 
@@ -280,12 +361,12 @@ export default function MainDashboard() {
         >
           <Home
             size={24}
-            color={activeScreen === "home" ? "#1D9BF0" : "#71767B"}
+            color={activeScreen === "home" ? theme.colors.primary : theme.colors.textSecondary}
           />
           <Text
             style={[
               styles.navLabel,
-              { color: activeScreen === "home" ? "#1D9BF0" : "#71767B" }
+              { color: activeScreen === "home" ? theme.colors.primary : theme.colors.textSecondary }
             ]}
           >
             Home
@@ -298,12 +379,12 @@ export default function MainDashboard() {
         >
           <Award
             size={24}
-            color={activeScreen === "challenges" ? "#1D9BF0" : "#71767B"}
+            color={activeScreen === "challenges" ? theme.colors.primary : theme.colors.textSecondary}
           />
           <Text
             style={[
               styles.navLabel,
-              { color: activeScreen === "challenges" ? "#1D9BF0" : "#71767B" }
+              { color: activeScreen === "challenges" ? theme.colors.primary : theme.colors.textSecondary }
             ]}
           >
             Challenges
@@ -316,12 +397,12 @@ export default function MainDashboard() {
         >
           <Bell
             size={24}
-            color={activeScreen === "notifications" ? "#1D9BF0" : "#71767B"}
+            color={activeScreen === "notifications" ? theme.colors.primary : theme.colors.textSecondary}
           />
           <Text
             style={[
               styles.navLabel,
-              { color: activeScreen === "notifications" ? "#1D9BF0" : "#71767B" }
+              { color: activeScreen === "notifications" ? theme.colors.primary : theme.colors.textSecondary }
             ]}
           >
             Notifications
@@ -334,12 +415,12 @@ export default function MainDashboard() {
         >
           <Settings
             size={24}
-            color={activeScreen === "settings" ? "#1D9BF0" : "#71767B"}
+            color={activeScreen === "settings" ? theme.colors.primary : theme.colors.textSecondary}
           />
           <Text
             style={[
               styles.navLabel,
-              { color: activeScreen === "settings" ? "#1D9BF0" : "#71767B" }
+              { color: activeScreen === "settings" ? theme.colors.primary : theme.colors.textSecondary }
             ]}
           >
             Settings
@@ -358,15 +439,15 @@ export default function MainDashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.background,
   },
   header: {
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.background,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#2F3336',
+    borderBottomColor: theme.colors.border,
     paddingTop: 8,
   },
   headerContent: {
@@ -392,11 +473,11 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#E7E9EA',
+    color: theme.colors.text,
   },
   userHandle: {
     fontSize: 14,
-    color: '#71767B',
+    color: theme.colors.textSecondary,
     marginTop: 1,
   },
   headerActions: {
@@ -407,30 +488,55 @@ const styles = StyleSheet.create({
   walletBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F1419',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#2F3336',
+    borderColor: theme.colors.border,
   },
   walletAmount: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1D9BF0',
+    color: theme.colors.primary,
     marginLeft: 6,
   },
   walletCurrency: {
     fontSize: 12,
-    color: '#71767B',
+    color: theme.colors.textSecondary,
     marginLeft: 4,
   },
   headerButton: {
     padding: 8,
   },
+  themeToggle: {
+    padding: 4,
+  },
+  themeToggleTrack: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+  },
+  themeToggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: theme.colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
   scrollView: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.background,
   },
   statsContainer: {
     paddingHorizontal: 16,
@@ -442,26 +548,26 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#16181C',
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2F3336',
+    borderColor: theme.colors.border,
   },
   statValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#E7E9EA',
+    color: theme.colors.text,
     marginTop: 8,
   },
   statLabel: {
     fontSize: 13,
-    color: '#71767B',
+    color: theme.colors.textSecondary,
     marginTop: 4,
   },
   statChange: {
     fontSize: 12,
-    color: '#00BA7C',
+    color: theme.colors.success,
     marginTop: 2,
   },
   quickActionsContainer: {
@@ -478,17 +584,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#16181C',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: '#2F3336',
+    borderColor: theme.colors.border,
     gap: 8,
   },
   quickActionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1D9BF0',
+    color: theme.colors.primary,
   },
   section: {
     paddingHorizontal: 16,
@@ -503,11 +609,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#E7E9EA',
+    color: theme.colors.text,
   },
   sectionLink: {
     fontSize: 14,
-    color: '#1D9BF0',
+    color: theme.colors.primary,
     fontWeight: '500',
   },
   activityItem: {
@@ -515,13 +621,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingVertical: 12,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#2F3336',
+    borderBottomColor: theme.colors.border,
   },
   activityIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#16181C',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -531,16 +636,16 @@ const styles = StyleSheet.create({
   },
   activityText: {
     fontSize: 15,
-    color: '#E7E9EA',
+    color: theme.colors.text,
     lineHeight: 20,
   },
   activityTime: {
     fontSize: 13,
-    color: '#71767B',
+    color: theme.colors.textSecondary,
     marginTop: 4,
   },
   highlight: {
-    color: '#1D9BF0',
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   brandingContainer: {
@@ -555,21 +660,21 @@ const styles = StyleSheet.create({
   brandingTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1D9BF0',
+    color: theme.colors.primary,
     marginTop: 12,
   },
   brandingSubtitle: {
     fontSize: 14,
-    color: '#71767B',
+    color: theme.colors.textSecondary,
     marginTop: 4,
   },
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: theme.colors.background,
     borderTopWidth: 0.5,
-    borderTopColor: '#2F3336',
+    borderTopColor: theme.colors.border,
     paddingVertical: 8,
     paddingBottom: 12,
   },

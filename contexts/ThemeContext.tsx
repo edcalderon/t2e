@@ -1,0 +1,122 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export interface Theme {
+  colors: {
+    background: string;
+    surface: string;
+    surfaceSecondary: string;
+    text: string;
+    textSecondary: string;
+    textTertiary: string;
+    primary: string;
+    primaryLight: string;
+    success: string;
+    warning: string;
+    error: string;
+    border: string;
+    borderLight: string;
+    accent: string;
+    overlay: string;
+  };
+  isDark: boolean;
+}
+
+const lightTheme: Theme = {
+  colors: {
+    background: '#FFFFFF',
+    surface: '#F8F9FA',
+    surfaceSecondary: '#FFFFFF',
+    text: '#0F1419',
+    textSecondary: '#536471',
+    textTertiary: '#8B98A5',
+    primary: '#1D9BF0',
+    primaryLight: '#E1F5FE',
+    success: '#00BA7C',
+    warning: '#FFD700',
+    error: '#F4212E',
+    border: '#EFF3F4',
+    borderLight: '#F7F9FA',
+    accent: '#794BC4',
+    overlay: 'rgba(0, 0, 0, 0.4)',
+  },
+  isDark: false,
+};
+
+const darkTheme: Theme = {
+  colors: {
+    background: '#000000',
+    surface: '#16181C',
+    surfaceSecondary: '#1E2328',
+    text: '#E7E9EA',
+    textSecondary: '#71767B',
+    textTertiary: '#5B7083',
+    primary: '#1D9BF0',
+    primaryLight: '#0F1419',
+    success: '#00BA7C',
+    warning: '#FFD700',
+    error: '#F4212E',
+    border: '#2F3336',
+    borderLight: '#3E4144',
+    accent: '#794BC4',
+    overlay: 'rgba(0, 0, 0, 0.6)',
+  },
+  isDark: true,
+};
+
+interface ThemeContextType {
+  theme: Theme;
+  toggleTheme: () => void;
+  isDark: boolean;
+}
+
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};
+
+interface ThemeProviderProps {
+  children: React.ReactNode;
+}
+
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+  const [isDark, setIsDark] = useState(true); // Default to dark theme
+
+  useEffect(() => {
+    loadThemePreference();
+  }, []);
+
+  const loadThemePreference = async () => {
+    try {
+      const savedTheme = await AsyncStorage.getItem('theme');
+      if (savedTheme !== null) {
+        setIsDark(savedTheme === 'dark');
+      }
+    } catch (error) {
+      console.log('Error loading theme preference:', error);
+    }
+  };
+
+  const toggleTheme = async () => {
+    const newTheme = !isDark;
+    setIsDark(newTheme);
+    try {
+      await AsyncStorage.setItem('theme', newTheme ? 'dark' : 'light');
+    } catch (error) {
+      console.log('Error saving theme preference:', error);
+    }
+  };
+
+  const theme = isDark ? darkTheme : lightTheme;
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme, isDark }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};

@@ -1,6 +1,6 @@
 import {
   DefaultTheme,
-  ThemeProvider,
+  ThemeProvider as NavigationThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -9,24 +9,46 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import "react-native-reanimated";
 import "../global.css";
-import { Platform } from "react-native"
+import { Platform } from "react-native";
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-const customTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: '#000000',
-    card: '#16181C',
-    text: '#E7E9EA',
-    border: '#2F3336',
-    notification: '#1D9BF0',
-    primary: '#1D9BF0',
-  },
-};
+function AppContent() {
+  const { theme } = useTheme();
+  
+  const navigationTheme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: theme.colors.background,
+      card: theme.colors.surface,
+      text: theme.colors.text,
+      border: theme.colors.border,
+      notification: theme.colors.primary,
+      primary: theme.colors.primary,
+    },
+  };
+
+  return (
+    <NavigationThemeProvider value={navigationTheme}>
+      <Stack
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          contentStyle: { backgroundColor: theme.colors.background },
+        })}
+      >
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+      </Stack>
+      <StatusBar 
+        style={theme.isDark ? "light" : "dark"} 
+        backgroundColor={theme.colors.background} 
+      />
+    </NavigationThemeProvider>
+  );
+}
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -52,16 +74,8 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={customTheme}>
-      <Stack
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          contentStyle: { backgroundColor: '#000000' },
-        })}
-      >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-      </Stack>
-      <StatusBar style="light" backgroundColor="#000000" />
+    <ThemeProvider>
+      <AppContent />
     </ThemeProvider>
   );
 }
