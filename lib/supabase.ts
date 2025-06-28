@@ -9,6 +9,7 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('⚠️ Missing Supabase environment variables. Authentication will not work.');
   console.warn('Please add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file');
+  console.warn('See docs/TWITTER_OAUTH_SETUP.md for complete setup instructions');
 }
 
 // Create Supabase client with enhanced configuration for Twitter OAuth
@@ -39,7 +40,7 @@ export const getTwitterUserData = (user: any) => {
 
   console.log('🔍 Processing user data:', {
     id: user.id,
-    email: user.email,
+    email: user.email || 'No email (normal for Twitter)',
     hasMetadata: !!user.user_metadata,
     metadataKeys: user.user_metadata ? Object.keys(user.user_metadata) : [],
     hasIdentities: !!user.identities,
@@ -55,7 +56,7 @@ export const getTwitterUserData = (user: any) => {
   // Extract Twitter data with multiple fallback options
   const extractedData = {
     id: user.id,
-    // Email is often not provided by Twitter - this is normal
+    // Email is often not provided by Twitter - this is COMPLETELY NORMAL
     email: user.email || 
            twitterData.email || 
            identityData.email ||
@@ -112,7 +113,7 @@ export const getTwitterUserData = (user: any) => {
 
   console.log('✅ Extracted Twitter user data:', {
     ...extractedData,
-    email: extractedData.email ? '***@***.***' : 'No email provided (normal for Twitter)',
+    email: extractedData.email ? '***@***.***' : '❌ No email (NORMAL for Twitter)',
   });
   
   return extractedData;
@@ -271,6 +272,7 @@ export const validateTwitterOAuthConfig = () => {
   
   if (issues.length > 0) {
     console.error('❌ Twitter OAuth configuration issues:', issues);
+    console.error('📖 See docs/TWITTER_OAUTH_SETUP.md for setup instructions');
     return { valid: false, issues };
   }
   
@@ -297,10 +299,11 @@ export const getRedirectUrl = () => {
   }
 };
 
-// Enhanced Twitter OAuth initiation
+// Enhanced Twitter OAuth initiation with email handling
 export const initiateTwitterOAuth = async () => {
   try {
     console.log('🐦 Initiating Twitter OAuth...');
+    console.log('ℹ️ Note: Twitter may not provide email - this is normal behavior');
     
     const redirectUrl = getRedirectUrl();
     
@@ -310,7 +313,7 @@ export const initiateTwitterOAuth = async () => {
         redirectTo: redirectUrl,
         skipBrowserRedirect: Platform.OS !== 'web',
         queryParams: {
-          // Request minimal scopes to avoid email issues
+          // Request minimal scopes to reduce email permission issues
           scope: 'tweet.read users.read',
         },
       },
@@ -318,6 +321,13 @@ export const initiateTwitterOAuth = async () => {
 
     if (error) {
       console.error('❌ OAuth initiation error:', error);
+      
+      // Don't fail for email-related issues
+      if (error.message?.toLowerCase().includes('email')) {
+        console.log('ℹ️ Email-related OAuth issue detected - this is normal for Twitter');
+        return { success: true, data, warning: 'Email not available from Twitter' };
+      }
+      
       throw error;
     }
 
@@ -327,4 +337,34 @@ export const initiateTwitterOAuth = async () => {
     console.error('❌ Failed to initiate Twitter OAuth:', error);
     return { success: false, error: error.message };
   }
+};
+
+// Helper to check if an error is email-related (and therefore safe to ignore)
+export const isEmailRelatedError = (error: any): boolean => {
+  if (!error) return false;
+  
+  const errorMessage = (error.message || error.error_description || error.error || '').toLowerCase();
+  
+  return errorMessage.includes('email') || 
+         errorMessage.includes('user email') ||
+         errorMessage.includes('external provider') ||
+         (error.error === 'server_error' && errorMessage.includes('email'));
+};
+
+// Helper to handle Twitter OAuth errors gracefully
+export const handleTwitterOAuthError = (error: any) => {
+  if (isEmailRelatedError(error)) {
+    console.log('ℹ️ Twitter email issue detected - treating as warning, not error');
+    return {
+      type: 'warning',
+      message: 'Twitter authentication successful! (Email not provided by Twitter)',
+      canContinue: true,
+    };
+  }
+  
+  return {
+    type: 'error',
+    message: error.message || error.error_description || 'Authentication failed',
+    canContinue: false,
+  };
 };

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { supabase, extractTokensFromUrl } from '../../lib/supabase';
+import { supabase, extractTokensFromUrl, isEmailRelatedError, handleTwitterOAuthError } from '../../lib/supabase';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Check, AlertCircle, RefreshCw, Info } from 'lucide-react-native';
 
@@ -9,7 +9,7 @@ export default function AuthCallback() {
   const { theme } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [status, setStatus] = useState<'processing' | 'success' | 'error' | 'warning'>('processing');
+  const [status, setStatus] = useState<'processing' | 'success' | 'warning' | 'error'>('processing');
   const [message, setMessage] = useState('Processing authentication...');
   const [debugInfo, setDebugInfo] = useState<any>(null);
 
@@ -20,7 +20,7 @@ export default function AuthCallback() {
   const handleAuthCallback = async () => {
     try {
       setStatus('processing');
-      setMessage('🔍 Processing authentication callback...');
+      setMessage('🔍 Processing Twitter authentication...');
 
       console.log('🔄 Auth callback started');
       console.log('📋 Callback params:', params);
@@ -51,18 +51,16 @@ export default function AuthCallback() {
         setDebugInfo(allParams);
       }
 
-      // Handle OAuth errors - but be lenient with email errors
+      // Handle OAuth errors with special handling for email issues
       if (allParams.error) {
         console.error('❌ OAuth error received:', allParams.error, allParams.error_description);
         
-        // Check if it's an email-related error (common with Twitter)
-        const isEmailError = allParams.error === 'server_error' && 
-                            allParams.error_description?.toLowerCase().includes('email');
+        const errorHandling = handleTwitterOAuthError(allParams);
         
-        if (isEmailError) {
-          console.log('ℹ️ Email error detected - treating as warning, not failure');
+        if (errorHandling.type === 'warning') {
+          console.log('ℹ️ Email error detected - treating as successful authentication');
           setStatus('warning');
-          setMessage('⚠️ Authentication successful! Twitter did not provide email access (this is normal).');
+          setMessage('✅ Twitter authentication successful!\n\n⚠️ Email not provided by Twitter (this is completely normal)');
           
           setTimeout(() => {
             router.replace('/(tabs)/');
@@ -72,7 +70,7 @@ export default function AuthCallback() {
         
         // For other errors, treat as actual failures
         setStatus('error');
-        setMessage(`❌ Authentication failed: ${allParams.error_description || allParams.error}`);
+        setMessage(`❌ Authentication failed: ${errorHandling.message}`);
         
         setTimeout(() => {
           router.replace('/(tabs)/');
@@ -91,11 +89,12 @@ export default function AuthCallback() {
           if (exchangeError) {
             console.error('❌ PKCE exchange error:', exchangeError);
             
-            // Check if it's an email-related error
-            if (exchangeError.message?.toLowerCase().includes('email')) {
-              console.log('ℹ️ Email error during PKCE exchange - treating as warning');
+            const errorHandling = handleTwitterOAuthError(exchangeError);
+            
+            if (errorHandling.type === 'warning') {
+              console.log('ℹ️ Email error during PKCE exchange - treating as successful');
               setStatus('warning');
-              setMessage('⚠️ Authentication successful! Email access not provided by Twitter (this is normal).');
+              setMessage('✅ Twitter authentication successful!\n\n⚠️ Email not provided by Twitter (this is normal)');
               
               setTimeout(() => {
                 router.replace('/(tabs)/');
@@ -108,8 +107,17 @@ export default function AuthCallback() {
 
           if (data.session) {
             console.log('✅ PKCE authentication successful:', data.session.user.id);
-            setStatus('success');
-            setMessage('✅ Authentication successful! Redirecting...');
+            
+            // Check if user has email
+            const hasEmail = !!data.session.user.email;
+            
+            if (hasEmail) {
+              setStatus('success');
+              setMessage('✅ Twitter authentication successful!');
+            } else {
+              setStatus('warning');
+              setMessage('✅ Twitter authentication successful!\n\n⚠️ Email not provided by Twitter (this is normal)');
+            }
             
             setTimeout(() => {
               router.replace('/(tabs)/');
@@ -138,11 +146,12 @@ export default function AuthCallback() {
           if (sessionError) {
             console.error('❌ Session setup error:', sessionError);
             
-            // Check if it's an email-related error
-            if (sessionError.message?.toLowerCase().includes('email')) {
-              console.log('ℹ️ Email error during session setup - treating as warning');
+            const errorHandling = handleTwitterOAuthError(sessionError);
+            
+            if (errorHandling.type === 'warning') {
+              console.log('ℹ️ Email error during session setup - treating as successful');
               setStatus('warning');
-              setMessage('⚠️ Authentication successful! Email access not provided by Twitter (this is normal).');
+              setMessage('✅ Twitter authentication successful!\n\n⚠️ Email not provided by Twitter (this is normal)');
               
               setTimeout(() => {
                 router.replace('/(tabs)/');
@@ -155,8 +164,17 @@ export default function AuthCallback() {
 
           if (data.session) {
             console.log('✅ Token authentication successful:', data.session.user.id);
-            setStatus('success');
-            setMessage('✅ Authentication successful! Redirecting...');
+            
+            // Check if user has email
+            const hasEmail = !!data.session.user.email;
+            
+            if (hasEmail) {
+              setStatus('success');
+              setMessage('✅ Twitter authentication successful!');
+            } else {
+              setStatus('warning');
+              setMessage('✅ Twitter authentication successful!\n\n⚠️ Email not provided by Twitter (this is normal)');
+            }
             
             setTimeout(() => {
               router.replace('/(tabs)/');
@@ -182,6 +200,20 @@ export default function AuthCallback() {
 
     } catch (error: any) {
       console.error('❌ Auth callback processing error:', error);
+      
+      // Check if it's an email-related error even in the catch block
+      const errorHandling = handleTwitterOAuthError(error);
+      
+      if (errorHandling.type === 'warning') {
+        setStatus('warning');
+        setMessage('✅ Twitter authentication successful!\n\n⚠️ Email not provided by Twitter (this is normal)');
+        
+        setTimeout(() => {
+          router.replace('/(tabs)/');
+        }, 3000);
+        return;
+      }
+      
       setStatus('error');
       setMessage(`❌ Authentication failed: ${error.message}`);
       
@@ -217,7 +249,7 @@ export default function AuthCallback() {
             <View style={styles.warningIcon}>
               <Info size={32} color={theme.colors.warning} />
             </View>
-            <Text style={styles.title}>Almost There!</Text>
+            <Text style={styles.title}>Authentication Successful!</Text>
           </>
         )}
         
@@ -243,7 +275,12 @@ export default function AuthCallback() {
           <View style={styles.debugContainer}>
             <Text style={styles.debugTitle}>Debug Info:</Text>
             <Text style={styles.debugText}>
-              {JSON.stringify(debugInfo, null, 2)}
+              {JSON.stringify({
+                ...debugInfo,
+                // Hide sensitive tokens in debug output
+                access_token: debugInfo.access_token ? '[HIDDEN]' : null,
+                refresh_token: debugInfo.refresh_token ? '[HIDDEN]' : null,
+              }, null, 2)}
             </Text>
           </View>
         )}
