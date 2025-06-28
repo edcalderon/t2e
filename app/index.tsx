@@ -10,21 +10,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
-import {
-  Bell,
-  Award,
-  History,
-  Settings,
-  ChevronRight,
-  Home,
-  Trophy,
-  Plus,
-  Search,
-  MoreHorizontal,
-  Sparkles,
-  TrendingUp,
-  Users,
-} from "lucide-react-native";
+import { Bell, Award, History, Settings, ChevronRight, Chrome as Home, Trophy, Plus, Search, MoveHorizontal as MoreHorizontal, Sparkles, TrendingUp, Users } from "lucide-react-native";
 import ChallengeCard from "../src/components/ChallengeCard";
 import LeaderboardSection from "../src/components/LeaderboardSection";
 import AccountSetupModal from "../src/components/AccountSetupModal";
