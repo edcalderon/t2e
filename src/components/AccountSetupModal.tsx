@@ -367,7 +367,7 @@ const AccountSetupModal = ({
                   disabled={isLoading}
                 >
                   <Image
-                    source="https://images.pexels.com/photos/6771607/pexels-photo-6771607.jpeg?auto=compress&cs=tinysrgb&w=60&h=60&dpr=2"
+                    source={{ uri: "https://images.pexels.com/photos/6771607/pexels-photo-6771607.jpeg?auto=compress&cs=tinysrgb&w=60&h=60&dpr=2" }}
                     style={styles.walletIcon}
                   />
                   <View style={styles.walletInfo}>
@@ -383,7 +383,7 @@ const AccountSetupModal = ({
                   disabled={isLoading}
                 >
                   <Image
-                    source="https://images.pexels.com/photos/6771607/pexels-photo-6771607.jpeg?auto=compress&cs=tinysrgb&w=60&h=60&dpr=2"
+                    source={{ uri: "https://images.pexels.com/photos/6771607/pexels-photo-6771607.jpeg?auto=compress&cs=tinysrgb&w=60&h=60&dpr=2" }}
                     style={styles.walletIcon}
                   />
                   <View style={styles.walletInfo}>
@@ -399,7 +399,7 @@ const AccountSetupModal = ({
                   disabled={isLoading}
                 >
                   <Image
-                    source="https://images.pexels.com/photos/6771607/pexels-photo-6771607.jpeg?auto=compress&cs=tinysrgb&w=60&h=60&dpr=2"
+                    source={{ uri: "https://images.pexels.com/photos/6771607/pexels-photo-6771607.jpeg?auto=compress&cs=tinysrgb&w=60&h=60&dpr=2" }}
                     style={styles.walletIcon}
                   />
                   <View style={styles.walletInfo}>

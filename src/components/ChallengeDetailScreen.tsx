@@ -146,7 +146,7 @@ const ChallengeDetailScreen = ({
         <View style={styles.tweetComposer}>
           <View style={styles.userInfo}>
             <Image
-              source="https://api.dicebear.com/7.x/avataaars/svg?seed=user123"
+              source={{ uri: "https://api.dicebear.com/7.x/avataaars/svg?seed=user123" }}
               style={styles.avatar}
             />
             <View style={styles.userDetails}>
