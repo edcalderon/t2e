@@ -9,7 +9,6 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('⚠️ Missing Supabase environment variables. Authentication will not work.');
   console.warn('Please add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file');
-  console.warn('See docs/TWITTER_OAUTH_SETUP.md for complete setup instructions');
 }
 
 // Create Supabase client with enhanced configuration for Twitter OAuth
@@ -40,7 +39,7 @@ export const getTwitterUserData = (user: any) => {
 
   console.log('🔍 Processing user data:', {
     id: user.id,
-    email: user.email || 'No email (normal for Twitter)',
+    email: user.email || 'No email (NORMAL for Twitter)',
     hasMetadata: !!user.user_metadata,
     metadataKeys: user.user_metadata ? Object.keys(user.user_metadata) : [],
     hasIdentities: !!user.identities,
@@ -119,6 +118,166 @@ export const getTwitterUserData = (user: any) => {
   return extractedData;
 };
 
+// Enhanced token extraction helper
+export const extractTokensFromUrl = (url: string) => {
+  console.log('🔍 Extracting tokens from URL:', url.substring(0, 100) + '...');
+  
+  try {
+    const urlObj = new URL(url);
+    
+    // Try to extract from hash fragment first (common for OAuth)
+    const hashParams = new URLSearchParams(urlObj.hash.substring(1));
+    const queryParams = new URLSearchParams(urlObj.search);
+    
+    // Check both hash and query parameters
+    const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
+    const code = hashParams.get('code') || queryParams.get('code');
+    const error = hashParams.get('error') || queryParams.get('error');
+    const errorDescription = hashParams.get('error_description') || queryParams.get('error_description');
+    
+    const tokens = {
+      accessToken,
+      refreshToken,
+      code,
+      error,
+      errorDescription,
+      type: hashParams.get('type') || queryParams.get('type'),
+    };
+    
+    console.log('🎯 Extracted tokens:', {
+      hasAccessToken: !!tokens.accessToken,
+      hasRefreshToken: !!tokens.refreshToken,
+      hasCode: !!tokens.code,
+      hasError: !!tokens.error,
+      type: tokens.type,
+      errorDescription: tokens.errorDescription,
+    });
+    
+    return tokens;
+  } catch (error) {
+    console.error('❌ Error extracting tokens:', error);
+    return {
+      accessToken: null,
+      refreshToken: null,
+      code: null,
+      error: 'token_extraction_failed',
+      errorDescription: 'Failed to extract tokens from URL',
+      type: null,
+    };
+  }
+};
+
+// Helper to check if an error is email-related (and therefore safe to ignore)
+export const isEmailRelatedError = (error: any): boolean => {
+  if (!error) return false;
+  
+  const errorMessage = (error.message || error.error_description || error.error || '').toLowerCase();
+  
+  return errorMessage.includes('email') || 
+         errorMessage.includes('user email') ||
+         errorMessage.includes('external provider') ||
+         (error.error === 'server_error' && errorMessage.includes('email'));
+};
+
+// Helper to handle Twitter OAuth errors gracefully
+export const handleTwitterOAuthError = (error: any) => {
+  if (isEmailRelatedError(error)) {
+    console.log('ℹ️ Twitter email issue detected - treating as warning, not error');
+    return {
+      type: 'warning',
+      message: 'Twitter authentication successful! (Email not provided by Twitter)',
+      canContinue: true,
+    };
+  }
+  
+  return {
+    type: 'error',
+    message: error.message || error.error_description || 'Authentication failed',
+    canContinue: false,
+  };
+};
+
+// Helper to validate Twitter OAuth configuration
+export const validateTwitterOAuthConfig = () => {
+  const issues = [];
+  
+  if (!supabaseUrl) {
+    issues.push('EXPO_PUBLIC_SUPABASE_URL is not set');
+  }
+  
+  if (!supabaseAnonKey) {
+    issues.push('EXPO_PUBLIC_SUPABASE_ANON_KEY is not set');
+  }
+  
+  if (issues.length > 0) {
+    console.error('❌ Twitter OAuth configuration issues:', issues);
+    return { valid: false, issues };
+  }
+  
+  console.log('✅ Twitter OAuth configuration is valid');
+  return { valid: true, issues: [] };
+};
+
+// Helper to get the correct redirect URL for the current environment
+export const getRedirectUrl = () => {
+  if (Platform.OS === 'web') {
+    // For web, use the current origin
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin;
+      const redirectUrl = `${origin}/auth/callback`;
+      console.log('🌐 Web redirect URL:', redirectUrl);
+      return redirectUrl;
+    }
+    return 'http://localhost:8081/auth/callback'; // Fallback for development
+  } else {
+    // For mobile, use the app scheme
+    const redirectUrl = 'xquests://auth/callback';
+    console.log('📱 Mobile redirect URL:', redirectUrl);
+    return redirectUrl;
+  }
+};
+
+// Enhanced Twitter OAuth initiation with email handling
+export const initiateTwitterOAuth = async () => {
+  try {
+    console.log('🐦 Initiating Twitter OAuth...');
+    console.log('ℹ️ Note: Twitter may not provide email - this is normal behavior');
+    
+    const redirectUrl = getRedirectUrl();
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'twitter',
+      options: {
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: Platform.OS !== 'web',
+        queryParams: {
+          // Request minimal scopes to reduce email permission issues
+          scope: 'tweet.read users.read',
+        },
+      },
+    });
+
+    if (error) {
+      console.error('❌ OAuth initiation error:', error);
+      
+      // Don't fail for email-related issues
+      if (error.message?.toLowerCase().includes('email')) {
+        console.log('ℹ️ Email-related OAuth issue detected - this is normal for Twitter');
+        return { success: true, data, warning: 'Email not available from Twitter' };
+      }
+      
+      throw error;
+    }
+
+    console.log('✅ OAuth initiated successfully');
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('❌ Failed to initiate Twitter OAuth:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Enhanced sign out function
 export const signOut = async () => {
   try {
@@ -192,179 +351,4 @@ export const testSupabaseConnection = async () => {
     console.error('❌ Supabase connection test error:', error);
     return false;
   }
-};
-
-// OAuth URL builder for better debugging
-export const buildOAuthUrl = (provider: string, redirectTo: string) => {
-  const baseUrl = `${supabaseUrl}/auth/v1/authorize`;
-  const params = new URLSearchParams({
-    provider,
-    redirect_to: redirectTo,
-    flow_type: 'pkce',
-  });
-  
-  const url = `${baseUrl}?${params.toString()}`;
-  console.log('🔗 Built OAuth URL:', url);
-  return url;
-};
-
-// Enhanced token extraction helper
-export const extractTokensFromUrl = (url: string) => {
-  console.log('🔍 Extracting tokens from URL:', url.substring(0, 100) + '...');
-  
-  try {
-    const urlObj = new URL(url);
-    
-    // Try to extract from hash fragment first (common for OAuth)
-    const hashParams = new URLSearchParams(urlObj.hash.substring(1));
-    const queryParams = new URLSearchParams(urlObj.search);
-    
-    // Check both hash and query parameters
-    const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
-    const code = hashParams.get('code') || queryParams.get('code');
-    const error = hashParams.get('error') || queryParams.get('error');
-    const errorDescription = hashParams.get('error_description') || queryParams.get('error_description');
-    
-    const tokens = {
-      accessToken,
-      refreshToken,
-      code,
-      error,
-      errorDescription,
-      type: hashParams.get('type') || queryParams.get('type'),
-    };
-    
-    console.log('🎯 Extracted tokens:', {
-      hasAccessToken: !!tokens.accessToken,
-      hasRefreshToken: !!tokens.refreshToken,
-      hasCode: !!tokens.code,
-      hasError: !!tokens.error,
-      type: tokens.type,
-      errorDescription: tokens.errorDescription,
-    });
-    
-    return tokens;
-  } catch (error) {
-    console.error('❌ Error extracting tokens:', error);
-    return {
-      accessToken: null,
-      refreshToken: null,
-      code: null,
-      error: 'token_extraction_failed',
-      errorDescription: 'Failed to extract tokens from URL',
-      type: null,
-    };
-  }
-};
-
-// Helper to validate Twitter OAuth configuration
-export const validateTwitterOAuthConfig = () => {
-  const issues = [];
-  
-  if (!supabaseUrl) {
-    issues.push('EXPO_PUBLIC_SUPABASE_URL is not set');
-  }
-  
-  if (!supabaseAnonKey) {
-    issues.push('EXPO_PUBLIC_SUPABASE_ANON_KEY is not set');
-  }
-  
-  if (issues.length > 0) {
-    console.error('❌ Twitter OAuth configuration issues:', issues);
-    console.error('📖 See docs/TWITTER_OAUTH_SETUP.md for setup instructions');
-    return { valid: false, issues };
-  }
-  
-  console.log('✅ Twitter OAuth configuration is valid');
-  return { valid: true, issues: [] };
-};
-
-// Helper to get the correct redirect URL for the current environment
-export const getRedirectUrl = () => {
-  if (Platform.OS === 'web') {
-    // For web, use the current origin
-    if (typeof window !== 'undefined') {
-      const origin = window.location.origin;
-      const redirectUrl = `${origin}/auth/callback`;
-      console.log('🌐 Web redirect URL:', redirectUrl);
-      return redirectUrl;
-    }
-    return 'http://localhost:8081/auth/callback'; // Fallback for development
-  } else {
-    // For mobile, use the app scheme
-    const redirectUrl = 'xquests://auth/callback';
-    console.log('📱 Mobile redirect URL:', redirectUrl);
-    return redirectUrl;
-  }
-};
-
-// Enhanced Twitter OAuth initiation with email handling
-export const initiateTwitterOAuth = async () => {
-  try {
-    console.log('🐦 Initiating Twitter OAuth...');
-    console.log('ℹ️ Note: Twitter may not provide email - this is normal behavior');
-    
-    const redirectUrl = getRedirectUrl();
-    
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'twitter',
-      options: {
-        redirectTo: redirectUrl,
-        skipBrowserRedirect: Platform.OS !== 'web',
-        queryParams: {
-          // Request minimal scopes to reduce email permission issues
-          scope: 'tweet.read users.read',
-        },
-      },
-    });
-
-    if (error) {
-      console.error('❌ OAuth initiation error:', error);
-      
-      // Don't fail for email-related issues
-      if (error.message?.toLowerCase().includes('email')) {
-        console.log('ℹ️ Email-related OAuth issue detected - this is normal for Twitter');
-        return { success: true, data, warning: 'Email not available from Twitter' };
-      }
-      
-      throw error;
-    }
-
-    console.log('✅ OAuth initiated successfully');
-    return { success: true, data };
-  } catch (error: any) {
-    console.error('❌ Failed to initiate Twitter OAuth:', error);
-    return { success: false, error: error.message };
-  }
-};
-
-// Helper to check if an error is email-related (and therefore safe to ignore)
-export const isEmailRelatedError = (error: any): boolean => {
-  if (!error) return false;
-  
-  const errorMessage = (error.message || error.error_description || error.error || '').toLowerCase();
-  
-  return errorMessage.includes('email') || 
-         errorMessage.includes('user email') ||
-         errorMessage.includes('external provider') ||
-         (error.error === 'server_error' && errorMessage.includes('email'));
-};
-
-// Helper to handle Twitter OAuth errors gracefully
-export const handleTwitterOAuthError = (error: any) => {
-  if (isEmailRelatedError(error)) {
-    console.log('ℹ️ Twitter email issue detected - treating as warning, not error');
-    return {
-      type: 'warning',
-      message: 'Twitter authentication successful! (Email not provided by Twitter)',
-      canContinue: true,
-    };
-  }
-  
-  return {
-    type: 'error',
-    message: error.message || error.error_description || 'Authentication failed',
-    canContinue: false,
-  };
 };

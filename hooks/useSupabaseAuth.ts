@@ -6,7 +6,8 @@ import {
   extractTokensFromUrl, 
   validateTwitterOAuthConfig,
   getRedirectUrl,
-  initiateTwitterOAuth
+  initiateTwitterOAuth,
+  handleTwitterOAuthError
 } from '../lib/supabase';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
@@ -246,7 +247,9 @@ export const useSupabaseAuth = () => {
           console.error('❌ Web OAuth error:', error);
           
           // Handle specific Twitter OAuth errors gracefully
-          if (error.message?.toLowerCase().includes('email')) {
+          const errorHandling = handleTwitterOAuthError(error);
+          
+          if (errorHandling.type === 'warning') {
             console.log('ℹ️ Email-related error detected - this is normal for Twitter OAuth');
             // Don't throw for email issues as they're common with Twitter
             return { success: true };
@@ -284,7 +287,9 @@ export const useSupabaseAuth = () => {
           console.error('❌ Mobile OAuth error:', error);
           
           // Handle specific Twitter OAuth errors gracefully
-          if (error.message?.toLowerCase().includes('email')) {
+          const errorHandling = handleTwitterOAuthError(error);
+          
+          if (errorHandling.type === 'warning') {
             console.log('ℹ️ Email-related error detected - this is normal for Twitter OAuth');
             // Don't throw for email issues as they're common with Twitter
             return { success: true };
@@ -316,7 +321,9 @@ export const useSupabaseAuth = () => {
             
             if (tokens.error) {
               // Handle specific error cases gracefully
-              if (tokens.error === 'server_error' && tokens.errorDescription?.toLowerCase().includes('email')) {
+              const errorHandling = handleTwitterOAuthError(tokens);
+              
+              if (errorHandling.type === 'warning') {
                 console.warn('⚠️ Twitter email access issue - this is normal, continuing without email');
                 // Don't throw error for email issues, they're common with Twitter
                 return { success: true };
@@ -335,7 +342,9 @@ export const useSupabaseAuth = () => {
                 console.error('❌ PKCE exchange error:', sessionError);
                 
                 // Handle email-related errors gracefully
-                if (sessionError.message?.toLowerCase().includes('email')) {
+                const errorHandling = handleTwitterOAuthError(sessionError);
+                
+                if (errorHandling.type === 'warning') {
                   console.warn('⚠️ Email access issue during PKCE exchange - this is normal with Twitter');
                   // Continue anyway, as Twitter often doesn't provide email
                   return { success: true };
@@ -361,7 +370,9 @@ export const useSupabaseAuth = () => {
                 console.error('❌ Session setup error:', sessionError);
                 
                 // Handle email-related errors gracefully
-                if (sessionError.message?.toLowerCase().includes('email')) {
+                const errorHandling = handleTwitterOAuthError(sessionError);
+                
+                if (errorHandling.type === 'warning') {
                   console.warn('⚠️ Email access issue during session setup - this is normal with Twitter');
                   // Continue anyway, as Twitter often doesn't provide email
                   return { success: true };
