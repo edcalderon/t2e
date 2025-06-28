@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "T2E",
-    "slug": "test-tempo",
+    "name": "XQuests",
+    "slug": "xquestssite",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -36,6 +36,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "f48b91b6-e5e3-4340-a3b4-b0a869855dd7"
+      }
+    },
+    "owner": "xquests"
   }
 }
