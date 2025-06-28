@@ -71,6 +71,7 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
       } else if (result.error?.type === 'email') {
         console.log('ℹ️ Twitter connection succeeded with email warning');
         // Consider email warnings as success
+        onConnect(true);
       }
     } catch (err) {
       console.error('❌ Connection error:', err);

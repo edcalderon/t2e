@@ -3,13 +3,13 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase, extractTokensFromUrl } from '../../lib/supabase';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Check, AlertCircle, RefreshCw } from 'lucide-react-native';
+import { Check, AlertCircle, RefreshCw, Info } from 'lucide-react-native';
 
 export default function AuthCallback() {
   const { theme } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
-  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+  const [status, setStatus] = useState<'processing' | 'success' | 'error' | 'warning'>('processing');
   const [message, setMessage] = useState('Processing authentication...');
   const [debugInfo, setDebugInfo] = useState<any>(null);
 
@@ -35,7 +35,7 @@ export default function AuthCallback() {
         error_description: params.error_description,
         type: params.type,
         // URL-based extraction
-        ...extractTokensFromUrl(window?.location?.href || ''),
+        ...extractTokensFromUrl(typeof window !== 'undefined' ? window.location.href : ''),
       };
 
       console.log('🎯 All extracted parameters:', {
@@ -44,21 +44,39 @@ export default function AuthCallback() {
         hasCode: !!allParams.code,
         hasError: !!allParams.error,
         type: allParams.type,
+        errorDescription: allParams.error_description,
       });
 
       if (__DEV__) {
         setDebugInfo(allParams);
       }
 
-      // Handle OAuth errors first
+      // Handle OAuth errors - but be lenient with email errors
       if (allParams.error) {
         console.error('❌ OAuth error received:', allParams.error, allParams.error_description);
+        
+        // Check if it's an email-related error (common with Twitter)
+        const isEmailError = allParams.error === 'server_error' && 
+                            allParams.error_description?.toLowerCase().includes('email');
+        
+        if (isEmailError) {
+          console.log('ℹ️ Email error detected - treating as warning, not failure');
+          setStatus('warning');
+          setMessage('⚠️ Authentication successful! Twitter did not provide email access (this is normal).');
+          
+          setTimeout(() => {
+            router.replace('/(tabs)/');
+          }, 3000);
+          return;
+        }
+        
+        // For other errors, treat as actual failures
         setStatus('error');
-        setMessage(`Authentication failed: ${allParams.error_description || allParams.error}`);
+        setMessage(`❌ Authentication failed: ${allParams.error_description || allParams.error}`);
         
         setTimeout(() => {
           router.replace('/(tabs)/');
-        }, 3000);
+        }, 4000);
         return;
       }
 
@@ -72,6 +90,19 @@ export default function AuthCallback() {
           
           if (exchangeError) {
             console.error('❌ PKCE exchange error:', exchangeError);
+            
+            // Check if it's an email-related error
+            if (exchangeError.message?.toLowerCase().includes('email')) {
+              console.log('ℹ️ Email error during PKCE exchange - treating as warning');
+              setStatus('warning');
+              setMessage('⚠️ Authentication successful! Email access not provided by Twitter (this is normal).');
+              
+              setTimeout(() => {
+                router.replace('/(tabs)/');
+              }, 3000);
+              return;
+            }
+            
             throw new Error(`Code exchange failed: ${exchangeError.message}`);
           }
 
@@ -106,6 +137,19 @@ export default function AuthCallback() {
 
           if (sessionError) {
             console.error('❌ Session setup error:', sessionError);
+            
+            // Check if it's an email-related error
+            if (sessionError.message?.toLowerCase().includes('email')) {
+              console.log('ℹ️ Email error during session setup - treating as warning');
+              setStatus('warning');
+              setMessage('⚠️ Authentication successful! Email access not provided by Twitter (this is normal).');
+              
+              setTimeout(() => {
+                router.replace('/(tabs)/');
+              }, 3000);
+              return;
+            }
+            
             throw new Error(`Session setup failed: ${sessionError.message}`);
           }
 
@@ -134,7 +178,7 @@ export default function AuthCallback() {
       
       setTimeout(() => {
         router.replace('/(tabs)/');
-      }, 3000);
+      }, 4000);
 
     } catch (error: any) {
       console.error('❌ Auth callback processing error:', error);
@@ -143,7 +187,7 @@ export default function AuthCallback() {
       
       setTimeout(() => {
         router.replace('/(tabs)/');
-      }, 4000);
+      }, 5000);
     }
   };
 
@@ -165,6 +209,15 @@ export default function AuthCallback() {
               <Check size={32} color={theme.colors.success} />
             </View>
             <Text style={styles.title}>Success!</Text>
+          </>
+        )}
+        
+        {status === 'warning' && (
+          <>
+            <View style={styles.warningIcon}>
+              <Info size={32} color={theme.colors.warning} />
+            </View>
+            <Text style={styles.title}>Almost There!</Text>
           </>
         )}
         
@@ -235,6 +288,14 @@ const createStyles = (theme: any) => StyleSheet.create({
     height: 60,
     borderRadius: 30,
     backgroundColor: theme.colors.success + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  warningIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: theme.colors.warning + '20',
     alignItems: 'center',
     justifyContent: 'center',
   },

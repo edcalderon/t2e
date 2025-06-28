@@ -11,7 +11,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Please add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file');
 }
 
-// Create Supabase client with enhanced configuration
+// Create Supabase client with enhanced configuration for Twitter OAuth
 export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   auth: {
     // Use AsyncStorage for session persistence on mobile
@@ -19,13 +19,13 @@ export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: Platform.OS === 'web',
-    // Enhanced OAuth settings
+    // Enhanced OAuth settings for Twitter
     flowType: 'pkce', // Use PKCE flow for better security
     debug: __DEV__, // Enable debug mode in development
   },
   global: {
     headers: {
-      'X-Client-Info': `expo-app/${Platform.OS}`,
+      'X-Client-Info': `xquests-app/${Platform.OS}`,
     },
   },
 });
@@ -55,6 +55,7 @@ export const getTwitterUserData = (user: any) => {
   // Extract Twitter data with multiple fallback options
   const extractedData = {
     id: user.id,
+    // Email is often not provided by Twitter - this is normal
     email: user.email || 
            twitterData.email || 
            identityData.email ||
@@ -111,7 +112,7 @@ export const getTwitterUserData = (user: any) => {
 
   console.log('✅ Extracted Twitter user data:', {
     ...extractedData,
-    email: extractedData.email ? '***@***.***' : 'No email provided',
+    email: extractedData.email ? '***@***.***' : 'No email provided (normal for Twitter)',
   });
   
   return extractedData;
@@ -275,4 +276,55 @@ export const validateTwitterOAuthConfig = () => {
   
   console.log('✅ Twitter OAuth configuration is valid');
   return { valid: true, issues: [] };
+};
+
+// Helper to get the correct redirect URL for the current environment
+export const getRedirectUrl = () => {
+  if (Platform.OS === 'web') {
+    // For web, use the current origin
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin;
+      const redirectUrl = `${origin}/auth/callback`;
+      console.log('🌐 Web redirect URL:', redirectUrl);
+      return redirectUrl;
+    }
+    return 'http://localhost:8081/auth/callback'; // Fallback for development
+  } else {
+    // For mobile, use the app scheme
+    const redirectUrl = 'xquests://auth/callback';
+    console.log('📱 Mobile redirect URL:', redirectUrl);
+    return redirectUrl;
+  }
+};
+
+// Enhanced Twitter OAuth initiation
+export const initiateTwitterOAuth = async () => {
+  try {
+    console.log('🐦 Initiating Twitter OAuth...');
+    
+    const redirectUrl = getRedirectUrl();
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'twitter',
+      options: {
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: Platform.OS !== 'web',
+        queryParams: {
+          // Request minimal scopes to avoid email issues
+          scope: 'tweet.read users.read',
+        },
+      },
+    });
+
+    if (error) {
+      console.error('❌ OAuth initiation error:', error);
+      throw error;
+    }
+
+    console.log('✅ OAuth initiated successfully');
+    return { success: true, data };
+  } catch (error: any) {
+    console.error('❌ Failed to initiate Twitter OAuth:', error);
+    return { success: false, error: error.message };
+  }
 };
