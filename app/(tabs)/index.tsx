@@ -16,15 +16,13 @@ import { useRouter } from 'expo-router';
 import ChallengeCard from "../../src/components/ChallengeCard";
 import LeaderboardSection from "../../src/components/LeaderboardSection";
 import AccountSetupModal from "../../src/components/AccountSetupModal";
-import SharedSidebar from "../../components/SharedSidebar";
+import ResponsiveLayout from "../../components/ResponsiveLayout";
 import { useTheme } from '../../contexts/ThemeContext';
-import { useSidebar } from '../../contexts/SidebarContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function ExploreScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
-  const { sidebarCollapsed, setSidebarCollapsed } = useSidebar();
   const router = useRouter();
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
@@ -111,195 +109,188 @@ export default function ExploreScreen() {
         backgroundColor={theme.colors.background} 
       />
 
-      <View style={styles.layout}>
-        <SharedSidebar 
-          sidebarCollapsed={sidebarCollapsed}
-          setSidebarCollapsed={setSidebarCollapsed}
-        />
-        
-        <View style={styles.mainContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerContent}>
-              <Text style={styles.headerTitle}>Explore</Text>
+      <ResponsiveLayout>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Explore</Text>
 
-              <View style={styles.headerActions}>
-                <TouchableOpacity style={styles.walletBadge}>
-                  <Sparkles size={16} color={theme.colors.primary} />
-                  <Text style={styles.walletAmount}>{userProfile.walletBalance}</Text>
-                  <Text style={styles.walletCurrency}>ALGO</Text>
-                </TouchableOpacity>
-                
-                {/* Theme Toggle Button */}
-                <TouchableOpacity 
-                  style={styles.themeToggle}
-                  onPress={handleThemeToggle}
-                  activeOpacity={0.7}
+            <View style={styles.headerActions}>
+              <TouchableOpacity style={styles.walletBadge}>
+                <Sparkles size={16} color={theme.colors.primary} />
+                <Text style={styles.walletAmount}>{userProfile.walletBalance}</Text>
+                <Text style={styles.walletCurrency}>ALGO</Text>
+              </TouchableOpacity>
+              
+              {/* Theme Toggle Button */}
+              <TouchableOpacity 
+                style={styles.themeToggle}
+                onPress={handleThemeToggle}
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.themeToggleTrack,
+                    {
+                      backgroundColor: isDark ? theme.colors.primary : '#E5E7EB',
+                    },
+                  ]}
                 >
-                  <View
+                  <Animated.View
                     style={[
-                      styles.themeToggleTrack,
+                      styles.themeToggleThumb,
                       {
-                        backgroundColor: isDark ? theme.colors.primary : '#E5E7EB',
+                        transform: [
+                          {
+                            translateX: themeAnimation.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [2, 22],
+                            }),
+                          },
+                        ],
                       },
                     ]}
                   >
-                    <Animated.View
-                      style={[
-                        styles.themeToggleThumb,
-                        {
-                          transform: [
-                            {
-                              translateX: themeAnimation.interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [2, 22],
-                              }),
-                            },
-                          ],
-                        },
-                      ]}
-                    >
-                      {isDark ? (
-                        <Text style={styles.themeIcon}>🌙</Text>
-                      ) : (
-                        <Text style={styles.themeIcon}>☀️</Text>
-                      )}
-                    </Animated.View>
-                  </View>
-                </TouchableOpacity>
+                    {isDark ? (
+                      <Text style={styles.themeIcon}>🌙</Text>
+                    ) : (
+                      <Text style={styles.themeIcon}>☀️</Text>
+                    )}
+                  </Animated.View>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* Stats Cards */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <TrendingUp size={20} color={theme.colors.success} />
+                <Text style={styles.statValue}>{stats.totalEarned}</Text>
+                <Text style={styles.statLabel}>Total Earned</Text>
+                <Text style={styles.statChange}>+{stats.thisWeek} this week</Text>
+              </View>
+              
+              <View style={styles.statCard}>
+                <Trophy size={20} color={theme.colors.warning} />
+                <Text style={styles.statValue}>{stats.rank}</Text>
+                <Text style={styles.statLabel}>Global Rank</Text>
+                <Text style={styles.statChange}>{stats.streak} streak</Text>
               </View>
             </View>
           </View>
 
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-            {/* Stats Cards */}
-            <View style={styles.statsContainer}>
-              <View style={styles.statsGrid}>
-                <View style={styles.statCard}>
-                  <TrendingUp size={20} color={theme.colors.success} />
-                  <Text style={styles.statValue}>{stats.totalEarned}</Text>
-                  <Text style={styles.statLabel}>Total Earned</Text>
-                  <Text style={styles.statChange}>+{stats.thisWeek} this week</Text>
-                </View>
-                
-                <View style={styles.statCard}>
-                  <Trophy size={20} color={theme.colors.warning} />
-                  <Text style={styles.statValue}>{stats.rank}</Text>
-                  <Text style={styles.statLabel}>Global Rank</Text>
-                  <Text style={styles.statChange}>{stats.streak} streak</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Quick Actions */}
-            <View style={styles.quickActionsContainer}>
-              <Text style={styles.sectionTitle}>Quick Actions</Text>
-              <View style={styles.quickActions}>
-                <TouchableOpacity style={styles.quickActionButton}>
-                  <Plus size={20} color={theme.colors.primary} />
-                  <Text style={styles.quickActionText}>New Tweet</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.quickActionButton}
-                  onPress={() => router.push('/(tabs)/challenges')}
-                >
-                  <Award size={20} color={theme.colors.primary} />
-                  <Text style={styles.quickActionText}>Browse Challenges</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Challenges Section */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Featured Challenges</Text>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/challenges')}>
-                  <Text style={styles.sectionLink}>View All</Text>
-                </TouchableOpacity>
-              </View>
-
-              {challenges.slice(0, 2).map((challenge) => (
-                <ChallengeCard
-                  key={challenge.id}
-                  title={challenge.description}
-                  theme={challenge.theme}
-                  reward={challenge.reward}
-                  timeRemaining={challenge.timeRemaining}
-                  requiredLikes={challenge.requiredLikes}
-                  requiredRetweets={challenge.requiredRetweets}
-                  requiredReplies={5}
-                  onSelect={() => handleSelectChallenge(challenge.id)}
-                />
-              ))}
-            </View>
-
-            {/* Leaderboard Section */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Top Performers</Text>
-                <TouchableOpacity>
-                  <Text style={styles.sectionLink}>View All</Text>
-                </TouchableOpacity>
-              </View>
-
-              <LeaderboardSection />
-            </View>
-
-            {/* Activity Feed */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Recent Activity</Text>
+          {/* Quick Actions */}
+          <View style={styles.quickActionsContainer}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <View style={styles.quickActions}>
+              <TouchableOpacity style={styles.quickActionButton}>
+                <Plus size={20} color={theme.colors.primary} />
+                <Text style={styles.quickActionText}>New Tweet</Text>
+              </TouchableOpacity>
               
-              <TouchableOpacity style={styles.activityItem}>
-                <View style={[styles.activityIcon, { backgroundColor: theme.colors.warning + '20' }]}>
-                  <Trophy size={16} color={theme.colors.warning} />
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityText}>
-                    You earned <Text style={styles.highlight}>25 ALGO</Text> from the Tech Innovation challenge
-                  </Text>
-                  <Text style={styles.activityTime}>2 hours ago</Text>
-                </View>
+              <TouchableOpacity 
+                style={styles.quickActionButton}
+                onPress={() => router.push('/(tabs)/challenges')}
+              >
+                <Award size={20} color={theme.colors.primary} />
+                <Text style={styles.quickActionText}>Browse Challenges</Text>
               </TouchableOpacity>
+            </View>
+          </View>
 
-              <TouchableOpacity style={styles.activityItem}>
-                <View style={[styles.activityIcon, { backgroundColor: theme.colors.primary + '20' }]}>
-                  <Users size={16} color={theme.colors.primary} />
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityText}>
-                    You moved up to <Text style={styles.highlight}>rank #47</Text> on the global leaderboard
-                  </Text>
-                  <Text style={styles.activityTime}>5 hours ago</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.activityItem}>
-                <View style={[styles.activityIcon, { backgroundColor: theme.colors.success + '20' }]}>
-                  <Award size={16} color={theme.colors.success} />
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityText}>
-                    New achievement unlocked: <Text style={styles.highlight}>Tweet Master</Text>
-                  </Text>
-                  <Text style={styles.activityTime}>1 day ago</Text>
-                </View>
+          {/* Challenges Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Featured Challenges</Text>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/challenges')}>
+                <Text style={styles.sectionLink}>View All</Text>
               </TouchableOpacity>
             </View>
 
-            {/* App Branding */}
-            <View style={styles.brandingContainer}>
-              <Image
-                source={require("../../assets/images/xquests-logo.png")}
-                style={styles.brandingLogo}
-                contentFit="contain"
+            {challenges.slice(0, 2).map((challenge) => (
+              <ChallengeCard
+                key={challenge.id}
+                title={challenge.description}
+                theme={challenge.theme}
+                reward={challenge.reward}
+                timeRemaining={challenge.timeRemaining}
+                requiredLikes={challenge.requiredLikes}
+                requiredRetweets={challenge.requiredRetweets}
+                requiredReplies={5}
+                onSelect={() => handleSelectChallenge(challenge.id)}
               />
-              <Text style={styles.brandingTitle}>XQuests</Text>
-              <Text style={styles.brandingSubtitle}>Tweet. Engage. Earn.</Text>
+            ))}
+          </View>
+
+          {/* Leaderboard Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Top Performers</Text>
+              <TouchableOpacity>
+                <Text style={styles.sectionLink}>View All</Text>
+              </TouchableOpacity>
             </View>
-          </ScrollView>
-        </View>
-      </View>
+
+            <LeaderboardSection />
+          </View>
+
+          {/* Activity Feed */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            
+            <TouchableOpacity style={styles.activityItem}>
+              <View style={[styles.activityIcon, { backgroundColor: theme.colors.warning + '20' }]}>
+                <Trophy size={16} color={theme.colors.warning} />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityText}>
+                  You earned <Text style={styles.highlight}>25 ALGO</Text> from the Tech Innovation challenge
+                </Text>
+                <Text style={styles.activityTime}>2 hours ago</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.activityItem}>
+              <View style={[styles.activityIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+                <Users size={16} color={theme.colors.primary} />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityText}>
+                  You moved up to <Text style={styles.highlight}>rank #47</Text> on the global leaderboard
+                </Text>
+                <Text style={styles.activityTime}>5 hours ago</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.activityItem}>
+              <View style={[styles.activityIcon, { backgroundColor: theme.colors.success + '20' }]}>
+                <Award size={16} color={theme.colors.success} />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityText}>
+                  New achievement unlocked: <Text style={styles.highlight}>Tweet Master</Text>
+                </Text>
+                <Text style={styles.activityTime}>1 day ago</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* App Branding */}
+          <View style={styles.brandingContainer}>
+            <Image
+              source={require("../../assets/images/xquests-logo.png")}
+              style={styles.brandingLogo}
+              contentFit="contain"
+            />
+            <Text style={styles.brandingTitle}>XQuests</Text>
+            <Text style={styles.brandingSubtitle}>Tweet. Engage. Earn.</Text>
+          </View>
+        </ScrollView>
+      </ResponsiveLayout>
 
       {/* Account Setup Modal */}
       {showSetupModal && (
@@ -314,14 +305,6 @@ export default function ExploreScreen() {
 
 const createStyles = (theme: any) => StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  layout: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  mainContent: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },

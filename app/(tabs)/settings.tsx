@@ -11,13 +11,11 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
 import { User, Wallet, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight } from "lucide-react-native";
-import SharedSidebar from "../../components/SharedSidebar";
+import ResponsiveLayout from "../../components/ResponsiveLayout";
 import { useTheme } from "../../contexts/ThemeContext";
-import { useSidebar } from "../../contexts/SidebarContext";
 
 export default function SettingsScreen() {
   const { theme, isDark } = useTheme();
-  const { sidebarCollapsed, setSidebarCollapsed } = useSidebar();
   const styles = createStyles(theme);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
@@ -97,99 +95,84 @@ export default function SettingsScreen() {
         backgroundColor={theme.colors.background} 
       />
 
-      <View style={styles.layout}>
-        <SharedSidebar 
-          sidebarCollapsed={sidebarCollapsed}
-          setSidebarCollapsed={setSidebarCollapsed}
-        />
-
-        <View style={styles.mainContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Settings</Text>
-          </View>
-
-          {/* Settings List */}
-          <ScrollView style={styles.scrollView}>
-            {settingsSections.map((section) => (
-              <View key={section.title} style={styles.section}>
-                <Text style={styles.sectionTitle}>
-                  {section.title}
-                </Text>
-                <View style={styles.sectionContent}>
-                  {section.items.map((item, index) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[
-                        styles.settingItem,
-                        index < section.items.length - 1 && styles.settingItemBorder
-                      ]}
-                      onPress={() => {
-                        if (
-                          item.action === "navigate" ||
-                          item.action === "button"
-                        ) {
-                          console.log(`Pressed ${item.title}`);
-                        }
-                      }}
-                    >
-                      <View style={styles.settingItemLeft}>
-                        <View style={styles.iconContainer}>
-                          {item.icon}
-                        </View>
-                        <Text
-                          style={[
-                            styles.settingItemText,
-                            item.danger && styles.dangerText
-                          ]}
-                        >
-                          {item.title}
-                        </Text>
-                      </View>
-
-                      {item.action === "toggle" && (
-                        <Switch
-                          trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                          thumbColor={item.value ? "#ffffff" : theme.colors.surface}
-                          onValueChange={item.onToggle}
-                          value={item.value}
-                        />
-                      )}
-
-                      {item.action === "navigate" && (
-                        <ChevronRight size={20} color={theme.colors.textSecondary} />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            ))}
-
-            <View style={styles.footer}>
-              <Image
-                source={require("../../assets/images/xquests-logo.png")}
-                style={styles.footerLogo}
-                contentFit="contain"
-              />
-              <Text style={styles.footerText}>XQuests v1.0.0</Text>
-            </View>
-          </ScrollView>
+      <ResponsiveLayout>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Settings</Text>
         </View>
-      </View>
+
+        {/* Settings List */}
+        <ScrollView style={styles.scrollView}>
+          {settingsSections.map((section) => (
+            <View key={section.title} style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                {section.title}
+              </Text>
+              <View style={styles.sectionContent}>
+                {section.items.map((item, index) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.settingItem,
+                      index < section.items.length - 1 && styles.settingItemBorder
+                    ]}
+                    onPress={() => {
+                      if (
+                        item.action === "navigate" ||
+                        item.action === "button"
+                      ) {
+                        console.log(`Pressed ${item.title}`);
+                      }
+                    }}
+                  >
+                    <View style={styles.settingItemLeft}>
+                      <View style={styles.iconContainer}>
+                        {item.icon}
+                      </View>
+                      <Text
+                        style={[
+                          styles.settingItemText,
+                          item.danger && styles.dangerText
+                        ]}
+                      >
+                        {item.title}
+                      </Text>
+                    </View>
+
+                    {item.action === "toggle" && (
+                      <Switch
+                        trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                        thumbColor={item.value ? "#ffffff" : theme.colors.surface}
+                        onValueChange={item.onToggle}
+                        value={item.value}
+                      />
+                    )}
+
+                    {item.action === "navigate" && (
+                      <ChevronRight size={20} color={theme.colors.textSecondary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))}
+
+          <View style={styles.footer}>
+            <Image
+              source={require("../../assets/images/xquests-logo.png")}
+              style={styles.footerLogo}
+              contentFit="contain"
+            />
+            <Text style={styles.footerText}>XQuests v1.0.0</Text>
+          </View>
+        </ScrollView>
+      </ResponsiveLayout>
     </SafeAreaView>
   );
 }
 
 const createStyles = (theme: any) => StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  layout: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  mainContent: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
