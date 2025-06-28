@@ -11,18 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { Image } from "expo-image";
-import { 
-  X, 
-  ArrowRight, 
-  Check, 
-  Wallet, 
-  Settings, 
-  Twitter,
-  Eye,
-  EyeOff,
-  AlertCircle,
-  Sparkles
-} from "lucide-react-native";
+import { X, ArrowRight, Check, Wallet, Settings, Twitter, Eye, EyeOff, CircleAlert as AlertCircle, Sparkles } from "lucide-react-native";
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface AccountSetupModalProps {
