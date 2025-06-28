@@ -157,14 +157,11 @@ export default function HomeScreen() {
               onPress={handleThemeToggle}
               activeOpacity={0.7}
             >
-              <Animated.View
+              <View
                 style={[
                   styles.themeToggleTrack,
                   {
-                    backgroundColor: themeAnimation.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ['#E5E7EB', theme.colors.primary],
-                    }),
+                    backgroundColor: isDark ? theme.colors.primary : '#E5E7EB',
                   },
                 ]}
               >
@@ -189,7 +186,7 @@ export default function HomeScreen() {
                     <Sun size={12} color="#FFD700" />
                   )}
                 </Animated.View>
-              </Animated.View>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
