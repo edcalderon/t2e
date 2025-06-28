@@ -68,6 +68,7 @@ interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
   isDark: boolean;
+  setTheme: (isDark: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -85,7 +86,7 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [isDark, setIsDark] = useState(true); // Default to dark theme
+  const [isDark, setIsDark] = useState(false); // Default to light theme
 
   useEffect(() => {
     loadThemePreference();
@@ -112,10 +113,19 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   };
 
+  const setTheme = async (newIsDark: boolean) => {
+    setIsDark(newIsDark);
+    try {
+      await AsyncStorage.setItem('theme', newIsDark ? 'dark' : 'light');
+    } catch (error) {
+      console.log('Error saving theme preference:', error);
+    }
+  };
+
   const theme = isDark ? darkTheme : lightTheme;
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, isDark, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

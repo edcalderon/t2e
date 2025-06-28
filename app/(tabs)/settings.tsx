@@ -9,13 +9,12 @@ import {
   StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
-import { User, Wallet, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight } from "lucide-react-native";
+import { User, Wallet, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Moon, Sun } from "lucide-react-native";
 import { useTheme } from '../../contexts/ThemeContext';
 
 export default function SettingsScreen() {
-  const { theme } = useTheme();
+  const { theme, toggleTheme, isDark } = useTheme();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [autoTweetEnabled, setAutoTweetEnabled] = useState(false);
 
   const settingsSections = [
@@ -50,10 +49,10 @@ export default function SettingsScreen() {
         {
           id: "darkMode",
           title: "Dark Mode",
-          icon: <Shield size={20} color={theme.colors.primary} />,
+          icon: isDark ? <Moon size={20} color={theme.colors.primary} /> : <Sun size={20} color={theme.colors.warning} />,
           action: "toggle",
-          value: darkModeEnabled,
-          onToggle: setDarkModeEnabled,
+          value: isDark,
+          onToggle: toggleTheme,
         },
         {
           id: "autoTweet",
@@ -110,11 +109,10 @@ export default function SettingsScreen() {
                     index < section.items.length - 1 && styles.settingItemBorder
                   ]}
                   onPress={() => {
-                    if (
-                      item.action === "navigate" ||
-                      item.action === "button"
-                    ) {
+                    if (item.action === "navigate" || item.action === "button") {
                       console.log(`Pressed ${item.title}`);
+                    } else if (item.action === "toggle" && item.onToggle) {
+                      item.onToggle();
                     }
                   }}
                 >
@@ -134,7 +132,10 @@ export default function SettingsScreen() {
 
                   {item.action === "toggle" && (
                     <Switch
-                      trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                      trackColor={{ 
+                        false: theme.colors.border, 
+                        true: theme.colors.primary 
+                      }}
                       thumbColor={item.value ? "#ffffff" : "#f3f4f6"}
                       onValueChange={item.onToggle}
                       value={item.value}

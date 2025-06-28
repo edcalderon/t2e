@@ -105,7 +105,7 @@ export default function HomeScreen() {
     setShowSetupModal(false);
   };
 
-  const handleSelectChallenge = (challengeId) => {
+  const handleSelectChallenge = (challengeId: string) => {
     console.log(`Selected challenge: ${challengeId}`);
   };
 
@@ -151,6 +151,7 @@ export default function HomeScreen() {
             <TouchableOpacity 
               style={styles.themeToggle}
               onPress={handleThemeToggle}
+              activeOpacity={0.7}
             >
               <Animated.View
                 style={[
@@ -158,7 +159,7 @@ export default function HomeScreen() {
                   {
                     backgroundColor: themeAnimation.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [theme.colors.border, theme.colors.primary],
+                      outputRange: ['#E5E7EB', theme.colors.primary],
                     }),
                   },
                 ]}
@@ -407,12 +408,13 @@ const createStyles = (theme: any) => StyleSheet.create({
     height: 24,
     borderRadius: 12,
     justifyContent: 'center',
+    position: 'relative',
   },
   themeToggleThumb: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: theme.colors.background,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
