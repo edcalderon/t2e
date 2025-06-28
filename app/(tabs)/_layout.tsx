@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Chrome as Home, Award, Bell, Settings } from "lucide-react-native";
 import { useTheme } from '../../contexts/ThemeContext';
+import { Platform } from 'react-native';
 
 export default function TabLayout() {
   const { theme } = useTheme();
@@ -13,9 +14,9 @@ export default function TabLayout() {
           backgroundColor: theme.colors.background,
           borderTopColor: theme.colors.border,
           borderTopWidth: 0.5,
-          paddingBottom: 8,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
           paddingTop: 8,
-          height: 60,
+          height: Platform.OS === 'ios' ? 80 : 60,
           elevation: 8,
           shadowColor: theme.colors.text,
           shadowOffset: {
@@ -35,6 +36,20 @@ export default function TabLayout() {
         tabBarIconStyle: {
           marginTop: 4,
         },
+        tabBarButton: (props) => (
+          <TouchableOpacity
+            {...props}
+            activeOpacity={0.7}
+            style={[
+              props.style,
+              {
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }
+            ]}
+          />
+        ),
       }}
     >
       <Tabs.Screen

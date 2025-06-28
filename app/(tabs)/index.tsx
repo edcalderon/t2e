@@ -32,7 +32,7 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
-  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false); // Changed to false to avoid modal on every load
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [userProfile, setUserProfile] = useState({
     name: "Alex Johnson",
@@ -115,14 +115,6 @@ export default function HomeScreen() {
 
   const handleNavigateToChallenges = () => {
     router.push('/(tabs)/challenges');
-  };
-
-  const handleNavigateToNotifications = () => {
-    router.push('/(tabs)/notifications');
-  };
-
-  const handleNavigateToSettings = () => {
-    router.push('/(tabs)/settings');
   };
 
   const styles = createStyles(theme);
