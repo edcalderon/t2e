@@ -9,16 +9,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
-import {
-  ChevronLeft,
-  User,
-  Wallet,
-  Bell,
-  Shield,
-  HelpCircle,
-  LogOut,
-  ChevronRight,
-} from "lucide-react-native";
+import { ChevronLeft, User, Wallet, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight } from "lucide-react-native";
 import { useTheme } from "../../contexts/ThemeContext";
 
 export default function SettingsScreen({ onBack = () => {} }) {

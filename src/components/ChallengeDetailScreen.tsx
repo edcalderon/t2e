@@ -9,15 +9,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
-import {
-  ArrowLeft,
-  Send,
-  Heart,
-  MessageCircle,
-  Repeat,
-  Award,
-  Edit3,
-} from "lucide-react-native";
+import { ArrowLeft, Send, Heart, MessageCircle, Repeat, Award, CreditCard as Edit3 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "../../contexts/ThemeContext";
 
