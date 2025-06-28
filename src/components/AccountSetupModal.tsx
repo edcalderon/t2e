@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   StyleSheet,
   Modal,
   Animated,
@@ -11,7 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { Image } from "expo-image";
-import { X, ArrowRight, Check, Wallet, Settings, Twitter, Eye, EyeOff, CircleAlert as AlertCircle, Sparkles } from "lucide-react-native";
+import { X, ArrowRight, Check, Wallet, Settings, Twitter, Sparkles } from "lucide-react-native";
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -35,13 +34,6 @@ const AccountSetupModal = ({
   const [walletConnected, setWalletConnected] = useState(false);
   const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    email: '',
-  });
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   // Animation values
   const [slideAnim] = useState(new Animated.Value(height));
@@ -117,33 +109,10 @@ const AccountSetupModal = ({
     });
   };
 
-  const validateForm = () => {
-    const newErrors: {[key: string]: string} = {};
-    
-    if (currentStep === 0) {
-      if (!formData.username.trim()) {
-        newErrors.username = 'Username is required';
-      } else if (formData.username.length < 3) {
-        newErrors.username = 'Username must be at least 3 characters';
-      }
-      
-      if (!formData.password.trim()) {
-        newErrors.password = 'Password is required';
-      } else if (formData.password.length < 6) {
-        newErrors.password = 'Password must be at least 6 characters';
-      }
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleTwitterConnect = async () => {
-    if (!validateForm()) return;
-    
     setIsLoading(true);
     
-    // Simulate API call
+    // Simulate Supabase X OAuth connection
     setTimeout(() => {
       setTwitterConnected(true);
       setIsLoading(false);
@@ -185,8 +154,8 @@ const AccountSetupModal = ({
     // Create user object and save to auth context
     const userData = {
       id: Date.now().toString(),
-      username: formData.username,
-      email: formData.email,
+      username: "user" + Math.floor(Math.random() * 1000),
+      email: "user@example.com",
       avatar: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
       walletAddress: walletConnected ? "ALGO...X7K9" : undefined,
       twitterConnected,
@@ -247,72 +216,11 @@ const AccountSetupModal = ({
             
             <Text style={styles.stepTitle}>Connect Your X Account</Text>
             <Text style={styles.stepDescription}>
-              Sign in with your X (Twitter) credentials to start participating in challenges and earning rewards
+              Connect with your X (Twitter) account to start participating in challenges and earning rewards
             </Text>
 
             {!twitterConnected ? (
-              <View style={styles.formContainer}>
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Username or Email</Text>
-                  <TextInput
-                    style={[styles.input, errors.username && styles.inputError]}
-                    value={formData.username}
-                    onChangeText={(text) => {
-                      setFormData({...formData, username: text});
-                      if (errors.username) {
-                        setErrors({...errors, username: ''});
-                      }
-                    }}
-                    placeholder="Enter your X username or email"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                  {errors.username && (
-                    <View style={styles.errorContainer}>
-                      <AlertCircle size={14} color={theme.colors.error} />
-                      <Text style={styles.errorText}>{errors.username}</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Password</Text>
-                  <View style={styles.passwordContainer}>
-                    <TextInput
-                      style={[styles.passwordInput, errors.password && styles.inputError]}
-                      value={formData.password}
-                      onChangeText={(text) => {
-                        setFormData({...formData, password: text});
-                        if (errors.password) {
-                          setErrors({...errors, password: ''});
-                        }
-                      }}
-                      placeholder="Enter your password"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      secureTextEntry={!showPassword}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                    <TouchableOpacity
-                      style={styles.eyeButton}
-                      onPress={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff size={20} color={theme.colors.textSecondary} />
-                      ) : (
-                        <Eye size={20} color={theme.colors.textSecondary} />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                  {errors.password && (
-                    <View style={styles.errorContainer}>
-                      <AlertCircle size={14} color={theme.colors.error} />
-                      <Text style={styles.errorText}>{errors.password}</Text>
-                    </View>
-                  )}
-                </View>
-
+              <View style={styles.connectContainer}>
                 <TouchableOpacity
                   style={[styles.connectButton, isLoading && styles.connectButtonDisabled]}
                   onPress={handleTwitterConnect}
@@ -338,13 +246,13 @@ const AccountSetupModal = ({
                   ) : (
                     <>
                       <Twitter size={20} color="#FFFFFF" />
-                      <Text style={styles.connectButtonText}>Connect to X</Text>
+                      <Text style={styles.connectButtonText}>Connect with X</Text>
                     </>
                   )}
                 </TouchableOpacity>
 
                 <Text style={styles.disclaimerText}>
-                  We'll never post without your permission. Your credentials are encrypted and secure.
+                  We'll never post without your permission. Your account is secure with OAuth authentication.
                 </Text>
               </View>
             ) : (
@@ -730,58 +638,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     lineHeight: 24,
     marginBottom: 32,
   },
-  formContainer: {
+  connectContainer: {
     gap: 20,
-  },
-  inputContainer: {
-    gap: 8,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: theme.colors.text,
-    backgroundColor: theme.colors.surface,
-  },
-  inputError: {
-    borderColor: theme.colors.error,
-  },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  passwordInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: theme.colors.text,
-    backgroundColor: theme.colors.surface,
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 16,
-    padding: 4,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  errorText: {
-    fontSize: 12,
-    color: theme.colors.error,
   },
   connectButton: {
     backgroundColor: '#1DA1F2',
