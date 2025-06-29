@@ -9,7 +9,6 @@ module.exports = {
   skipWaiting: true,
   clientsClaim: true,
   cleanupOutdatedCaches: true,
-  offlineGoogleAnalytics: true,
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/images\.pexels\.com\//,
