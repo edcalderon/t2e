@@ -176,8 +176,8 @@ export default function PrivacyPolicy() {
           <Text style={styles.paragraph}>
             If you have any questions about this Privacy Policy or our data practices, please contact us at:
           </Text>
-          <Text style={styles.bulletPoint}>• Email: privacy@xquests.com</Text>
-          <Text style={styles.bulletPoint}>• Data Protection Officer: dpo@xquests.com</Text>
+          <Text style={styles.bulletPoint}>• Email: privacy@xquests.site</Text>
+          <Text style={styles.bulletPoint}>• Data Protection Officer: dpo@xquests.site</Text>
 
           <View style={styles.footer}>
             <Lock size={16} color={theme.colors.textTertiary} />

@@ -136,7 +136,7 @@ export default function TermsOfService() {
 
           <Text style={styles.sectionTitle}>12. Contact Information</Text>
           <Text style={styles.paragraph}>
-            If you have any questions about these Terms of Service, please contact us at legal@xquests.com
+            If you have any questions about these Terms of Service, please contact us at legal@xquests.site
           </Text>
 
           <View style={styles.footer}>
