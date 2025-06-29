@@ -118,6 +118,13 @@ export default function ExploreScreen() {
   const stats = getStats();
   const styles = createStyles(theme);
 
+  // Get the appropriate logo based on theme
+  const getLogoSource = () => {
+    return isDark 
+      ? require("../../assets/images/small_logo_white.svg")
+      : require("../../assets/images/small_logo_black.svg");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar 
@@ -338,8 +345,8 @@ export default function ExploreScreen() {
           {/* App Branding */}
           <View style={styles.brandingContainer}>
             <Image
-              source={require("../../assets/images/small_logo.svg")}
-              style={[styles.brandingLogo, { tintColor: theme.colors.primary }]}
+              source={getLogoSource()}
+              style={styles.brandingLogo}
               contentFit="contain"
             />
             <Text style={styles.brandingTitle}>XQuests</Text>

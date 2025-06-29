@@ -18,7 +18,7 @@ interface SharedSidebarProps {
 }
 
 export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }: SharedSidebarProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { user, isAuthenticated, setShowSetupModal, twitterUser, isSupabaseAuthenticated } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -125,6 +125,13 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
   const userDisplayData = getUserDisplayData();
   const styles = createStyles(theme);
 
+  // Get the appropriate logo based on theme
+  const getLogoSource = () => {
+    return isDark 
+      ? require("../assets/images/small_logo_white.svg")
+      : require("../assets/images/small_logo_black.svg");
+  };
+
   return (
     <Animated.View style={[styles.sidebar, { width: sidebarWidth }]}>
       {/* Custom App Logo */}
@@ -134,11 +141,8 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
           sidebarCollapsed && styles.appLogoCollapsed
         ]}>
           <Image
-            source={require("../assets/images/small_logo.svg")}
-            style={[
-              styles.appLogoImage,
-              { tintColor: theme.colors.text }
-            ]}
+            source={getLogoSource()}
+            style={styles.appLogoImage}
             contentFit="contain"
           />
         </View>

@@ -106,6 +106,13 @@ export default function SettingsScreen() {
     },
   ];
 
+  // Get the appropriate logo based on theme
+  const getLogoSource = () => {
+    return isDark 
+      ? require("../../assets/images/small_logo_white.svg")
+      : require("../../assets/images/small_logo_black.svg");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar 
@@ -214,7 +221,7 @@ export default function SettingsScreen() {
 
           <View style={styles.footer}>
             <Image
-              source={require("../../assets/images/xquests-logo.png")}
+              source={getLogoSource()}
               style={styles.footerLogo}
               contentFit="contain"
             />

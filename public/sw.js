@@ -7,20 +7,13 @@ const DYNAMIC_CACHE_NAME = 'xquests-dynamic-v1.0.0';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
+  '/offline.html',
   '/assets/images/icon.png',
   '/assets/images/favicon.png',
   '/assets/images/adaptive-icon.png',
   '/assets/images/splash-icon.png',
   '/assets/images/xquests-logo.png',
-  '/assets/images/small_logo.svg',
-  // Add other critical assets
-];
-
-// API endpoints to cache with network-first strategy
-const API_ENDPOINTS = [
-  '/api/',
-  'https://api.dicebear.com/',
-  'https://images.pexels.com/',
+  '/assets/images/small_logo.svg'
 ];
 
 // Install event - cache static assets
@@ -137,7 +130,7 @@ async function networkFirst(request) {
     
     // Return offline page for navigation requests
     if (request.mode === 'navigate') {
-      return caches.match('/') || new Response('Offline', { 
+      return caches.match('/offline.html') || new Response('Offline', { 
         status: 503,
         headers: { 'Content-Type': 'text/html' }
       });
@@ -180,8 +173,7 @@ function isStaticAsset(url) {
 }
 
 function isAPIRequest(url) {
-  return API_ENDPOINTS.some(endpoint => url.includes(endpoint)) ||
-         url.includes('/api/') ||
+  return url.includes('/api/') ||
          url.includes('supabase.co');
 }
 
