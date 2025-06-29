@@ -156,12 +156,14 @@ const createStyles = (theme: any) => StyleSheet.create({
   themesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'center',
     gap: 12,
     marginBottom: 24,
-    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
   themeCardWrapper: {
-    width: (width - 88) / 2,
+    width: Math.min((width - 80) / 2, 160), // Responsive width with max limit
+    minWidth: 140, // Minimum width to prevent cards from being too small
   },
   themeCard: {
     padding: 16,
@@ -173,6 +175,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     position: 'relative',
     minHeight: 100,
     justifyContent: 'center',
+    width: '100%',
   },
   themeCardSelected: {
     borderColor: theme.colors.primary,
@@ -187,6 +190,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontWeight: '500',
     color: theme.colors.text,
     textAlign: 'center',
+    lineHeight: 18,
   },
   themeNameSelected: {
     color: theme.colors.primary,
