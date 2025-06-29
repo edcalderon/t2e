@@ -27,7 +27,7 @@ const AccountSetupModal = ({
   onComplete = () => {},
 }: AccountSetupModalProps) => {
   const { theme } = useTheme();
-  const { login, twitterUser, isSupabaseAuthenticated } = useAuth();
+  const { updateUser, twitterUser, isSupabaseAuthenticated } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [twitterConnected, setTwitterConnected] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
@@ -109,48 +109,49 @@ const AccountSetupModal = ({
   };
 
   const handleComplete = async () => {
-    // Use X session data but override with user ID 385
-    const userData = {
-      id: "385", // Fixed user ID as requested
-      username: twitterUser?.username || twitterUser?.twitterHandle || "user385",
-      email: twitterUser?.email || "user385@xquests.com",
-      avatar: twitterUser?.avatar || "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      walletAddress: walletConnected ? `ALGO${twitterUser?.twitterId || "385"}WALLET` : undefined,
-      twitterConnected,
-      walletConnected,
-      selectedThemes,
-      // Use actual X session data
-      displayName: twitterUser?.displayName || twitterUser?.username || "User 385",
-      twitterId: twitterUser?.twitterId || "385",
-      verified: twitterUser?.verified || false,
-      followerCount: twitterUser?.followerCount || 0,
-      twitterHandle: twitterUser?.twitterHandle || twitterUser?.username || "user385",
-    };
-
-    console.log('Creating user with ID 385 using X session data:', {
-      originalTwitterUser: twitterUser,
-      finalUserData: userData
-    });
-
-    try {
-      await login(userData);
+    // If X user is authenticated, just update the existing user with additional setup data
+    if (isSupabaseAuthenticated && twitterUser) {
+      console.log('Completing setup for existing X user:', twitterUser);
       
-      Animated.timing(scaleAnim, {
-        toValue: 1.1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
+      try {
+        // Update the existing user with setup completion data
+        await updateUser({
+          walletAddress: walletConnected ? `ALGO${twitterUser.twitterId || "385"}WALLET` : undefined,
+          walletConnected,
+          selectedThemes,
+          setupCompleted: true, // Mark setup as completed
+        });
+
+        console.log('Setup completed for X user:', {
+          userId: twitterUser.id,
+          username: twitterUser.username,
+          walletConnected,
+          selectedThemes,
+        });
+
+        // Animate completion
         Animated.timing(scaleAnim, {
-          toValue: 1,
+          toValue: 1.1,
           duration: 200,
           useNativeDriver: true,
         }).start(() => {
-          onComplete();
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            onComplete();
+          });
         });
-      });
-    } catch (error) {
-      console.error('Error creating user with X session data:', error);
-      // Still complete the setup even if there's an error
+      } catch (error) {
+        console.error('Error completing setup for X user:', error);
+        onComplete();
+      }
+    } else {
+      // Only create a guest user if no X user is authenticated
+      console.log('No X user authenticated, creating guest user');
+      
+      // This should rarely happen since we require X authentication first
       onComplete();
     }
   };
