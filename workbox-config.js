@@ -1,11 +1,9 @@
 module.exports = {
   globDirectory: 'dist/',
   globPatterns: [
-    '**/*.{html,js,css,png,jpg,jpeg,svg,gif,webp,woff,woff2,ttf,eot,ico,json}'
+    '**/*.{js,css,html,png,jpg,jpeg,svg,gif,webp,woff,woff2,ttf,eot,ico,json}'
   ],
   swDest: 'dist/sw.js',
-  swSrc: 'public/sw.js',
-  injectionPoint: 'self.__WB_MANIFEST',
   maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
   mode: 'production',
   skipWaiting: true,
@@ -22,6 +20,9 @@ module.exports = {
           maxEntries: 100,
           maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
         },
+        cacheableResponse: {
+          statuses: [0, 200]
+        },
         cacheKeyWillBeUsed: async ({ request }) => {
           return `${request.url}?timestamp=${Date.now()}`;
         },
@@ -36,7 +37,10 @@ module.exports = {
           maxEntries: 50,
           maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
         },
-      },
+        cacheableResponse: {
+          statuses: [0, 200]
+        }
+      }
     },
     {
       urlPattern: /^https:\/\/.*\.supabase\.co\//,
@@ -48,27 +52,34 @@ module.exports = {
           maxEntries: 50,
           maxAgeSeconds: 5 * 60, // 5 minutes
         },
-      },
+        cacheableResponse: {
+          statuses: [0, 200]
+        }
+      }
     },
     {
-      urlPattern: ({ request }) => request.destination === 'document',
+      urlPattern: /\/$/,
       handler: 'NetworkFirst',
       options: {
         cacheName: 'pages',
         networkTimeoutSeconds: 3,
-      },
+        cacheableResponse: {
+          statuses: [0, 200]
+        }
+      }
     },
     {
-      urlPattern: ({ request }) => 
-        request.destination === 'script' || 
-        request.destination === 'style',
+      urlPattern: /\.(?:js|css|json)$/,
       handler: 'StaleWhileRevalidate',
       options: {
         cacheName: 'static-resources',
-      },
+        cacheableResponse: {
+          statuses: [0, 200]
+        }
+      }
     },
     {
-      urlPattern: ({ request }) => request.destination === 'image',
+      urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff|woff2|ttf|eot)$/,
       handler: 'CacheFirst',
       options: {
         cacheName: 'images',
@@ -76,7 +87,10 @@ module.exports = {
           maxEntries: 100,
           maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
         },
-      },
+        cacheableResponse: {
+          statuses: [0, 200]
+        }
+      }
     },
-  ],
+  ]
 };
