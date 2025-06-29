@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 // Environment variables validation
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -34,75 +35,110 @@ export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   },
 });
 
-// Get redirect URI
-const redirectTo = makeRedirectUri({
-  scheme: 'xquests',
-  path: 'auth/callback',
-});
+// Get redirect URI with proper scheme handling
+const getRedirectUri = () => {
+  if (Platform.OS === 'web') {
+    return `${window.location.origin}/auth/callback`;
+  }
+  
+  return makeRedirectUri({
+    scheme: 'xquests',
+    path: 'auth/callback',
+  });
+};
 
+const redirectTo = getRedirectUri();
 console.log('🔗 Redirect URI:', redirectTo);
 
-// Create session from URL (based on your example)
-export const createSessionFromUrl = async (url: string) => {
+// Enhanced session creation from URL
+export const createSessionFromUrl = async (url: string): Promise<any> => {
   console.log('🔍 Creating session from URL:', url.substring(0, 100) + '...');
   
   try {
+    // Parse URL parameters
     const { params, errorCode } = QueryParams.getQueryParams(url);
+    
+    console.log('📋 URL params:', {
+      hasAccessToken: !!params.access_token,
+      hasRefreshToken: !!params.refresh_token,
+      hasCode: !!params.code,
+      errorCode,
+      paramsKeys: Object.keys(params),
+    });
 
+    // Handle OAuth errors
     if (errorCode) {
       console.error('❌ OAuth error code:', errorCode);
       
-      // Handle specific error cases
-      if (errorCode === 'server_error') {
-        console.log('ℹ️ Server error detected - checking for existing session');
-        // Sometimes Twitter OAuth succeeds but returns server_error
+      // Handle specific error cases that might still have valid sessions
+      if (errorCode === 'server_error' || errorCode.includes('email')) {
+        console.log('ℹ️ Checking for existing session despite error...');
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          console.log('✅ Found existing session despite server error');
+          console.log('✅ Found existing session despite error');
           return session;
         }
       }
       
-      throw new Error(errorCode);
+      throw new Error(`OAuth error: ${errorCode}`);
     }
 
-    const { access_token, refresh_token } = params;
+    const { access_token, refresh_token, code } = params;
 
-    if (!access_token) {
-      console.warn('⚠️ No access token found in URL');
+    // Method 1: Direct token setting (preferred)
+    if (access_token) {
+      console.log('🎫 Setting session with access token...');
       
-      // Check if we already have a session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        console.log('✅ Found existing session without new tokens');
-        return session;
+      const { data, error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token: refresh_token || '',
+      });
+
+      if (error) {
+        console.error('❌ Error setting session:', error);
+        
+        // Check if session was created despite error
+        const { data: { session: fallbackSession } } = await supabase.auth.getSession();
+        if (fallbackSession) {
+          console.log('✅ Session exists despite setSession error');
+          return fallbackSession;
+        }
+        
+        throw error;
+      }
+
+      console.log('✅ Session created successfully with tokens');
+      return data.session;
+    }
+
+    // Method 2: Authorization code exchange
+    if (code) {
+      console.log('🔄 Exchanging authorization code for session...');
+      
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      
+      if (error) {
+        console.error('❌ Error exchanging code:', error);
+        throw error;
       }
       
-      return null;
+      console.log('✅ Session created from authorization code');
+      return data.session;
     }
 
-    console.log('🎫 Setting session with tokens...');
-    const { data, error } = await supabase.auth.setSession({
-      access_token,
-      refresh_token,
-    });
-
-    if (error) {
-      console.error('❌ Error setting session:', error);
-      
-      // Check if session was created despite error
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        console.log('✅ Session exists despite setSession error');
-        return session;
-      }
-      
-      throw error;
+    // Method 3: Check for existing session
+    console.log('🔍 No tokens found, checking for existing session...');
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session) {
+      console.log('✅ Found existing session');
+      return session;
     }
 
-    console.log('✅ Session created successfully');
-    return data.session;
-  } catch (error) {
+    console.log('⚠️ No session could be created from URL');
+    return null;
+
+  } catch (error: any) {
     console.error('❌ Error in createSessionFromUrl:', error);
     
     // Last resort: check for any existing session
@@ -120,98 +156,121 @@ export const createSessionFromUrl = async (url: string) => {
   }
 };
 
-// Perform OAuth (based on your example)
-export const performOAuth = async () => {
+// Enhanced OAuth performance
+export const performOAuth = async (): Promise<{ success: boolean; error?: string; session?: any }> => {
   console.log('🐦 Starting Twitter OAuth...');
   
   try {
+    // Validate configuration first
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase configuration. Please check your environment variables.');
+    }
+
+    console.log('🔧 Initiating OAuth with Supabase...');
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'twitter',
       options: {
         redirectTo,
         skipBrowserRedirect: true,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
       },
     });
 
     if (error) {
       console.error('❌ OAuth initiation error:', error);
-      throw error;
+      throw new Error(`OAuth setup failed: ${error.message}`);
     }
 
     if (!data.url) {
-      throw new Error('No OAuth URL received');
+      throw new Error('No OAuth URL received from Supabase');
     }
 
-    console.log('🌐 Opening OAuth URL...');
+    console.log('🌐 Opening OAuth URL in browser...');
+    console.log('🔗 OAuth URL:', data.url.substring(0, 100) + '...');
     
-    // Open OAuth URL in browser
+    // Open OAuth URL in browser with enhanced options
     const result = await WebBrowser.openAuthSessionAsync(
       data.url,
       redirectTo,
       {
         showInRecents: true,
         preferEphemeralSession: false,
+        createTask: false,
       }
     );
 
-    console.log('📱 OAuth result:', result.type);
+    console.log('📱 OAuth browser result:', {
+      type: result.type,
+      hasUrl: !!result.url,
+      urlPreview: result.url?.substring(0, 100),
+    });
 
     if (result.type === 'success' && result.url) {
-      console.log('✅ OAuth success, creating session...');
+      console.log('✅ OAuth success, processing result...');
       
       try {
         const session = await createSessionFromUrl(result.url);
         
         if (session) {
-          console.log('✅ Session created from OAuth result');
+          console.log('✅ Session created successfully');
           return { success: true, session };
         } else {
-          console.log('⚠️ No session created but no error - checking current session');
+          console.log('⚠️ No session created, checking current state...');
           
           // Wait a moment for session to be established
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 2000));
           
           const { data: { session: currentSession } } = await supabase.auth.getSession();
           if (currentSession) {
             console.log('✅ Found session after delay');
             return { success: true, session: currentSession };
           } else {
-            console.log('❌ No session found after OAuth success');
-            throw new Error('OAuth succeeded but no session was created');
+            throw new Error('OAuth completed but no session was created');
           }
         }
       } catch (sessionError: any) {
         console.error('❌ Session creation error:', sessionError);
         
-        // Check if it's an email-related error (common with Twitter)
+        // Handle email-related errors (common with Twitter)
         if (sessionError.message?.toLowerCase().includes('email') || 
             sessionError.message?.includes('server_error')) {
-          console.log('ℹ️ Email-related error detected - checking for session anyway');
+          console.log('ℹ️ Email-related error detected, checking for session anyway...');
           
-          // Wait and check for session
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          const { data: { session: fallbackSession } } = await supabase.auth.getSession();
-          if (fallbackSession) {
-            console.log('✅ Session found despite email error');
-            return { success: true, session: fallbackSession };
+          // Wait and check for session multiple times
+          for (let i = 0; i < 3; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            const { data: { session: fallbackSession } } = await supabase.auth.getSession();
+            if (fallbackSession) {
+              console.log('✅ Session found despite email error');
+              return { success: true, session: fallbackSession };
+            }
           }
         }
         
         throw sessionError;
       }
     } else if (result.type === 'cancel') {
-      throw new Error('Authentication was cancelled');
+      throw new Error('Authentication was cancelled by user');
+    } else if (result.type === 'dismiss') {
+      throw new Error('Authentication was dismissed');
     } else {
-      throw new Error('Authentication failed or was dismissed');
+      throw new Error(`Unexpected OAuth result: ${result.type}`);
     }
   } catch (error: any) {
     console.error('❌ OAuth error:', error);
-    return { success: false, error: error.message };
+    return { 
+      success: false, 
+      error: error.message || 'Authentication failed'
+    };
   }
 };
 
-// Enhanced helper function to get Twitter user data from Supabase user
+// Enhanced helper function to get Twitter user data
 export const getTwitterUserData = (user: any) => {
   if (!user) {
     console.log('❌ No user data provided to getTwitterUserData');
@@ -229,18 +288,15 @@ export const getTwitterUserData = (user: any) => {
 
   const twitterData = user.user_metadata || {};
   const twitterIdentity = user.identities?.find((identity: any) => identity.provider === 'twitter');
-  
-  // Merge data from user_metadata and identity data
   const identityData = twitterIdentity?.identity_data || {};
   
-  // Extract Twitter data with multiple fallback options
+  // Extract Twitter data with comprehensive fallback options
   const extractedData = {
     id: user.id,
-    // Email is often not provided by Twitter - this is COMPLETELY NORMAL
     email: user.email || 
            twitterData.email || 
            identityData.email ||
-           null, // Allow null email as Twitter doesn't always provide it
+           null,
     username: twitterData.user_name || 
               twitterData.preferred_username || 
               twitterData.screen_name || 
@@ -249,7 +305,7 @@ export const getTwitterUserData = (user: any) => {
               identityData.screen_name ||
               identityData.username ||
               user.email?.split('@')[0] || 
-              `user_${user.id.slice(-8)}`, // Fallback to user ID suffix
+              `user_${user.id.slice(-8)}`,
     displayName: twitterData.full_name || 
                  twitterData.name || 
                  twitterData.display_name ||
@@ -311,33 +367,6 @@ export const isEmailRelatedError = (error: any): boolean => {
          errorMessage.includes('server_error');
 };
 
-// Helper to handle Twitter OAuth errors gracefully
-export const handleTwitterOAuthError = (error: any) => {
-  if (isEmailRelatedError(error)) {
-    console.log('ℹ️ Twitter email issue detected - treating as warning, not error');
-    return {
-      type: 'warning',
-      message: 'Twitter authentication successful! (Email not provided by Twitter)',
-      canContinue: true,
-    };
-  }
-  
-  // Handle user cancellation
-  if (error.message?.includes('cancel') || error.message?.includes('dismiss')) {
-    return {
-      type: 'error',
-      message: 'Authentication was cancelled',
-      canContinue: false,
-    };
-  }
-  
-  return {
-    type: 'error',
-    message: error.message || error.error_description || 'Authentication failed',
-    canContinue: false,
-  };
-};
-
 // Helper to validate Twitter OAuth configuration
 export const validateTwitterOAuthConfig = () => {
   const issues = [];
@@ -359,7 +388,39 @@ export const validateTwitterOAuthConfig = () => {
   return { valid: true, issues: [] };
 };
 
-// Enhanced sign out function
+// Enhanced session management functions
+export const getCurrentSession = async () => {
+  try {
+    console.log('🔍 Getting current session...');
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error('❌ Session error:', error);
+      return null;
+    }
+    console.log('✅ Session retrieved:', session ? 'Active' : 'None');
+    return session;
+  } catch (error) {
+    console.error('❌ Error getting session:', error);
+    return null;
+  }
+};
+
+export const refreshSession = async () => {
+  try {
+    console.log('🔄 Refreshing session...');
+    const { data: { session }, error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.error('❌ Refresh error:', error);
+      return null;
+    }
+    console.log('✅ Session refreshed successfully');
+    return session;
+  } catch (error) {
+    console.error('❌ Error refreshing session:', error);
+    return null;
+  }
+};
+
 export const signOut = async () => {
   try {
     console.log('🚪 Signing out...');
@@ -376,41 +437,6 @@ export const signOut = async () => {
   }
 };
 
-// Enhanced session management
-export const getCurrentSession = async () => {
-  try {
-    console.log('🔍 Getting current session...');
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) {
-      console.error('❌ Session error:', error);
-      throw error;
-    }
-    console.log('✅ Session retrieved:', session ? 'Active' : 'None');
-    return session;
-  } catch (error) {
-    console.error('❌ Error getting session:', error);
-    return null;
-  }
-};
-
-// Enhanced session refresh
-export const refreshSession = async () => {
-  try {
-    console.log('🔄 Refreshing session...');
-    const { data: { session }, error } = await supabase.auth.refreshSession();
-    if (error) {
-      console.error('❌ Refresh error:', error);
-      throw error;
-    }
-    console.log('✅ Session refreshed successfully');
-    return session;
-  } catch (error) {
-    console.error('❌ Error refreshing session:', error);
-    return null;
-  }
-};
-
-// Enhanced connection test
 export const testSupabaseConnection = async () => {
   try {
     console.log('🧪 Testing Supabase connection...');

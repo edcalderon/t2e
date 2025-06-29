@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { Svg, Path } from 'react-native-svg';
-import { Check, AlertCircle, RefreshCw, Shield, Clock, Settings, Info } from "lucide-react-native";
+import { Check, AlertCircle, RefreshCw, Shield, Clock, Settings, Info, Wifi, WifiOff } from "lucide-react-native";
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useSupabaseAuth } from '../../../hooks/useSupabaseAuth';
 
@@ -37,6 +37,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStage, setConnectionStage] = useState<'idle' | 'initiating' | 'redirecting' | 'processing' | 'completing'>('idle');
   const [hasTriggeredSuccess, setHasTriggeredSuccess] = useState(false);
+  const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     Animated.parallel([
@@ -60,13 +61,19 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       setHasTriggeredSuccess(true);
       setConnectionStage('completing');
       
+      // Clear any existing timeout
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+        setConnectionTimeout(null);
+      }
+      
       setTimeout(() => {
         onConnect(true);
         setIsConnecting(false);
         setConnectionStage('idle');
       }, 1500);
     }
-  }, [isAuthenticated, onConnect, hasTriggeredSuccess]);
+  }, [isAuthenticated, onConnect, hasTriggeredSuccess, connectionTimeout]);
 
   const handleConnect = async () => {
     if (isAuthenticated || isConnecting) return;
@@ -75,6 +82,17 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     setConnectionStage('initiating');
     setHasTriggeredSuccess(false);
     clearError();
+    
+    // Set a timeout for the connection process
+    const timeout = setTimeout(() => {
+      if (isConnecting && !isAuthenticated) {
+        console.log('⏰ Connection timeout reached');
+        setIsConnecting(false);
+        setConnectionStage('idle');
+      }
+    }, 60000); // 60 second timeout
+    
+    setConnectionTimeout(timeout);
     
     try {
       setConnectionStage('redirecting');
@@ -85,11 +103,13 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
         setConnectionStage('processing');
         console.log('🔄 OAuth completed, waiting for session...');
         
-        // Wait for the auth state to update
         // The useEffect above will handle the success case
       } else if (result.error?.type === 'email') {
         console.log('ℹ️ Twitter connection succeeded with email warning');
         setConnectionStage('completing');
+        
+        if (timeout) clearTimeout(timeout);
+        
         setTimeout(() => {
           onConnect(true);
           setIsConnecting(false);
@@ -99,11 +119,15 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
         console.error('❌ Twitter connection failed:', result.error);
         setIsConnecting(false);
         setConnectionStage('idle');
+        
+        if (timeout) clearTimeout(timeout);
       }
     } catch (err) {
       console.error('❌ Connection error:', err);
       setIsConnecting(false);
       setConnectionStage('idle');
+      
+      if (timeout) clearTimeout(timeout);
     }
   };
 
@@ -128,7 +152,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   const getConnectionStageText = () => {
     switch (connectionStage) {
       case 'initiating':
-        return 'Initiating connection...';
+        return 'Initializing connection...';
       case 'redirecting':
         return 'Opening Twitter...';
       case 'processing':
@@ -179,6 +203,8 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   };
 
   const isEmailWarning = error?.type === 'email';
+  const isNetworkError = error?.type === 'network';
+  const isConfigError = error?.type === 'config';
 
   const styles = createStyles(theme);
 
@@ -289,7 +315,13 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.errorContainer}>
           <View style={styles.errorIcon}>
-            <AlertCircle size={32} color={theme.colors.error} />
+            {isNetworkError ? (
+              <WifiOff size={32} color={theme.colors.error} />
+            ) : isConfigError ? (
+              <Settings size={32} color={theme.colors.error} />
+            ) : (
+              <AlertCircle size={32} color={theme.colors.error} />
+            )}
           </View>
           
           <Text style={styles.errorTitle}>Connection Failed</Text>
@@ -297,11 +329,20 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
             {getErrorMessage(error)}
           </Text>
 
-          {error.type === 'config' && (
+          {isConfigError && (
             <View style={styles.configHelp}>
               <Settings size={16} color={theme.colors.warning} />
               <Text style={styles.configHelpText}>
                 Configuration Issue Detected
+              </Text>
+            </View>
+          )}
+
+          {isNetworkError && (
+            <View style={styles.networkHelp}>
+              <WifiOff size={16} color={theme.colors.error} />
+              <Text style={styles.networkHelpText}>
+                Network Connection Issue
               </Text>
             </View>
           )}
@@ -359,7 +400,6 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
             style={styles.continueButton}
             onPress={() => {
               clearError();
-              // Force connection as successful since email issues are normal
               onConnect(true);
             }}
           >
@@ -753,6 +793,21 @@ const createStyles = (theme: any) => StyleSheet.create({
   configHelpText: {
     fontSize: 12,
     color: theme.colors.warning,
+    fontWeight: '600',
+  },
+  networkHelp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.error + '10',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  networkHelpText: {
+    fontSize: 12,
+    color: theme.colors.error,
     fontWeight: '600',
   },
   errorSolution: {
