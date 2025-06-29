@@ -1,7 +1,7 @@
 // XQuests Service Worker
-const CACHE_NAME = 'xquests-v1.0.0';
-const STATIC_CACHE_NAME = 'xquests-static-v1.0.0';
-const DYNAMIC_CACHE_NAME = 'xquests-dynamic-v1.0.0';
+const CACHE_NAME = 'xquests-v1.0.1'; // Increment version to force update
+const STATIC_CACHE_NAME = 'xquests-static-v1.0.1';
+const DYNAMIC_CACHE_NAME = 'xquests-dynamic-v1.0.1';
 
 // Assets to cache immediately
 const STATIC_ASSETS = [
@@ -13,7 +13,9 @@ const STATIC_ASSETS = [
   '/assets/images/adaptive-icon.png',
   '/assets/images/splash-icon.png',
   '/assets/images/xquests-logo.png',
-  '/assets/images/small_logo.svg'
+  '/assets/images/small_logo.svg',
+  '/assets/images/small_logo_black.svg',
+  '/assets/images/small_logo_white.svg'
 ];
 
 // Install event - cache static assets
@@ -28,6 +30,7 @@ self.addEventListener('install', (event) => {
       })
       .then(() => {
         console.log('✅ Static assets cached successfully');
+        // Force the waiting service worker to become the active service worker
         return self.skipWaiting();
       })
       .catch((error) => {
@@ -36,13 +39,14 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches and take control
 self.addEventListener('activate', (event) => {
   console.log('🚀 Service Worker activating...');
   
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
+    Promise.all([
+      // Clean up old caches
+      caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== STATIC_CACHE_NAME && 
@@ -53,11 +57,22 @@ self.addEventListener('activate', (event) => {
             }
           })
         );
-      })
-      .then(() => {
-        console.log('✅ Service Worker activated');
-        return self.clients.claim();
-      })
+      }),
+      // Take control of all clients immediately
+      self.clients.claim()
+    ]).then(() => {
+      console.log('✅ Service Worker activated and took control');
+      
+      // Notify all clients about the update
+      return self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({
+            type: 'SW_UPDATE_AVAILABLE',
+            version: CACHE_NAME
+          });
+        });
+      });
+    })
   );
 });
 
@@ -169,7 +184,11 @@ function isStaticAsset(url) {
          url.includes('/static/') ||
          url.includes('manifest.json') ||
          url.endsWith('.js') ||
-         url.endsWith('.css');
+         url.endsWith('.css') ||
+         url.endsWith('.svg') ||
+         url.endsWith('.png') ||
+         url.endsWith('.jpg') ||
+         url.endsWith('.jpeg');
 }
 
 function isAPIRequest(url) {
@@ -194,9 +213,8 @@ self.addEventListener('sync', (event) => {
 
 async function doBackgroundSync() {
   try {
-    // Handle any queued offline actions
     console.log('📡 Performing background sync...');
-    // Implementation for syncing offline data when connection is restored
+    // Handle any queued offline actions
   } catch (error) {
     console.error('❌ Background sync failed:', error);
   }
@@ -259,6 +277,7 @@ self.addEventListener('message', (event) => {
   console.log('💬 Message received in SW:', event.data);
   
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('⏭️ Skipping waiting...');
     self.skipWaiting();
   }
   

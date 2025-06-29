@@ -54,10 +54,13 @@ export const usePWA = (): PWAHook => {
       console.log('✅ PWA was installed');
     };
 
-    // Service Worker update detection
+    // Service Worker update detection with better logic
     const handleSWUpdate = () => {
-      setUpdateAvailable(true);
-      console.log('🔄 Service Worker update available');
+      // Only set update available if we haven't already detected it
+      if (!updateAvailable) {
+        console.log('🔄 Service Worker update detected');
+        setUpdateAvailable(true);
+      }
     };
 
     // Register event listeners
@@ -66,9 +69,51 @@ export const usePWA = (): PWAHook => {
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
 
-    // Check for service worker updates
+    // Enhanced service worker update detection
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('controllerchange', handleSWUpdate);
+      navigator.serviceWorker.ready.then((registration) => {
+        // Check for updates periodically
+        const checkForUpdates = () => {
+          registration.update().catch((error) => {
+            console.log('SW update check failed:', error);
+          });
+        };
+
+        // Check for updates every 30 minutes
+        const updateInterval = setInterval(checkForUpdates, 30 * 60 * 1000);
+
+        // Listen for new service worker
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New content is available
+                handleSWUpdate();
+              }
+            });
+          }
+        });
+
+        // Listen for controller change (when new SW takes control)
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          // Don't show update prompt if page is reloading
+          if (!window.location.href.includes('reload')) {
+            handleSWUpdate();
+          }
+        });
+
+        return () => {
+          clearInterval(updateInterval);
+        };
+      });
+
+      // Listen for messages from service worker
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'SW_UPDATE_AVAILABLE') {
+          handleSWUpdate();
+        }
+      });
     }
 
     // Initial checks
@@ -80,12 +125,8 @@ export const usePWA = (): PWAHook => {
       window.removeEventListener('appinstalled', handleAppInstalled);
       window.removeEventListener('online', updateOnlineStatus);
       window.removeEventListener('offline', updateOnlineStatus);
-      
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.removeEventListener('controllerchange', handleSWUpdate);
-      }
     };
-  }, []);
+  }, [updateAvailable]);
 
   const installApp = async (): Promise<void> => {
     if (!deferredPrompt) {
@@ -114,11 +155,26 @@ export const usePWA = (): PWAHook => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistration().then((registration) => {
         if (registration?.waiting) {
+          // Tell the waiting service worker to skip waiting
           registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          
+          // Listen for the controlling service worker to change
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            // Reload the page to get the new content
+            window.location.reload();
+          });
+        } else {
+          // No waiting service worker, just reload
           window.location.reload();
         }
       });
+    } else {
+      // Fallback: just reload the page
+      window.location.reload();
     }
+    
+    // Reset update available state
+    setUpdateAvailable(false);
   };
 
   return {
@@ -139,18 +195,24 @@ export const registerSW = async (): Promise<void> => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',
+        updateViaCache: 'none', // Always check for updates
       });
 
       console.log('✅ Service Worker registered successfully:', registration.scope);
 
-      // Check for updates
+      // Check for updates immediately
+      registration.update();
+
+      // Listen for updates
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
         if (newWorker) {
+          console.log('🔄 New service worker found');
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('🔄 New service worker available');
-              // Notify user about update
+              console.log('🔄 New service worker installed and ready');
+              // Notify the app about the update
+              window.dispatchEvent(new CustomEvent('sw-update-available'));
             }
           });
         }

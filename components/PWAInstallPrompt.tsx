@@ -21,21 +21,34 @@ export default function PWAInstallPrompt({ onDismiss }: PWAInstallPromptProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [slideAnim] = useState(new Animated.Value(100));
   const [fadeAnim] = useState(new Animated.Value(0));
+  const [isDismissed, setIsDismissed] = useState(false);
 
   const styles = createStyles(theme);
 
   useEffect(() => {
-    // Only show on web and if installable
-    if (Platform.OS === 'web' && isInstallable && !isInstalled) {
+    // Check if user has dismissed the prompt recently
+    const checkDismissed = () => {
+      if (typeof window !== 'undefined') {
+        const dismissed = localStorage.getItem('pwa-install-dismissed');
+        const dismissedTime = dismissed ? parseInt(dismissed) : 0;
+        const now = Date.now();
+        // Show again after 24 hours if dismissed
+        return now - dismissedTime < 86400000; // 24 hours in milliseconds
+      }
+      return false;
+    };
+
+    // Only show on web and if installable and not already installed
+    if (Platform.OS === 'web' && isInstallable && !isInstalled && !checkDismissed() && !isDismissed) {
       // Delay showing the prompt to avoid being intrusive
       const timer = setTimeout(() => {
         setIsVisible(true);
         showPrompt();
-      }, 3000); // Show after 3 seconds
+      }, 5000); // Show after 5 seconds
 
       return () => clearTimeout(timer);
     }
-  }, [isInstallable, isInstalled]);
+  }, [isInstallable, isInstalled, isDismissed]);
 
   const showPrompt = () => {
     Animated.parallel([
@@ -66,6 +79,7 @@ export default function PWAInstallPrompt({ onDismiss }: PWAInstallPromptProps) {
       }),
     ]).start(() => {
       setIsVisible(false);
+      setIsDismissed(true);
       onDismiss?.();
     });
   };
@@ -83,12 +97,12 @@ export default function PWAInstallPrompt({ onDismiss }: PWAInstallPromptProps) {
     hidePrompt();
     // Store dismissal in localStorage to avoid showing again for a while
     if (typeof window !== 'undefined') {
-      localStorage.setItem('pwa-prompt-dismissed', Date.now().toString());
+      localStorage.setItem('pwa-install-dismissed', Date.now().toString());
     }
   };
 
   // Don't render if not visible or not on web
-  if (!isVisible || Platform.OS !== 'web') {
+  if (!isVisible || Platform.OS !== 'web' || !isInstallable || isInstalled) {
     return null;
   }
 
