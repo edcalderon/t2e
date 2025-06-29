@@ -11,6 +11,7 @@ interface User {
   twitterConnected: boolean;
   walletConnected: boolean;
   selectedThemes: string[];
+  setupCompleted?: boolean;
   // Twitter-specific fields
   displayName?: string;
   twitterId?: string;

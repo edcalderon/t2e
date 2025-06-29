@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
+import { WebBrowserAuthSessionResult } from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 
 // Environment variables validation
@@ -224,19 +225,22 @@ export const performOAuth = async (): Promise<{ success: boolean; error?: string
         preferEphemeralSession: false,
         createTask: false,
       }
-    );
+    ) as WebBrowserAuthSessionResult;
 
     console.log('📱 OAuth browser result:', {
       type: result.type,
-      hasUrl: !!result.url,
-      urlPreview: result.url?.substring(0, 100),
+      // @ts-ignore - The URL might be available in the result
+      url: result.url || 'No URL in result',
+      message: 'Check the URL for authentication result'
     });
 
-    if (result.type === 'success' && result.url) {
+    // @ts-ignore - The URL might be available in the result
+    const resultUrl = result.url || (result as any).params?.url;
+    if (result.type === 'success' && resultUrl) {
       console.log('✅ OAuth success, processing result...');
       
       try {
-        const session = await createSessionFromUrl(result.url);
+        const session = await createSessionFromUrl(resultUrl);
         
         if (session) {
           console.log('✅ Session created successfully');
