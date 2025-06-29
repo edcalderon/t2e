@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
-import { Award, Plus, Sparkles, TrendingUp, Users, Trophy, Heart, MessageCircle, Repeat, ExternalLink, Hash, RefreshCw } from "lucide-react-native";
+import { Award, Plus, Sparkles, TrendingUp, Users, Trophy, Heart, MessageCircle, Repeat, ExternalLink, Hash, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react-native";
 import { useRouter } from 'expo-router';
 import ChallengeCard from "../../src/components/ChallengeCard";
 import LeaderboardSection from "../../src/components/LeaderboardSection";
@@ -24,6 +24,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 const { width, height } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web';
 
 interface CommunityTweet {
   id: string;
@@ -38,6 +39,135 @@ interface CommunityTweet {
   verified: boolean;
   challengeTag?: string;
 }
+
+// Skeleton Tweet Component
+const SkeletonTweet = ({ theme }: { theme: any }) => {
+  const [shimmerAnim] = useState(new Animated.Value(0));
+
+  useEffect(() => {
+    const shimmer = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    shimmer.start();
+    return () => shimmer.stop();
+  }, []);
+
+  const shimmerOpacity = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  const styles = StyleSheet.create({
+    skeletonCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      padding: 16,
+      width: 280,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      marginRight: 12,
+    },
+    skeletonHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    skeletonAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: theme.colors.border,
+      marginRight: 12,
+    },
+    skeletonUserInfo: {
+      flex: 1,
+    },
+    skeletonName: {
+      height: 14,
+      backgroundColor: theme.colors.border,
+      borderRadius: 4,
+      width: '60%',
+      marginBottom: 4,
+    },
+    skeletonUsername: {
+      height: 12,
+      backgroundColor: theme.colors.border,
+      borderRadius: 4,
+      width: '40%',
+    },
+    skeletonTimestamp: {
+      height: 12,
+      backgroundColor: theme.colors.border,
+      borderRadius: 4,
+      width: 30,
+    },
+    skeletonContent: {
+      marginBottom: 12,
+    },
+    skeletonContentLine: {
+      height: 14,
+      backgroundColor: theme.colors.border,
+      borderRadius: 4,
+      marginBottom: 6,
+    },
+    skeletonTag: {
+      height: 20,
+      backgroundColor: theme.colors.border,
+      borderRadius: 8,
+      width: 80,
+      marginBottom: 12,
+    },
+    skeletonEngagement: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    skeletonEngagementItem: {
+      height: 14,
+      backgroundColor: theme.colors.border,
+      borderRadius: 4,
+      width: 30,
+    },
+  });
+
+  return (
+    <View style={styles.skeletonCard}>
+      <View style={styles.skeletonHeader}>
+        <Animated.View style={[styles.skeletonAvatar, { opacity: shimmerOpacity }]} />
+        <View style={styles.skeletonUserInfo}>
+          <Animated.View style={[styles.skeletonName, { opacity: shimmerOpacity }]} />
+          <Animated.View style={[styles.skeletonUsername, { opacity: shimmerOpacity }]} />
+        </View>
+        <Animated.View style={[styles.skeletonTimestamp, { opacity: shimmerOpacity }]} />
+      </View>
+      
+      <View style={styles.skeletonContent}>
+        <Animated.View style={[styles.skeletonContentLine, { opacity: shimmerOpacity, width: '100%' }]} />
+        <Animated.View style={[styles.skeletonContentLine, { opacity: shimmerOpacity, width: '80%' }]} />
+        <Animated.View style={[styles.skeletonContentLine, { opacity: shimmerOpacity, width: '60%' }]} />
+      </View>
+      
+      <Animated.View style={[styles.skeletonTag, { opacity: shimmerOpacity }]} />
+      
+      <View style={styles.skeletonEngagement}>
+        <Animated.View style={[styles.skeletonEngagementItem, { opacity: shimmerOpacity }]} />
+        <Animated.View style={[styles.skeletonEngagementItem, { opacity: shimmerOpacity }]} />
+        <Animated.View style={[styles.skeletonEngagementItem, { opacity: shimmerOpacity }]} />
+        <Animated.View style={[styles.skeletonEngagementItem, { opacity: shimmerOpacity }]} />
+      </View>
+    </View>
+  );
+};
 
 export default function ExploreScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
@@ -159,6 +289,9 @@ export default function ExploreScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMoreTweets, setLoadingMoreTweets] = useState(false);
+  const [scrollViewRef, setScrollViewRef] = useState<ScrollView | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
 
   // Animation for theme toggle
   const [themeAnimation] = useState(new Animated.Value(isDark ? 1 : 0));
@@ -284,7 +417,27 @@ export default function ExploreScreen() {
       
       setCommunityTweets(prev => [...prev, ...newTweets]);
       setLoadingMoreTweets(false);
-    }, 1000);
+    }, 2000);
+  };
+
+  const scrollLeft = () => {
+    if (scrollViewRef && isWeb) {
+      scrollViewRef.scrollTo({ x: Math.max(0, scrollViewRef.contentOffset?.x - 300), animated: true });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollViewRef && isWeb) {
+      scrollViewRef.scrollTo({ x: (scrollViewRef.contentOffset?.x || 0) + 300, animated: true });
+    }
+  };
+
+  const handleScroll = (event: any) => {
+    if (isWeb) {
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      setCanScrollLeft(contentOffset.x > 0);
+      setCanScrollRight(contentOffset.x < contentSize.width - layoutMeasurement.width - 10);
+    }
   };
 
   const formatEngagementNumber = (num: number) => {
@@ -475,82 +628,123 @@ export default function ExploreScreen() {
               Real-time #xquests tweets from our community
             </Text>
 
-            {/* Loading State for Community Feed */}
-            {loadingMoreTweets && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.loadingText}>Loading new tweets...</Text>
+            {/* Community Feed Container with Navigation */}
+            <View style={styles.communityFeedContainer}>
+              {/* Web Navigation Arrows */}
+              {isWeb && (
+                <>
+                  <TouchableOpacity
+                    style={[styles.scrollArrow, styles.scrollArrowLeft, !canScrollLeft && styles.scrollArrowDisabled]}
+                    onPress={scrollLeft}
+                    disabled={!canScrollLeft}
+                  >
+                    <ChevronLeft size={20} color={canScrollLeft ? theme.colors.text : theme.colors.textTertiary} />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.scrollArrow, styles.scrollArrowRight, !canScrollRight && styles.scrollArrowDisabled]}
+                    onPress={scrollRight}
+                    disabled={!canScrollRight}
+                  >
+                    <ChevronRight size={20} color={canScrollRight ? theme.colors.text : theme.colors.textTertiary} />
+                  </TouchableOpacity>
+                </>
+              )}
+
+              <ScrollView 
+                ref={setScrollViewRef}
+                horizontal 
+                showsHorizontalScrollIndicator={isWeb}
+                style={styles.communityFeed}
+                contentContainerStyle={styles.communityFeedContent}
+                nestedScrollEnabled={true}
+                scrollEventThrottle={16}
+                onScroll={handleScroll}
+                {...(isWeb && {
+                  overScrollMode: 'never',
+                  bounces: false,
+                })}
+              >
+                {/* Show skeleton loading when loading more tweets */}
+                {loadingMoreTweets && (
+                  <>
+                    <SkeletonTweet theme={theme} />
+                    <SkeletonTweet theme={theme} />
+                    <SkeletonTweet theme={theme} />
+                  </>
+                )}
+
+                {/* Actual tweets - hide when loading */}
+                {!loadingMoreTweets && communityTweets.map((tweet) => (
+                  <View key={tweet.id} style={styles.tweetCard}>
+                    {/* Tweet Header */}
+                    <View style={styles.tweetHeader}>
+                      <Image
+                        source={{ uri: tweet.avatar }}
+                        style={styles.tweetAvatar}
+                      />
+                      <View style={styles.tweetUserInfo}>
+                        <View style={styles.tweetUserNameRow}>
+                          <Text style={styles.tweetDisplayName}>{tweet.displayName}</Text>
+                          {tweet.verified && (
+                            <View style={styles.verifiedBadge}>
+                              <Text style={styles.verifiedIcon}>✓</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.tweetUsername}>@{tweet.username}</Text>
+                      </View>
+                      <Text style={styles.tweetTimestamp}>{tweet.timestamp}</Text>
+                    </View>
+
+                    {/* Tweet Content */}
+                    <Text style={styles.tweetContent}>{tweet.content}</Text>
+
+                    {/* Challenge Tag */}
+                    {tweet.challengeTag && (
+                      <View style={styles.challengeTagContainer}>
+                        <Award size={12} color={theme.colors.primary} />
+                        <Text style={styles.challengeTag}>{tweet.challengeTag}</Text>
+                      </View>
+                    )}
+
+                    {/* Tweet Engagement */}
+                    <View style={styles.tweetEngagement}>
+                      <View style={styles.engagementItem}>
+                        <Heart size={14} color={theme.colors.textSecondary} />
+                        <Text style={styles.engagementText}>
+                          {formatEngagementNumber(tweet.likes)}
+                        </Text>
+                      </View>
+                      <View style={styles.engagementItem}>
+                        <Repeat size={14} color={theme.colors.textSecondary} />
+                        <Text style={styles.engagementText}>
+                          {formatEngagementNumber(tweet.retweets)}
+                        </Text>
+                      </View>
+                      <View style={styles.engagementItem}>
+                        <MessageCircle size={14} color={theme.colors.textSecondary} />
+                        <Text style={styles.engagementText}>
+                          {formatEngagementNumber(tweet.replies)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity style={styles.engagementItem}>
+                        <ExternalLink size={14} color={theme.colors.primary} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Web Scroll Indicator */}
+            {isWeb && (
+              <View style={styles.scrollIndicator}>
+                <Text style={styles.scrollIndicatorText}>
+                  Scroll horizontally to see more tweets
+                </Text>
               </View>
             )}
-
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={Platform.OS !== 'web'}
-              style={styles.communityFeed}
-              contentContainerStyle={styles.communityFeedContent}
-              nestedScrollEnabled={true}
-              scrollEventThrottle={16}
-            >
-              {communityTweets.map((tweet) => (
-                <View key={tweet.id} style={styles.tweetCard}>
-                  {/* Tweet Header */}
-                  <View style={styles.tweetHeader}>
-                    <Image
-                      source={{ uri: tweet.avatar }}
-                      style={styles.tweetAvatar}
-                    />
-                    <View style={styles.tweetUserInfo}>
-                      <View style={styles.tweetUserNameRow}>
-                        <Text style={styles.tweetDisplayName}>{tweet.displayName}</Text>
-                        {tweet.verified && (
-                          <View style={styles.verifiedBadge}>
-                            <Text style={styles.verifiedIcon}>✓</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.tweetUsername}>@{tweet.username}</Text>
-                    </View>
-                    <Text style={styles.tweetTimestamp}>{tweet.timestamp}</Text>
-                  </View>
-
-                  {/* Tweet Content */}
-                  <Text style={styles.tweetContent}>{tweet.content}</Text>
-
-                  {/* Challenge Tag */}
-                  {tweet.challengeTag && (
-                    <View style={styles.challengeTagContainer}>
-                      <Award size={12} color={theme.colors.primary} />
-                      <Text style={styles.challengeTag}>{tweet.challengeTag}</Text>
-                    </View>
-                  )}
-
-                  {/* Tweet Engagement */}
-                  <View style={styles.tweetEngagement}>
-                    <View style={styles.engagementItem}>
-                      <Heart size={14} color={theme.colors.textSecondary} />
-                      <Text style={styles.engagementText}>
-                        {formatEngagementNumber(tweet.likes)}
-                      </Text>
-                    </View>
-                    <View style={styles.engagementItem}>
-                      <Repeat size={14} color={theme.colors.textSecondary} />
-                      <Text style={styles.engagementText}>
-                        {formatEngagementNumber(tweet.retweets)}
-                      </Text>
-                    </View>
-                    <View style={styles.engagementItem}>
-                      <MessageCircle size={14} color={theme.colors.textSecondary} />
-                      <Text style={styles.engagementText}>
-                        {formatEngagementNumber(tweet.replies)}
-                      </Text>
-                    </View>
-                    <TouchableOpacity style={styles.engagementItem}>
-                      <ExternalLink size={14} color={theme.colors.primary} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
           </View>
 
           {/* Quick Actions */}
@@ -918,39 +1112,66 @@ const createStyles = (theme: any) => StyleSheet.create({
   reloadButtonTextDisabled: {
     color: theme.colors.textTertiary,
   },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 32,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    marginTop: 12,
-    fontWeight: '500',
-  },
   sectionLink: {
     fontSize: 14,
     color: theme.colors.primary,
     fontWeight: '500',
   },
-  communityFeed: {
+  communityFeedContainer: {
+    position: 'relative',
     marginHorizontal: -16,
-    ...(Platform.OS === 'web' && {
-      overflow: 'visible',
+  },
+  scrollArrow: {
+    position: 'absolute',
+    top: '50%',
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: theme.colors.text,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    transform: [{ translateY: -20 }],
+  },
+  scrollArrowLeft: {
+    left: 8,
+  },
+  scrollArrowRight: {
+    right: 8,
+  },
+  scrollArrowDisabled: {
+    opacity: 0.3,
+  },
+  communityFeed: {
+    ...(isWeb && {
+      overflow: 'auto',
     }),
   },
   communityFeedContent: {
     paddingHorizontal: 16,
     gap: 12,
-    ...(Platform.OS === 'web' && {
+    ...(isWeb && {
       minWidth: '100%',
     }),
+  },
+  scrollIndicator: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  scrollIndicatorText: {
+    fontSize: 12,
+    color: theme.colors.textTertiary,
+    fontStyle: 'italic',
   },
   tweetCard: {
     backgroundColor: theme.colors.surface,
@@ -967,7 +1188,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
-    ...(Platform.OS === 'web' && {
+    ...(isWeb && {
       cursor: 'pointer',
       transition: 'transform 0.2s ease',
     }),
