@@ -20,7 +20,25 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "themeColor": "#1D9BF0",
+      "backgroundColor": "#000000",
+      "startUrl": "/",
+      "shortName": "XQuests",
+      "lang": "en",
+      "scope": "/",
+      "display": "standalone",
+      "orientation": "portrait-primary",
+      "preferRelatedApplications": false,
+      "dangerouslyAllowInsecureHttpRequests": false,
+      "meta": {
+        "apple-mobile-web-app-capable": "yes",
+        "apple-mobile-web-app-status-bar-style": "default",
+        "apple-mobile-web-app-title": "XQuests",
+        "mobile-web-app-capable": "yes",
+        "msapplication-TileColor": "#1D9BF0",
+        "msapplication-tap-highlight": "no"
+      }
     },
     "plugins": [
       "expo-router",
