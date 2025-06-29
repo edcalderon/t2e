@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { Twitter, Check, AlertCircle, RefreshCw, Shield, Clock } from "lucide-react-native";
+import { useRouter } from 'expo-router';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useSupabaseAuth } from '../../../hooks/useSupabaseAuth';
 
@@ -20,6 +21,7 @@ interface TwitterConnectStepProps {
 
 export default function TwitterConnectStep({ onConnect, isConnected }: TwitterConnectStepProps) {
   const { theme } = useTheme();
+  const router = useRouter();
   const { 
     user, 
     isLoading, 
@@ -249,8 +251,21 @@ export default function TwitterConnectStep({ onConnect, isConnected }: TwitterCo
       </TouchableOpacity>
 
       <Text style={styles.disclaimerText}>
-        By connecting, you agree to our secure authentication process. 
-        We'll never post without your explicit permission.
+        By connecting, you agree to our{' '}
+        <Text 
+          style={styles.linkText}
+          onPress={() => router.push('/terms')}
+        >
+          Terms of Service
+        </Text>
+        {' '}and{' '}
+        <Text 
+          style={styles.linkText}
+          onPress={() => router.push('/privacy')}
+        >
+          Privacy Policy
+        </Text>
+        . We'll never post without your explicit permission.
       </Text>
     </Animated.View>
   );
@@ -375,6 +390,11 @@ const createStyles = (theme: any) => StyleSheet.create({
     lineHeight: 16,
     marginTop: 20,
     paddingHorizontal: 20,
+  },
+  linkText: {
+    color: theme.colors.primary,
+    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
   successContainer: {
     alignItems: 'center',
