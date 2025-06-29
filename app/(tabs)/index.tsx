@@ -8,10 +8,11 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
+  RefreshControl,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
-import { Award, Plus, Sparkles, TrendingUp, Users, Trophy } from "lucide-react-native";
+import { Award, Plus, Sparkles, TrendingUp, Users, Trophy, Heart, MessageCircle, Repeat, ExternalLink, Hash } from "lucide-react-native";
 import { useRouter } from 'expo-router';
 import ChallengeCard from "../../src/components/ChallengeCard";
 import LeaderboardSection from "../../src/components/LeaderboardSection";
@@ -21,6 +22,20 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 const { width, height } = Dimensions.get('window');
+
+interface CommunityTweet {
+  id: string;
+  username: string;
+  displayName: string;
+  avatar: string;
+  content: string;
+  timestamp: string;
+  likes: number;
+  retweets: number;
+  replies: number;
+  verified: boolean;
+  challengeTag?: string;
+}
 
 export default function ExploreScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
@@ -59,6 +74,89 @@ export default function ExploreScreen() {
     },
   ]);
 
+  const [communityTweets, setCommunityTweets] = useState<CommunityTweet[]>([
+    {
+      id: "1",
+      username: "cryptodev_alex",
+      displayName: "Alex Chen",
+      avatar: "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+      content: "Just completed my first #xquests challenge! Explaining DeFi to my non-crypto friends was harder than I thought, but so rewarding 🚀 #crypto #education",
+      timestamp: "2m",
+      likes: 24,
+      retweets: 8,
+      replies: 3,
+      verified: false,
+      challengeTag: "DeFi Education"
+    },
+    {
+      id: "2",
+      username: "web3_sarah",
+      displayName: "Sarah Martinez",
+      avatar: "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+      content: "The future of AI is here and it's incredible! Working on my #xquests submission about AI in healthcare. The potential to save lives is mind-blowing 🤖💊",
+      timestamp: "5m",
+      likes: 67,
+      retweets: 23,
+      replies: 12,
+      verified: true,
+      challengeTag: "AI Innovation"
+    },
+    {
+      id: "3",
+      username: "blockchain_bob",
+      displayName: "Bob Thompson",
+      avatar: "https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+      content: "Building communities in web3 isn't just about tech - it's about people! My #xquests challenge focuses on human connection in digital spaces 🌐❤️",
+      timestamp: "8m",
+      likes: 45,
+      retweets: 15,
+      replies: 7,
+      verified: false,
+      challengeTag: "Community Building"
+    },
+    {
+      id: "4",
+      username: "algo_enthusiast",
+      displayName: "Maria Rodriguez",
+      avatar: "https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+      content: "Algorand's carbon-negative blockchain is the future! 🌱 Just earned 35 ALGO from my #xquests sustainability challenge. Green crypto FTW! #algorand #sustainability",
+      timestamp: "12m",
+      likes: 89,
+      retweets: 34,
+      replies: 18,
+      verified: true,
+      challengeTag: "Sustainability"
+    },
+    {
+      id: "5",
+      username: "nft_creator_jane",
+      displayName: "Jane Wilson",
+      avatar: "https://images.pexels.com/photos/1040880/pexels-photo-1040880.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+      content: "NFTs beyond art: digital identity, certificates, memberships... the possibilities are endless! My #xquests submission explores real-world utility 🎨➡️🌍",
+      timestamp: "15m",
+      likes: 52,
+      retweets: 19,
+      replies: 9,
+      verified: false,
+      challengeTag: "NFT Innovation"
+    },
+    {
+      id: "6",
+      username: "defi_wizard",
+      displayName: "David Kim",
+      avatar: "https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+      content: "Yield farming strategies that actually make sense! Breaking down complex DeFi concepts for my #xquests challenge. Education is key to adoption 📚💰",
+      timestamp: "18m",
+      likes: 73,
+      retweets: 28,
+      replies: 14,
+      verified: true,
+      challengeTag: "DeFi Education"
+    }
+  ]);
+
+  const [refreshing, setRefreshing] = useState(false);
+
   // Animation for theme toggle
   const [themeAnimation] = useState(new Animated.Value(isDark ? 1 : 0));
 
@@ -69,6 +167,23 @@ export default function ExploreScreen() {
       useNativeDriver: false,
     }).start();
   }, [isDark]);
+
+  // Simulate real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Randomly update engagement metrics
+      setCommunityTweets(prevTweets => 
+        prevTweets.map(tweet => ({
+          ...tweet,
+          likes: tweet.likes + Math.floor(Math.random() * 3),
+          retweets: tweet.retweets + Math.floor(Math.random() * 2),
+          replies: tweet.replies + Math.floor(Math.random() * 2),
+        }))
+      );
+    }, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSetupComplete = () => {
     setShowSetupModal(false);
@@ -92,6 +207,36 @@ export default function ExploreScreen() {
 
   const handleThemeToggle = () => {
     toggleTheme();
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    // Simulate fetching new tweets
+    setTimeout(() => {
+      // Add a new tweet at the beginning
+      const newTweet: CommunityTweet = {
+        id: Date.now().toString(),
+        username: "new_user_" + Math.floor(Math.random() * 1000),
+        displayName: "New User",
+        avatar: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+        content: "Just joined #xquests and loving the community! Ready to start earning ALGO 🚀",
+        timestamp: "now",
+        likes: 1,
+        retweets: 0,
+        replies: 0,
+        verified: false,
+        challengeTag: "Welcome"
+      };
+      setCommunityTweets(prev => [newTweet, ...prev.slice(0, 5)]);
+      setRefreshing(false);
+    }, 1500);
+  };
+
+  const formatEngagementNumber = (num: number) => {
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'k';
+    }
+    return num.toString();
   };
 
   // Get user stats or show zeros
@@ -189,7 +334,18 @@ export default function ExploreScreen() {
           </View>
         </View>
 
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.primary}
+              colors={[theme.colors.primary]}
+            />
+          }
+        >
           {/* Authentication Status Banner */}
           {!isAuthenticated && (
             <TouchableOpacity 
@@ -228,6 +384,91 @@ export default function ExploreScreen() {
                 <Text style={styles.statChange}>{stats.streak} streak</Text>
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* Community Activity Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <Hash size={20} color={theme.colors.primary} />
+                <Text style={styles.sectionTitle}>Community Activity</Text>
+                <View style={styles.liveBadge}>
+                  <View style={styles.liveIndicator} />
+                  <Text style={styles.liveText}>LIVE</Text>
+                </View>
+              </View>
+            </View>
+
+            <Text style={styles.sectionSubtitle}>
+              Real-time #xquests tweets from our community
+            </Text>
+
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.communityFeed}
+              contentContainerStyle={styles.communityFeedContent}
+            >
+              {communityTweets.map((tweet) => (
+                <View key={tweet.id} style={styles.tweetCard}>
+                  {/* Tweet Header */}
+                  <View style={styles.tweetHeader}>
+                    <Image
+                      source={{ uri: tweet.avatar }}
+                      style={styles.tweetAvatar}
+                    />
+                    <View style={styles.tweetUserInfo}>
+                      <View style={styles.tweetUserNameRow}>
+                        <Text style={styles.tweetDisplayName}>{tweet.displayName}</Text>
+                        {tweet.verified && (
+                          <View style={styles.verifiedBadge}>
+                            <Text style={styles.verifiedIcon}>✓</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.tweetUsername}>@{tweet.username}</Text>
+                    </View>
+                    <Text style={styles.tweetTimestamp}>{tweet.timestamp}</Text>
+                  </View>
+
+                  {/* Tweet Content */}
+                  <Text style={styles.tweetContent}>{tweet.content}</Text>
+
+                  {/* Challenge Tag */}
+                  {tweet.challengeTag && (
+                    <View style={styles.challengeTagContainer}>
+                      <Award size={12} color={theme.colors.primary} />
+                      <Text style={styles.challengeTag}>{tweet.challengeTag}</Text>
+                    </View>
+                  )}
+
+                  {/* Tweet Engagement */}
+                  <View style={styles.tweetEngagement}>
+                    <View style={styles.engagementItem}>
+                      <Heart size={14} color={theme.colors.textSecondary} />
+                      <Text style={styles.engagementText}>
+                        {formatEngagementNumber(tweet.likes)}
+                      </Text>
+                    </View>
+                    <View style={styles.engagementItem}>
+                      <Repeat size={14} color={theme.colors.textSecondary} />
+                      <Text style={styles.engagementText}>
+                        {formatEngagementNumber(tweet.retweets)}
+                      </Text>
+                    </View>
+                    <View style={styles.engagementItem}>
+                      <MessageCircle size={14} color={theme.colors.textSecondary} />
+                      <Text style={styles.engagementText}>
+                        {formatEngagementNumber(tweet.replies)}
+                      </Text>
+                    </View>
+                    <TouchableOpacity style={styles.engagementItem}>
+                      <ExternalLink size={14} color={theme.colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
 
           {/* Quick Actions */}
@@ -537,14 +778,151 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: theme.colors.text,
   },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginBottom: 16,
+    marginTop: -8,
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.error + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  liveIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.error,
+  },
+  liveText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: theme.colors.error,
+  },
   sectionLink: {
     fontSize: 14,
     color: theme.colors.primary,
+    fontWeight: '500',
+  },
+  communityFeed: {
+    marginHorizontal: -16,
+  },
+  communityFeedContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  tweetCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    width: 280,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    shadowColor: theme.colors.text,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  tweetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  tweetAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  tweetUserInfo: {
+    flex: 1,
+  },
+  tweetUserNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  tweetDisplayName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  verifiedBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifiedIcon: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  tweetUsername: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  tweetTimestamp: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  tweetContent: {
+    fontSize: 14,
+    color: theme.colors.text,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  challengeTagContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary + '10',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+    gap: 4,
+  },
+  challengeTag: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  tweetEngagement: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  engagementItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  engagementText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
     fontWeight: '500',
   },
   activityItem: {
