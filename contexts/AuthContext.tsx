@@ -114,7 +114,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         email: sessionUser.email || '',
         avatar: sessionUser.user_metadata?.avatar_url || 
                sessionUser.user_metadata?.picture ||
-               'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2',
+               'https://api.dicebear.com/7.x/avataaars/svg?seed=connected-user&backgroundColor=b6e3f4,c0aede,d1d4f9',
         displayName: sessionUser.user_metadata?.full_name || 
                     sessionUser.user_metadata?.name || 
                     'Twitter User',

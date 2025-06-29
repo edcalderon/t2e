@@ -348,7 +348,7 @@ export const getTwitterUserData = (user: any) => {
             identityData.avatar_url ||
             identityData.picture ||
             identityData.profile_image_url ||
-            'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2',
+            'https://api.dicebear.com/7.x/avataaars/svg?seed=twitter-user&backgroundColor=b6e3f4,c0aede,d1d4f9',
     twitterId: twitterData.provider_id || 
                twitterData.sub || 
                twitterData.id_str ||

@@ -108,15 +108,15 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
       return {
         username: 'Twitter User',
         displayName: 'Connected User',
-        avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=connected-user&backgroundColor=b6e3f4,c0aede,d1d4f9',
         isGuest: false,
       };
     } else {
-      // Guest user
+      // Guest user - use generative avatar
       return {
         username: 'Guest User',
         displayName: 'Guest User',
-        avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2',
+        avatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=guest-user&backgroundColor=f1f4f8&primaryColor=6366f1',
         isGuest: true,
       };
     }
