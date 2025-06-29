@@ -16,7 +16,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Required for web only
-WebBrowser.maybeCompleteAuthSession();
+if (typeof window !== 'undefined') {
+  WebBrowser.maybeCompleteAuthSession();
+}
 
 // Create Supabase client with enhanced configuration
 export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
@@ -24,7 +26,7 @@ export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
     storage: Platform.OS !== 'web' ? AsyncStorage : undefined,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: Platform.OS === 'web',
+    detectSessionInUrl: Platform.OS === 'web' && typeof window !== 'undefined',
     flowType: 'pkce',
     debug: __DEV__,
   },
@@ -35,10 +37,16 @@ export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   },
 });
 
-// Get redirect URI with proper scheme handling
+// Get redirect URI with proper SSR handling
 const getRedirectUri = () => {
   if (Platform.OS === 'web') {
-    return `${window.location.origin}/auth/callback`;
+    // Check if we're in a browser environment (not SSR)
+    if (typeof window !== 'undefined' && window.location) {
+      return `${window.location.origin}/auth/callback`;
+    } else {
+      // Fallback for SSR - use a placeholder that will be replaced client-side
+      return 'https://localhost:8081/auth/callback';
+    }
   }
   
   return makeRedirectUri({
@@ -47,8 +55,16 @@ const getRedirectUri = () => {
   });
 };
 
-const redirectTo = getRedirectUri();
-console.log('🔗 Redirect URI:', redirectTo);
+// Initialize redirect URI lazily to avoid SSR issues
+let redirectTo: string | null = null;
+
+const getRedirectToUri = () => {
+  if (!redirectTo) {
+    redirectTo = getRedirectUri();
+    console.log('🔗 Redirect URI:', redirectTo);
+  }
+  return redirectTo;
+};
 
 // Enhanced session creation from URL
 export const createSessionFromUrl = async (url: string): Promise<any> => {
@@ -156,7 +172,7 @@ export const createSessionFromUrl = async (url: string): Promise<any> => {
   }
 };
 
-// Enhanced OAuth performance
+// Enhanced OAuth performance with SSR safety
 export const performOAuth = async (): Promise<{ success: boolean; error?: string; session?: any }> => {
   console.log('🐦 Starting Twitter OAuth...');
   
@@ -166,12 +182,19 @@ export const performOAuth = async (): Promise<{ success: boolean; error?: string
       throw new Error('Missing Supabase configuration. Please check your environment variables.');
     }
 
+    // Ensure we're in a browser environment for OAuth
+    if (Platform.OS === 'web' && typeof window === 'undefined') {
+      throw new Error('OAuth requires a browser environment');
+    }
+
     console.log('🔧 Initiating OAuth with Supabase...');
+    
+    const redirectUri = getRedirectToUri();
     
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'twitter',
       options: {
-        redirectTo,
+        redirectTo: redirectUri,
         skipBrowserRedirect: true,
         queryParams: {
           access_type: 'offline',
@@ -195,7 +218,7 @@ export const performOAuth = async (): Promise<{ success: boolean; error?: string
     // Open OAuth URL in browser with enhanced options
     const result = await WebBrowser.openAuthSessionAsync(
       data.url,
-      redirectTo,
+      redirectUri,
       {
         showInRecents: true,
         preferEphemeralSession: false,
@@ -377,6 +400,11 @@ export const validateTwitterOAuthConfig = () => {
   
   if (!supabaseAnonKey) {
     issues.push('EXPO_PUBLIC_SUPABASE_ANON_KEY is not set');
+  }
+  
+  // Check if we're in a proper environment for OAuth
+  if (Platform.OS === 'web' && typeof window === 'undefined') {
+    issues.push('OAuth requires a browser environment');
   }
   
   if (issues.length > 0) {

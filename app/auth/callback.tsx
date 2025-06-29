@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { createSessionFromUrl } from '../../lib/supabase';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -24,8 +24,38 @@ export default function AuthCallback() {
       console.log('🔄 Auth callback started');
       console.log('📋 Callback params:', params);
 
-      // Get the current URL for processing
-      const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+      // Get the current URL for processing - handle SSR safely
+      let currentUrl = '';
+      
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && window.location) {
+          currentUrl = window.location.href;
+        } else {
+          // Fallback for SSR - construct URL from params
+          const baseUrl = 'https://localhost:8081/auth/callback';
+          const searchParams = new URLSearchParams();
+          
+          Object.entries(params).forEach(([key, value]) => {
+            if (value) {
+              searchParams.append(key, Array.isArray(value) ? value[0] : value);
+            }
+          });
+          
+          currentUrl = `${baseUrl}?${searchParams.toString()}`;
+        }
+      } else {
+        // For mobile, construct URL from params
+        const baseUrl = 'xquests://auth/callback';
+        const searchParams = new URLSearchParams();
+        
+        Object.entries(params).forEach(([key, value]) => {
+          if (value) {
+            searchParams.append(key, Array.isArray(value) ? value[0] : value);
+          }
+        });
+        
+        currentUrl = `${baseUrl}?${searchParams.toString()}`;
+      }
       
       if (!currentUrl) {
         throw new Error('No URL available for processing');
