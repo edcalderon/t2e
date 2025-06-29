@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
-import { Award, Plus, Sparkles, TrendingUp, Users, Trophy, Heart, MessageCircle, Repeat, ExternalLink, Hash } from "lucide-react-native";
+import { Award, Plus, Sparkles, TrendingUp, Users, Trophy, Heart, MessageCircle, Repeat, ExternalLink, Hash, RefreshCw } from "lucide-react-native";
 import { useRouter } from 'expo-router';
 import ChallengeCard from "../../src/components/ChallengeCard";
 import LeaderboardSection from "../../src/components/LeaderboardSection";
@@ -156,6 +156,7 @@ export default function ExploreScreen() {
   ]);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMoreTweets, setLoadingMoreTweets] = useState(false);
 
   // Animation for theme toggle
   const [themeAnimation] = useState(new Animated.Value(isDark ? 1 : 0));
@@ -230,6 +231,58 @@ export default function ExploreScreen() {
       setCommunityTweets(prev => [newTweet, ...prev.slice(0, 5)]);
       setRefreshing(false);
     }, 1500);
+  };
+
+  const loadMoreTweets = () => {
+    setLoadingMoreTweets(true);
+    
+    // Simulate loading more tweets
+    setTimeout(() => {
+      const newTweets: CommunityTweet[] = [
+        {
+          id: Date.now().toString() + "_1",
+          username: "crypto_newbie",
+          displayName: "Emma Johnson",
+          avatar: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+          content: "Learning about smart contracts through #xquests has been amazing! The community here is so supportive 💪 #blockchain #learning",
+          timestamp: "22m",
+          likes: 31,
+          retweets: 12,
+          replies: 5,
+          verified: false,
+          challengeTag: "Education"
+        },
+        {
+          id: Date.now().toString() + "_2",
+          username: "algo_trader",
+          displayName: "Michael Chen",
+          avatar: "https://images.pexels.com/photos/1212984/pexels-photo-1212984.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+          content: "Passive income through DeFi staking explained! My #xquests challenge breaks down the risks and rewards 📈 #defi #algorand",
+          timestamp: "25m",
+          likes: 94,
+          retweets: 41,
+          replies: 23,
+          verified: true,
+          challengeTag: "DeFi Education"
+        },
+        {
+          id: Date.now().toString() + "_3",
+          username: "web3_builder",
+          displayName: "Lisa Park",
+          avatar: "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+          content: "Building the future one dApp at a time! My #xquests submission showcases how blockchain can revolutionize supply chains 🔗",
+          timestamp: "28m",
+          likes: 67,
+          retweets: 25,
+          replies: 11,
+          verified: false,
+          challengeTag: "Innovation"
+        }
+      ];
+      
+      setCommunityTweets(prev => [...prev, ...newTweets]);
+      setLoadingMoreTweets(false);
+    }, 1000);
   };
 
   const formatEngagementNumber = (num: number) => {
@@ -397,6 +450,23 @@ export default function ExploreScreen() {
                   <Text style={styles.liveText}>LIVE</Text>
                 </View>
               </View>
+              <TouchableOpacity 
+                style={styles.reloadButton}
+                onPress={loadMoreTweets}
+                disabled={loadingMoreTweets}
+              >
+                <RefreshCw 
+                  size={16} 
+                  color={loadingMoreTweets ? theme.colors.textTertiary : theme.colors.primary}
+                  style={loadingMoreTweets ? styles.spinning : undefined}
+                />
+                <Text style={[
+                  styles.reloadButtonText,
+                  loadingMoreTweets && styles.reloadButtonTextDisabled
+                ]}>
+                  {loadingMoreTweets ? 'Loading...' : 'Load More'}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <Text style={styles.sectionSubtitle}>
@@ -813,6 +883,28 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     color: theme.colors.error,
+  },
+  reloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 6,
+  },
+  reloadButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  reloadButtonTextDisabled: {
+    color: theme.colors.textTertiary,
+  },
+  spinning: {
+    transform: [{ rotate: '360deg' }],
   },
   sectionLink: {
     fontSize: 14,
