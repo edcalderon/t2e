@@ -6,7 +6,7 @@
     "start": "npx expo start",
     "dev": "npx expo start --web",
     "build": "npx expo export",
-    "build:web": "expo export -p web && npx workbox-cli generateSW workbox-config.js",
+    "build:web": "expo export -p web && workbox generateSW workbox-config.js",
     "android": "npx expo start --android",
     "ios": "npx expo start --ios",
     "web": "npx expo start --web",

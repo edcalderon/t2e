@@ -5,7 +5,6 @@ module.exports = {
   ],
   swDest: 'dist/sw.js',
   maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
-  mode: 'production',
   skipWaiting: true,
   clientsClaim: true,
   cleanupOutdatedCaches: true,
@@ -21,11 +20,8 @@ module.exports = {
         },
         cacheableResponse: {
           statuses: [0, 200]
-        },
-        cacheKeyWillBeUsed: async ({ request }) => {
-          return `${request.url}?timestamp=${Date.now()}`;
-        },
-      },
+        }
+      }
     },
     {
       urlPattern: /^https:\/\/api\.dicebear\.com\//,
@@ -90,6 +86,6 @@ module.exports = {
           statuses: [0, 200]
         }
       }
-    },
+    }
   ]
 };
