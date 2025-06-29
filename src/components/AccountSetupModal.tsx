@@ -166,7 +166,6 @@ const AccountSetupModal = ({
         return (
           <TwitterConnectStep
             onConnect={setTwitterConnected}
-            isConnected={twitterConnected}
           />
         );
       case 1:
