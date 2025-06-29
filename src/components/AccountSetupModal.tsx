@@ -27,7 +27,7 @@ const AccountSetupModal = ({
   onComplete = () => {},
 }: AccountSetupModalProps) => {
   const { theme } = useTheme();
-  const { login } = useAuth();
+  const { login, twitterUser, isSupabaseAuthenticated } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [twitterConnected, setTwitterConnected] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
@@ -76,6 +76,13 @@ const AccountSetupModal = ({
     }
   }, [isVisible]);
 
+  // Update Twitter connection status when Supabase auth changes
+  useEffect(() => {
+    if (isSupabaseAuthenticated && twitterUser) {
+      setTwitterConnected(true);
+    }
+  }, [isSupabaseAuthenticated, twitterUser]);
+
   const handleClose = () => {
     Animated.parallel([
       Animated.timing(slideAnim, {
@@ -102,33 +109,50 @@ const AccountSetupModal = ({
   };
 
   const handleComplete = async () => {
-    // Create user object and save to auth context
+    // Use X session data but override with user ID 385
     const userData = {
-      id: Date.now().toString(),
-      username: "user" + Math.floor(Math.random() * 1000),
-      email: "user@example.com",
-      avatar: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      walletAddress: walletConnected ? "ALGO...X7K9" : undefined,
+      id: "385", // Fixed user ID as requested
+      username: twitterUser?.username || twitterUser?.twitterHandle || "user385",
+      email: twitterUser?.email || "user385@xquests.com",
+      avatar: twitterUser?.avatar || "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+      walletAddress: walletConnected ? `ALGO${twitterUser?.twitterId || "385"}WALLET` : undefined,
       twitterConnected,
       walletConnected,
       selectedThemes,
+      // Use actual X session data
+      displayName: twitterUser?.displayName || twitterUser?.username || "User 385",
+      twitterId: twitterUser?.twitterId || "385",
+      verified: twitterUser?.verified || false,
+      followerCount: twitterUser?.followerCount || 0,
+      twitterHandle: twitterUser?.twitterHandle || twitterUser?.username || "user385",
     };
 
-    await login(userData);
+    console.log('Creating user with ID 385 using X session data:', {
+      originalTwitterUser: twitterUser,
+      finalUserData: userData
+    });
 
-    Animated.timing(scaleAnim, {
-      toValue: 1.1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
+    try {
+      await login(userData);
+      
       Animated.timing(scaleAnim, {
-        toValue: 1,
+        toValue: 1.1,
         duration: 200,
         useNativeDriver: true,
       }).start(() => {
-        onComplete();
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          onComplete();
+        });
       });
-    });
+    } catch (error) {
+      console.error('Error creating user with X session data:', error);
+      // Still complete the setup even if there's an error
+      onComplete();
+    }
   };
 
   const handleBack = () => {
