@@ -11,6 +11,7 @@ import { Sparkles, Check } from "lucide-react-native";
 import { useTheme } from '../../../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
+const isMobile = width < 768;
 
 interface InterestsStepProps {
   selectedThemes: string[];
@@ -61,13 +62,13 @@ export default function InterestsStep({ selectedThemes, onThemeToggle }: Interes
     onThemeToggle(themeId);
   };
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, isMobile);
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <View style={styles.iconContainer}>
         <View style={styles.iconBackground}>
-          <Sparkles size={40} color={theme.colors.accent} />
+          <Sparkles size={isMobile ? 36 : 40} color={theme.colors.accent} />
         </View>
       </View>
       
@@ -105,7 +106,7 @@ export default function InterestsStep({ selectedThemes, onThemeToggle }: Interes
                   style={styles.selectedIndicator}
                   entering={fadeAnim}
                 >
-                  <Check size={16} color="#FFFFFF" />
+                  <Check size={isMobile ? 14 : 16} color="#FFFFFF" />
                 </Animated.View>
               )}
             </TouchableOpacity>
@@ -120,60 +121,62 @@ export default function InterestsStep({ selectedThemes, onThemeToggle }: Interes
   );
 }
 
-const createStyles = (theme: any) => StyleSheet.create({
+const createStyles = (theme: any, isMobile: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: isMobile ? 16 : 20,
+    paddingHorizontal: isMobile ? 8 : 0,
   },
   iconContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: isMobile ? 20 : 24,
   },
   iconBackground: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: isMobile ? 70 : 80,
+    height: isMobile ? 70 : 80,
+    borderRadius: isMobile ? 35 : 40,
     backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: isMobile ? 20 : 24,
     fontWeight: '700',
     color: theme.colors.text,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: isMobile ? 8 : 12,
+    paddingHorizontal: isMobile ? 16 : 0,
   },
   description: {
-    fontSize: 16,
+    fontSize: isMobile ? 14 : 16,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-    paddingHorizontal: 20,
+    lineHeight: isMobile ? 20 : 24,
+    marginBottom: isMobile ? 24 : 32,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   themesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 12,
-    marginBottom: 24,
-    paddingHorizontal: 16,
+    gap: isMobile ? 8 : 12,
+    marginBottom: isMobile ? 20 : 24,
+    paddingHorizontal: isMobile ? 8 : 16,
   },
   themeCardWrapper: {
-    width: Math.min((width - 80) / 2, 160), // Responsive width with max limit
-    minWidth: 140, // Minimum width to prevent cards from being too small
+    width: isMobile ? Math.min((width - 64) / 2, 140) : Math.min((width - 80) / 2, 160),
+    minWidth: isMobile ? 120 : 140,
   },
   themeCard: {
-    padding: 16,
+    padding: isMobile ? 12 : 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: 12,
+    borderRadius: isMobile ? 10 : 12,
     backgroundColor: theme.colors.surface,
     alignItems: 'center',
     position: 'relative',
-    minHeight: 100,
+    minHeight: isMobile ? 80 : 100,
     justifyContent: 'center',
     width: '100%',
   },
@@ -182,15 +185,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.primary + '10',
   },
   themeEmoji: {
-    fontSize: 24,
-    marginBottom: 8,
+    fontSize: isMobile ? 20 : 24,
+    marginBottom: isMobile ? 6 : 8,
   },
   themeName: {
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     fontWeight: '500',
     color: theme.colors.text,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: isMobile ? 16 : 18,
   },
   themeNameSelected: {
     color: theme.colors.primary,
@@ -198,20 +201,20 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   selectedIndicator: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    top: isMobile ? 6 : 8,
+    right: isMobile ? 6 : 8,
+    width: isMobile ? 18 : 20,
+    height: isMobile ? 18 : 20,
+    borderRadius: isMobile ? 9 : 10,
     backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectionHint: {
-    fontSize: 12,
+    fontSize: isMobile ? 10 : 12,
     color: theme.colors.textTertiary,
     textAlign: 'center',
-    lineHeight: 16,
-    paddingHorizontal: 20,
+    lineHeight: isMobile ? 14 : 16,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
 });

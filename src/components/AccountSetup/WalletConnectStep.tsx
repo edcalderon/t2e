@@ -5,10 +5,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  Dimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import { Wallet, Check, ArrowRight } from "lucide-react-native";
 import { useTheme } from '../../../contexts/ThemeContext';
+
+const { width } = Dimensions.get('window');
+const isMobile = width < 768;
 
 interface WalletConnectStepProps {
   onConnect: (connected: boolean) => void;
@@ -56,13 +60,13 @@ export default function WalletConnectStep({ onConnect, isConnected }: WalletConn
     }
   ];
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, isMobile);
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <View style={styles.iconContainer}>
         <View style={styles.iconBackground}>
-          <Wallet size={40} color={theme.colors.primary} />
+          <Wallet size={isMobile ? 36 : 40} color={theme.colors.primary} />
         </View>
       </View>
       
@@ -88,7 +92,7 @@ export default function WalletConnectStep({ onConnect, isConnected }: WalletConn
                 <Text style={styles.walletName}>{wallet.name}</Text>
                 <Text style={styles.walletDescription}>{wallet.description}</Text>
               </View>
-              <ArrowRight size={20} color={theme.colors.textSecondary} />
+              <ArrowRight size={isMobile ? 18 : 20} color={theme.colors.textSecondary} />
             </TouchableOpacity>
           ))}
 
@@ -114,7 +118,7 @@ export default function WalletConnectStep({ onConnect, isConnected }: WalletConn
       ) : (
         <View style={styles.successContainer}>
           <View style={styles.successIcon}>
-            <Check size={24} color={theme.colors.success} />
+            <Check size={isMobile ? 20 : 24} color={theme.colors.success} />
           </View>
           <Text style={styles.successTitle}>Wallet Connected!</Text>
           <Text style={styles.successDescription}>
@@ -130,134 +134,142 @@ export default function WalletConnectStep({ onConnect, isConnected }: WalletConn
   );
 }
 
-const createStyles = (theme: any) => StyleSheet.create({
+const createStyles = (theme: any, isMobile: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: isMobile ? 16 : 20,
+    paddingHorizontal: isMobile ? 8 : 0,
   },
   iconContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: isMobile ? 20 : 24,
   },
   iconBackground: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: isMobile ? 70 : 80,
+    height: isMobile ? 70 : 80,
+    borderRadius: isMobile ? 35 : 40,
     backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: isMobile ? 20 : 24,
     fontWeight: '700',
     color: theme.colors.text,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: isMobile ? 8 : 12,
+    paddingHorizontal: isMobile ? 16 : 0,
   },
   description: {
-    fontSize: 16,
+    fontSize: isMobile ? 14 : 16,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-    paddingHorizontal: 20,
+    lineHeight: isMobile ? 20 : 24,
+    marginBottom: isMobile ? 24 : 32,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   walletOptions: {
     width: '100%',
-    gap: 12,
+    gap: isMobile ? 8 : 12,
     position: 'relative',
+    paddingHorizontal: isMobile ? 8 : 0,
   },
   walletOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: isMobile ? 12 : 16,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: 12,
+    borderRadius: isMobile ? 10 : 12,
     backgroundColor: theme.colors.surface,
   },
   walletIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: isMobile ? 32 : 40,
+    height: isMobile ? 32 : 40,
+    borderRadius: isMobile ? 16 : 20,
   },
   walletInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: isMobile ? 8 : 12,
   },
   walletName: {
-    fontSize: 16,
+    fontSize: isMobile ? 14 : 16,
     fontWeight: '600',
     color: theme.colors.text,
   },
   walletDescription: {
-    fontSize: 12,
+    fontSize: isMobile ? 10 : 12,
     color: theme.colors.textSecondary,
     marginTop: 2,
   },
   loadingOverlay: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
+    left: isMobile ? 8 : 0,
+    right: isMobile ? 8 : 0,
     bottom: 0,
     backgroundColor: theme.colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: isMobile ? 10 : 12,
   },
   loadingSpinner: {
-    width: 20,
-    height: 20,
+    width: isMobile ? 16 : 20,
+    height: isMobile ? 16 : 20,
     borderWidth: 2,
     borderColor: theme.colors.primary,
     borderTopColor: 'transparent',
-    borderRadius: 10,
+    borderRadius: isMobile ? 8 : 10,
   },
   loadingText: {
     color: theme.colors.text,
-    marginTop: 12,
-    fontSize: 14,
+    marginTop: isMobile ? 8 : 12,
+    fontSize: isMobile ? 12 : 14,
   },
   successContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: isMobile ? 16 : 20,
+    paddingHorizontal: isMobile ? 16 : 0,
   },
   successIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: isMobile ? 50 : 60,
+    height: isMobile ? 50 : 60,
+    borderRadius: isMobile ? 25 : 30,
     backgroundColor: theme.colors.success + '20',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: isMobile ? 12 : 16,
   },
   successTitle: {
-    fontSize: 20,
+    fontSize: isMobile ? 18 : 20,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 8,
+    marginBottom: isMobile ? 6 : 8,
+    textAlign: 'center',
   },
   successDescription: {
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: isMobile ? 18 : 20,
+    marginBottom: isMobile ? 12 : 16,
   },
   walletAddress: {
-    marginTop: 16,
-    padding: 12,
+    marginTop: isMobile ? 12 : 16,
+    padding: isMobile ? 10 : 12,
     backgroundColor: theme.colors.surface,
     borderRadius: 8,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   walletAddressLabel: {
-    fontSize: 12,
+    fontSize: isMobile ? 10 : 12,
     color: theme.colors.textSecondary,
   },
   walletAddressText: {
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     fontWeight: '600',
     color: theme.colors.text,
     marginTop: 4,

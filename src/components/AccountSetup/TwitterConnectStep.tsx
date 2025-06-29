@@ -6,14 +6,19 @@ import {
   StyleSheet,
   Animated,
   ActivityIndicator,
+  Dimensions,
+  Platform,
+  Linking,
 } from "react-native";
 import { Image } from "expo-image";
 import { Svg, Path } from 'react-native-svg';
-import { Check, AlertCircle, RefreshCw, Shield, Clock, Settings, Info, Wifi, WifiOff } from "lucide-react-native";
+import { Check, AlertCircle, RefreshCw, Shield, Clock, Settings, Info, Wifi, WifiOff, ExternalLink } from "lucide-react-native";
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useSupabaseAuth } from '../../../hooks/useSupabaseAuth';
 
+const { width, height } = Dimensions.get('window');
+const isMobile = width < 768;
 
 interface TwitterConnectStepProps {
   onConnect: (connected: boolean) => void;
@@ -77,6 +82,31 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       }, 1500);
     }
   }, [isAuthenticated, onConnect, hasTriggeredSuccess, connectionTimeout]);
+
+  const handleMobileTwitterAuth = async () => {
+    if (Platform.OS === 'web') {
+      // On web, use the normal flow
+      return handleConnect();
+    }
+
+    // Try to open Twitter app first, then fallback to web
+    try {
+      const twitterAppUrl = 'twitter://';
+      const canOpenTwitterApp = await Linking.canOpenURL(twitterAppUrl);
+      
+      if (canOpenTwitterApp) {
+        // If Twitter app is available, we still need to use web flow for OAuth
+        // but we can inform the user about the process
+        console.log('📱 Twitter app detected, using web OAuth flow');
+      }
+      
+      // For now, always use web flow as Twitter's deep linking for OAuth is complex
+      return handleConnect();
+    } catch (error) {
+      console.log('📱 Mobile Twitter auth fallback to web flow');
+      return handleConnect();
+    }
+  };
 
   const handleConnect = async () => {
     if (isAuthenticated || isConnecting) return;
@@ -157,7 +187,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       case 'initiating':
         return 'Initializing connection...';
       case 'redirecting':
-        return 'Opening Twitter...';
+        return isMobile ? 'Opening authentication...' : 'Opening Twitter...';
       case 'processing':
         return 'Processing authentication...';
       case 'completing':
@@ -209,7 +239,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   const isNetworkError = error?.type === 'network';
   const isConfigError = error?.type === 'config';
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, isMobile);
 
   // Show loading only if not initialized or actively connecting
   if (!isInitialized || (isLoading && !isConnecting)) {
@@ -217,7 +247,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.loadingContainer}>
           <View style={styles.loadingIconContainer}>
-            <Clock size={32} color={theme.colors.primary} />
+            <Clock size={isMobile ? 28 : 32} color={theme.colors.primary} />
             <ActivityIndicator size="small" color={theme.colors.primary} style={styles.loadingSpinner} />
           </View>
           <Text style={styles.loadingText}>Checking authentication status...</Text>
@@ -234,10 +264,10 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
         <View style={styles.successContainer}>
           <View style={styles.successIconContainer}>
             <View style={styles.successIcon}>
-              <Check size={32} color={theme.colors.success} />
+              <Check size={isMobile ? 28 : 32} color={theme.colors.success} />
             </View>
             <View style={styles.twitterBadge}>
-              <Svg width="20" height="20" viewBox="0 0 24 24">
+              <Svg width={isMobile ? "18" : "20"} height={isMobile ? "18" : "20"} viewBox="0 0 24 24">
                 <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="#1DA1F2" />
               </Svg>
             </View>
@@ -258,7 +288,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
                   <Text style={styles.userDisplayName}>{user.displayName}</Text>
                   {user.verified && (
                     <View style={styles.verifiedBadge}>
-                      <Shield size={14} color="#1DA1F2" />
+                      <Shield size={isMobile ? 12 : 14} color="#1DA1F2" />
                     </View>
                   )}
                 </View>
@@ -270,7 +300,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
                 )}
                 {!user.email && (
                   <View style={styles.emailNotice}>
-                    <Info size={12} color={theme.colors.textTertiary} />
+                    <Info size={10} color={theme.colors.textTertiary} />
                     <Text style={styles.emailNoticeText}>Email not provided by Twitter</Text>
                   </View>
                 )}
@@ -302,7 +332,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
 
           {/* Security Notice */}
           <View style={styles.securityNotice}>
-            <Shield size={16} color={theme.colors.success} />
+            <Shield size={isMobile ? 14 : 16} color={theme.colors.success} />
             <Text style={styles.securityText}>
               Secured with OAuth 2.0 authentication
             </Text>
@@ -319,11 +349,11 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
         <View style={styles.errorContainer}>
           <View style={styles.errorIcon}>
             {isNetworkError ? (
-              <WifiOff size={32} color={theme.colors.error} />
+              <WifiOff size={isMobile ? 28 : 32} color={theme.colors.error} />
             ) : isConfigError ? (
-              <Settings size={32} color={theme.colors.error} />
+              <Settings size={isMobile ? 28 : 32} color={theme.colors.error} />
             ) : (
-              <AlertCircle size={32} color={theme.colors.error} />
+              <AlertCircle size={isMobile ? 28 : 32} color={theme.colors.error} />
             )}
           </View>
           
@@ -334,7 +364,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
 
           {isConfigError && (
             <View style={styles.configHelp}>
-              <Settings size={16} color={theme.colors.warning} />
+              <Settings size={isMobile ? 14 : 16} color={theme.colors.warning} />
               <Text style={styles.configHelpText}>
                 Configuration Issue Detected
               </Text>
@@ -343,7 +373,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
 
           {isNetworkError && (
             <View style={styles.networkHelp}>
-              <WifiOff size={16} color={theme.colors.error} />
+              <WifiOff size={isMobile ? 14 : 16} color={theme.colors.error} />
               <Text style={styles.networkHelpText}>
                 Network Connection Issue
               </Text>
@@ -363,7 +393,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
-                <RefreshCw size={16} color="#FFFFFF" />
+                <RefreshCw size={isMobile ? 14 : 16} color="#FFFFFF" />
                 <Text style={styles.retryButtonText}>
                   Try Again {retryCount > 0 && `(${retryCount + 1})`}
                 </Text>
@@ -387,7 +417,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.warningContainer}>
           <View style={styles.warningIcon}>
-            <Info size={32} color={theme.colors.warning} />
+            <Info size={isMobile ? 28 : 32} color={theme.colors.warning} />
           </View>
           
           <Text style={styles.warningTitle}>Almost There!</Text>
@@ -406,7 +436,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
               onConnect(true);
             }}
           >
-            <Check size={16} color="#FFFFFF" />
+            <Check size={isMobile ? 14 : 16} color="#FFFFFF" />
             <Text style={styles.continueButtonText}>Continue</Text>
           </TouchableOpacity>
         </View>
@@ -419,7 +449,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
       <View style={styles.iconContainer}>
         <View style={styles.iconBackground}>
-          <Svg width="40" height="40" viewBox="0 0 24 24">
+          <Svg width={isMobile ? "36" : "40"} height={isMobile ? "36" : "40"} viewBox="0 0 24 24">
             <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="#1DA1F2" />
           </Svg>
         </View>
@@ -433,21 +463,27 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
 
       <View style={styles.featuresContainer}>
         <View style={styles.feature}>
-          <Check size={16} color={theme.colors.success} />
+          <Check size={isMobile ? 14 : 16} color={theme.colors.success} />
           <Text style={styles.featureText}>Secure OAuth 2.0 authentication</Text>
         </View>
         <View style={styles.feature}>
-          <Check size={16} color={theme.colors.success} />
+          <Check size={isMobile ? 14 : 16} color={theme.colors.success} />
           <Text style={styles.featureText}>No password sharing required</Text>
         </View>
         <View style={styles.feature}>
-          <Check size={16} color={theme.colors.success} />
+          <Check size={isMobile ? 14 : 16} color={theme.colors.success} />
           <Text style={styles.featureText}>Revoke access anytime</Text>
         </View>
         <View style={styles.feature}>
-          <Info size={16} color={theme.colors.textTertiary} />
+          <Info size={isMobile ? 14 : 16} color={theme.colors.textTertiary} />
           <Text style={styles.featureTextNote}>Email may not be provided by Twitter</Text>
         </View>
+        {isMobile && (
+          <View style={styles.feature}>
+            <ExternalLink size={14} color={theme.colors.textTertiary} />
+            <Text style={styles.featureTextNote}>Opens in browser for secure authentication</Text>
+          </View>
+        )}
       </View>
 
       <TouchableOpacity
@@ -455,7 +491,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
           styles.connectButton, 
           isConnecting && styles.connectButtonDisabled
         ]}
-        onPress={handleConnect}
+        onPress={isMobile ? handleMobileTwitterAuth : handleConnect}
         disabled={isConnecting}
         activeOpacity={isConnecting ? 1 : 0.7}
       >
@@ -466,10 +502,11 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
           </View>
         ) : (
           <>
-            <Svg width="20" height="20" viewBox="0 0 24 24">
+            <Svg width={isMobile ? "18" : "20"} height={isMobile ? "18" : "20"} viewBox="0 0 24 24">
               <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="#FFFFFF" />
             </Svg>
             <Text style={styles.connectButtonText}>Connect with X</Text>
+            {isMobile && <ExternalLink size={16} color="#FFFFFF" />}
           </>
         )}
       </TouchableOpacity>
@@ -495,46 +532,47 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   );
 }
 
-const createStyles = (theme: any) => StyleSheet.create({
+const createStyles = (theme: any, isMobile: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: isMobile ? 16 : 20,
+    paddingHorizontal: isMobile ? 8 : 0,
   },
   loadingContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
-    gap: 16,
+    paddingVertical: isMobile ? 32 : 40,
+    gap: isMobile ? 12 : 16,
   },
   loadingIconContainer: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 60,
-    height: 60,
+    width: isMobile ? 50 : 60,
+    height: isMobile ? 50 : 60,
   },
   loadingSpinner: {
     position: 'absolute',
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: isMobile ? 14 : 16,
     color: theme.colors.text,
     fontWeight: '600',
     textAlign: 'center',
   },
   loadingSubtext: {
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   iconContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: isMobile ? 20 : 24,
   },
   iconBackground: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: isMobile ? 70 : 80,
+    height: isMobile ? 70 : 80,
+    borderRadius: isMobile ? 35 : 40,
     backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
@@ -545,60 +583,62 @@ const createStyles = (theme: any) => StyleSheet.create({
     elevation: 4,
   },
   title: {
-    fontSize: 24,
+    fontSize: isMobile ? 20 : 24,
     fontWeight: '700',
     color: theme.colors.text,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: isMobile ? 8 : 12,
+    paddingHorizontal: isMobile ? 16 : 0,
   },
   description: {
-    fontSize: 16,
+    fontSize: isMobile ? 14 : 16,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
-    paddingHorizontal: 20,
+    lineHeight: isMobile ? 20 : 24,
+    marginBottom: isMobile ? 20 : 24,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   featuresContainer: {
     width: '100%',
-    gap: 12,
-    marginBottom: 32,
-    paddingHorizontal: 20,
+    gap: isMobile ? 8 : 12,
+    marginBottom: isMobile ? 24 : 32,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   feature: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: isMobile ? 8 : 12,
   },
   featureText: {
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     color: theme.colors.textSecondary,
     flex: 1,
   },
   featureTextNote: {
-    fontSize: 12,
+    fontSize: isMobile ? 11 : 12,
     color: theme.colors.textTertiary,
     flex: 1,
     fontStyle: 'italic',
   },
   connectButton: {
     backgroundColor: '#1DA1F2',
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    borderRadius: isMobile ? 10 : 12,
+    paddingVertical: isMobile ? 14 : 16,
+    paddingHorizontal: isMobile ? 24 : 32,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: isMobile ? 8 : 12,
     marginTop: 8,
     width: '100%',
-    maxWidth: 280,
+    maxWidth: isMobile ? 260 : 280,
     shadowColor: '#1DA1F2',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
-    minHeight: 56,
+    minHeight: isMobile ? 48 : 56,
+    marginHorizontal: isMobile ? 16 : 0,
   },
   connectButtonDisabled: {
     opacity: 0.7,
@@ -606,21 +646,21 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   connectButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: isMobile ? 14 : 16,
     fontWeight: '600',
   },
   connectingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: isMobile ? 8 : 12,
   },
   disclaimerText: {
-    fontSize: 12,
+    fontSize: isMobile ? 10 : 12,
     color: theme.colors.textTertiary,
     textAlign: 'center',
-    lineHeight: 16,
-    marginTop: 20,
-    paddingHorizontal: 20,
+    lineHeight: isMobile ? 14 : 16,
+    marginTop: isMobile ? 16 : 20,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   linkText: {
     color: theme.colors.primary,
@@ -629,17 +669,18 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   successContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: isMobile ? 16 : 20,
     width: '100%',
+    paddingHorizontal: isMobile ? 16 : 0,
   },
   successIconContainer: {
     position: 'relative',
-    marginBottom: 24,
+    marginBottom: isMobile ? 20 : 24,
   },
   successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: isMobile ? 70 : 80,
+    height: isMobile ? 70 : 80,
+    borderRadius: isMobile ? 35 : 40,
     backgroundColor: theme.colors.success + '20',
     alignItems: 'center',
     justifyContent: 'center',
@@ -653,9 +694,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     position: 'absolute',
     bottom: -4,
     right: -4,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: isMobile ? 28 : 32,
+    height: isMobile ? 28 : 32,
+    borderRadius: isMobile ? 14 : 16,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -663,27 +704,28 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderColor: theme.colors.background,
   },
   successTitle: {
-    fontSize: 20,
+    fontSize: isMobile ? 18 : 20,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 16,
+    marginBottom: isMobile ? 12 : 16,
+    textAlign: 'center',
   },
   userProfile: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: isMobile ? 12 : 16,
+    padding: isMobile ? 12 : 16,
+    marginBottom: isMobile ? 12 : 16,
     width: '100%',
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   userAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
+    width: isMobile ? 40 : 48,
+    height: isMobile ? 40 : 48,
+    borderRadius: isMobile ? 20 : 24,
+    marginRight: isMobile ? 8 : 12,
   },
   userInfo: {
     flex: 1,
@@ -694,25 +736,25 @@ const createStyles = (theme: any) => StyleSheet.create({
     gap: 6,
   },
   userDisplayName: {
-    fontSize: 16,
+    fontSize: isMobile ? 14 : 16,
     fontWeight: '700',
     color: theme.colors.text,
   },
   verifiedBadge: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: isMobile ? 16 : 18,
+    height: isMobile ? 16 : 18,
+    borderRadius: isMobile ? 8 : 9,
     backgroundColor: '#1DA1F2',
     alignItems: 'center',
     justifyContent: 'center',
   },
   userHandle: {
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     color: theme.colors.textSecondary,
     marginTop: 2,
   },
   followerCount: {
-    fontSize: 12,
+    fontSize: isMobile ? 10 : 12,
     color: theme.colors.textTertiary,
     marginTop: 2,
   },
@@ -723,96 +765,98 @@ const createStyles = (theme: any) => StyleSheet.create({
     marginTop: 4,
   },
   emailNoticeText: {
-    fontSize: 10,
+    fontSize: isMobile ? 9 : 10,
     color: theme.colors.textTertiary,
     fontStyle: 'italic',
   },
   basicSuccessInfo: {
     backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: isMobile ? 12 : 16,
+    padding: isMobile ? 12 : 16,
+    marginBottom: isMobile ? 12 : 16,
     width: '100%',
     borderWidth: 1,
     borderColor: theme.colors.border,
     alignItems: 'center',
   },
   basicSuccessText: {
-    fontSize: 16,
+    fontSize: isMobile ? 14 : 16,
     fontWeight: '600',
     color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   basicSuccessSubtext: {
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     color: theme.colors.textSecondary,
     textAlign: 'center',
   },
   successDescription: {
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 16,
-    paddingHorizontal: 20,
+    lineHeight: isMobile ? 18 : 20,
+    marginBottom: isMobile ? 12 : 16,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   securityNotice: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: theme.colors.success + '10',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: isMobile ? 10 : 12,
+    paddingVertical: isMobile ? 6 : 8,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.success + '30',
   },
   securityText: {
-    fontSize: 12,
+    fontSize: isMobile ? 10 : 12,
     color: theme.colors.success,
     fontWeight: '500',
   },
   errorContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: isMobile ? 16 : 20,
     width: '100%',
+    paddingHorizontal: isMobile ? 16 : 0,
   },
   errorIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: isMobile ? 70 : 80,
+    height: isMobile ? 70 : 80,
+    borderRadius: isMobile ? 35 : 40,
     backgroundColor: theme.colors.error + '20',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: isMobile ? 20 : 24,
   },
   errorTitle: {
-    fontSize: 20,
+    fontSize: isMobile ? 18 : 20,
     fontWeight: '700',
     color: theme.colors.text,
     marginBottom: 8,
+    textAlign: 'center',
   },
   errorMessage: {
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 16,
-    paddingHorizontal: 20,
+    lineHeight: isMobile ? 18 : 20,
+    marginBottom: isMobile ? 12 : 16,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   configHelp: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: theme.colors.warning + '10',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: isMobile ? 10 : 12,
+    paddingVertical: isMobile ? 6 : 8,
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: isMobile ? 12 : 16,
   },
   configHelpText: {
-    fontSize: 12,
+    fontSize: isMobile ? 10 : 12,
     color: theme.colors.warning,
     fontWeight: '600',
   },
@@ -821,99 +865,101 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     backgroundColor: theme.colors.error + '10',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: isMobile ? 10 : 12,
+    paddingVertical: isMobile ? 6 : 8,
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: isMobile ? 12 : 16,
   },
   networkHelpText: {
-    fontSize: 12,
+    fontSize: isMobile ? 10 : 12,
     color: theme.colors.error,
     fontWeight: '600',
   },
   errorSolution: {
-    fontSize: 12,
+    fontSize: isMobile ? 10 : 12,
     color: theme.colors.textTertiary,
     textAlign: 'center',
-    lineHeight: 16,
-    marginBottom: 24,
-    paddingHorizontal: 20,
+    lineHeight: isMobile ? 14 : 16,
+    marginBottom: isMobile ? 20 : 24,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   retryButton: {
     backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    borderRadius: isMobile ? 10 : 12,
+    paddingVertical: isMobile ? 10 : 12,
+    paddingHorizontal: isMobile ? 20 : 24,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 16,
-    minHeight: 48,
+    marginBottom: isMobile ? 12 : 16,
+    minHeight: isMobile ? 40 : 48,
   },
   retryButtonDisabled: {
     opacity: 0.6,
   },
   retryButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     fontWeight: '600',
   },
   persistentErrorHint: {
-    fontSize: 11,
+    fontSize: isMobile ? 9 : 11,
     color: theme.colors.textTertiary,
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: isMobile ? 16 : 20,
     fontStyle: 'italic',
   },
   warningContainer: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: isMobile ? 16 : 20,
     width: '100%',
+    paddingHorizontal: isMobile ? 16 : 0,
   },
   warningIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: isMobile ? 70 : 80,
+    height: isMobile ? 70 : 80,
+    borderRadius: isMobile ? 35 : 40,
     backgroundColor: theme.colors.warning + '20',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: isMobile ? 20 : 24,
   },
   warningTitle: {
-    fontSize: 20,
+    fontSize: isMobile ? 18 : 20,
     fontWeight: '700',
     color: theme.colors.text,
     marginBottom: 8,
+    textAlign: 'center',
   },
   warningMessage: {
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 16,
-    paddingHorizontal: 20,
+    lineHeight: isMobile ? 18 : 20,
+    marginBottom: isMobile ? 12 : 16,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   warningSolution: {
-    fontSize: 12,
+    fontSize: isMobile ? 10 : 12,
     color: theme.colors.textTertiary,
     textAlign: 'center',
-    lineHeight: 16,
-    marginBottom: 24,
-    paddingHorizontal: 20,
+    lineHeight: isMobile ? 14 : 16,
+    marginBottom: isMobile ? 20 : 24,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   continueButton: {
     backgroundColor: theme.colors.success,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    borderRadius: isMobile ? 10 : 12,
+    paddingVertical: isMobile ? 10 : 12,
+    paddingHorizontal: isMobile ? 20 : 24,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    minHeight: 48,
+    minHeight: isMobile ? 40 : 48,
   },
   continueButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     fontWeight: '600',
   },
 });
