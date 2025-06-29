@@ -9,6 +9,8 @@ import {
   Dimensions,
   Animated,
   RefreshControl,
+  ActivityIndicator,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
@@ -451,15 +453,15 @@ export default function ExploreScreen() {
                 </View>
               </View>
               <TouchableOpacity 
-                style={styles.reloadButton}
+                style={[styles.reloadButton, loadingMoreTweets && styles.reloadButtonDisabled]}
                 onPress={loadMoreTweets}
                 disabled={loadingMoreTweets}
               >
-                <RefreshCw 
-                  size={16} 
-                  color={loadingMoreTweets ? theme.colors.textTertiary : theme.colors.primary}
-                  style={loadingMoreTweets ? styles.spinning : undefined}
-                />
+                {loadingMoreTweets ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                ) : (
+                  <RefreshCw size={16} color={theme.colors.primary} />
+                )}
                 <Text style={[
                   styles.reloadButtonText,
                   loadingMoreTweets && styles.reloadButtonTextDisabled
@@ -473,11 +475,21 @@ export default function ExploreScreen() {
               Real-time #xquests tweets from our community
             </Text>
 
+            {/* Loading State for Community Feed */}
+            {loadingMoreTweets && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={styles.loadingText}>Loading new tweets...</Text>
+              </View>
+            )}
+
             <ScrollView 
               horizontal 
-              showsHorizontalScrollIndicator={false}
+              showsHorizontalScrollIndicator={Platform.OS !== 'web'}
               style={styles.communityFeed}
               contentContainerStyle={styles.communityFeedContent}
+              nestedScrollEnabled={true}
+              scrollEventThrottle={16}
             >
               {communityTweets.map((tweet) => (
                 <View key={tweet.id} style={styles.tweetCard}>
@@ -895,6 +907,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderColor: theme.colors.border,
     gap: 6,
   },
+  reloadButtonDisabled: {
+    opacity: 0.6,
+  },
   reloadButtonText: {
     fontSize: 12,
     fontWeight: '600',
@@ -903,8 +918,21 @@ const createStyles = (theme: any) => StyleSheet.create({
   reloadButtonTextDisabled: {
     color: theme.colors.textTertiary,
   },
-  spinning: {
-    transform: [{ rotate: '360deg' }],
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginTop: 12,
+    fontWeight: '500',
   },
   sectionLink: {
     fontSize: 14,
@@ -913,10 +941,16 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   communityFeed: {
     marginHorizontal: -16,
+    ...(Platform.OS === 'web' && {
+      overflow: 'visible',
+    }),
   },
   communityFeedContent: {
     paddingHorizontal: 16,
     gap: 12,
+    ...(Platform.OS === 'web' && {
+      minWidth: '100%',
+    }),
   },
   tweetCard: {
     backgroundColor: theme.colors.surface,
@@ -933,6 +967,10 @@ const createStyles = (theme: any) => StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+    ...(Platform.OS === 'web' && {
+      cursor: 'pointer',
+      transition: 'transform 0.2s ease',
+    }),
   },
   tweetHeader: {
     flexDirection: 'row',
