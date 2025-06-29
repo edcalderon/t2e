@@ -7,6 +7,8 @@ import {
   Modal,
   Animated,
   Dimensions,
+  Platform,
+  ScrollView,
 } from "react-native";
 import { X, ArrowRight, Check } from "lucide-react-native";
 import { useTheme } from '../../contexts/ThemeContext';
@@ -20,6 +22,7 @@ interface AccountSetupModalProps {
 }
 
 const { width, height } = Dimensions.get('window');
+const isMobile = width < 768;
 
 const AccountSetupModal = ({
   isVisible = true,
@@ -212,7 +215,7 @@ const AccountSetupModal = ({
     }
   };
 
-  const styles = createStyles(theme);
+  const styles = createStyles(theme, isMobile);
 
   return (
     <Modal visible={isVisible} animationType="none" transparent={true}>
@@ -254,7 +257,7 @@ const AccountSetupModal = ({
                   ]}
                 >
                   {index < currentStep ? (
-                    <Check size={12} color="#FFFFFF" />
+                    <Check size={isMobile ? 10 : 12} color="#FFFFFF" />
                   ) : (
                     <Text style={[
                       styles.progressNumber,
@@ -277,9 +280,13 @@ const AccountSetupModal = ({
           </View>
 
           {/* Step Content */}
-          <View style={styles.content}>
+          <ScrollView 
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.contentContainer}
+          >
             {renderStepContent()}
-          </View>
+          </ScrollView>
 
           {/* Navigation */}
           <View style={styles.navigation}>
@@ -312,20 +319,21 @@ const AccountSetupModal = ({
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
+const createStyles = (theme: any, isMobile: boolean) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: theme.colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   modalContainer: {
     backgroundColor: theme.colors.background,
-    borderRadius: 24,
+    borderRadius: isMobile ? 20 : 24,
     width: '100%',
-    maxWidth: 400,
-    maxHeight: height * 0.9,
+    maxWidth: isMobile ? width - 32 : 400,
+    maxHeight: isMobile ? height * 0.95 : height * 0.9,
+    minHeight: isMobile ? height * 0.8 : 600,
     shadowColor: theme.colors.text,
     shadowOffset: {
       width: 0,
@@ -339,15 +347,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 16,
+    paddingHorizontal: isMobile ? 16 : 24,
+    paddingTop: isMobile ? 16 : 24,
+    paddingBottom: isMobile ? 12 : 16,
   },
   closeButton: {
     padding: 4,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: isMobile ? 18 : 20,
     fontWeight: '700',
     color: theme.colors.text,
   },
@@ -358,17 +366,17 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    marginBottom: 32,
+    paddingHorizontal: isMobile ? 16 : 24,
+    marginBottom: isMobile ? 20 : 32,
   },
   progressStep: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   progressDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: isMobile ? 28 : 32,
+    height: isMobile ? 28 : 32,
+    borderRadius: isMobile ? 14 : 16,
     backgroundColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
@@ -380,7 +388,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.success,
   },
   progressNumber: {
-    fontSize: 14,
+    fontSize: isMobile ? 12 : 14,
     fontWeight: '600',
     color: theme.colors.textSecondary,
   },
@@ -388,40 +396,44 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: '#FFFFFF',
   },
   progressLine: {
-    width: 40,
+    width: isMobile ? 30 : 40,
     height: 2,
     backgroundColor: theme.colors.border,
-    marginHorizontal: 8,
+    marginHorizontal: isMobile ? 6 : 8,
   },
   progressLineCompleted: {
     backgroundColor: theme.colors.success,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+  },
+  contentContainer: {
+    paddingHorizontal: isMobile ? 16 : 24,
+    paddingBottom: isMobile ? 16 : 24,
+    flexGrow: 1,
   },
   navigation: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 24,
+    paddingHorizontal: isMobile ? 16 : 24,
+    paddingVertical: isMobile ? 16 : 24,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
   },
   backButton: {
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: isMobile ? 16 : 20,
   },
   backButtonText: {
-    fontSize: 16,
+    fontSize: isMobile ? 14 : 16,
     color: theme.colors.textSecondary,
     fontWeight: '500',
   },
   nextButton: {
     backgroundColor: theme.colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingVertical: isMobile ? 10 : 12,
+    paddingHorizontal: isMobile ? 20 : 24,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -432,7 +444,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   nextButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: isMobile ? 14 : 16,
     fontWeight: '600',
   },
 });
