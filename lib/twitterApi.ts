@@ -1,4 +1,4 @@
-// Twitter API integration for fetching #xquests tweets
+// Updated Twitter API client that uses secure server-side proxy
 import { Platform } from 'react-native';
 
 export interface TwitterTweet {
@@ -53,10 +53,6 @@ export interface CommunityTweet {
   verified: boolean;
   challengeTag?: string;
 }
-
-// Twitter API configuration
-const TWITTER_API_BASE_URL = 'https://api.twitter.com/2';
-const BEARER_TOKEN = process.env.EXPO_PUBLIC_TWITTER_BEARER_TOKEN;
 
 // Fallback tweets for when API is not available or fails
 const FALLBACK_TWEETS: CommunityTweet[] = [
@@ -277,71 +273,82 @@ const transformTwitterTweets = (apiResponse: TwitterApiResponse): CommunityTweet
   });
 };
 
-// Fetch tweets from Twitter API
+// Get the API endpoint URL (works for both web and mobile)
+const getApiUrl = () => {
+  if (Platform.OS === 'web') {
+    // For web, use relative URL
+    return '/api/tweets';
+  } else {
+    // For mobile, you'd need to use your deployed server URL
+    // This would be your production API URL
+    return 'https://your-app-domain.com/api/tweets';
+  }
+};
+
+// Fetch tweets using secure server-side proxy
 export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: string): Promise<{
   tweets: CommunityTweet[];
   nextToken?: string;
   success: boolean;
   error?: string;
 }> => {
-  // Check if we have a bearer token
-  if (!BEARER_TOKEN) {
-    console.warn('Twitter Bearer Token not found. Using fallback tweets.');
-    return {
-      tweets: FALLBACK_TWEETS.slice(0, maxResults),
-      success: true
-    };
-  }
-
   try {
-    // Build query parameters
     const params = new URLSearchParams({
-      'query': '#xquests -is:retweet lang:en',
-      'max_results': Math.min(maxResults, 100).toString(), // Twitter API limit is 100
-      'tweet.fields': 'created_at,public_metrics,author_id',
-      'user.fields': 'name,username,profile_image_url,verified',
-      'expansions': 'author_id',
-      'sort_order': 'relevancy' // Get popular tweets first
+      max_results: maxResults.toString()
     });
 
     if (nextToken) {
       params.append('next_token', nextToken);
     }
 
-    const url = `${TWITTER_API_BASE_URL}/tweets/search/recent?${params.toString()}`;
-
-    console.log('🐦 Fetching tweets from Twitter API...');
+    const url = `${getApiUrl()}?${params.toString()}`;
+    
+    console.log('🔒 Fetching tweets via secure proxy...');
 
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${BEARER_TOKEN}`,
         'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
-      throw new Error(`Twitter API error: ${response.status} ${response.statusText}`);
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
 
-    const data: TwitterApiResponse = await response.json();
-    
-    console.log('✅ Successfully fetched tweets from Twitter API');
-    console.log(`📊 Retrieved ${data.data?.length || 0} tweets`);
+    const result = await response.json();
 
-    const transformedTweets = transformTwitterTweets(data);
+    // Handle fallback case
+    if (result.fallback || !result.success) {
+      console.log('🔄 Using fallback tweets (API not configured or failed)');
+      return {
+        tweets: FALLBACK_TWEETS.slice(0, maxResults),
+        success: true,
+        error: result.error
+      };
+    }
+
+    // Transform real Twitter data
+    const transformedTweets = transformTwitterTweets({
+      data: result.data,
+      includes: result.includes,
+      meta: result.meta
+    });
+
+    console.log('✅ Successfully fetched tweets via secure proxy');
+    console.log(`📊 Retrieved ${transformedTweets.length} tweets`);
 
     return {
       tweets: transformedTweets,
-      nextToken: data.meta.next_token,
+      nextToken: result.nextToken,
       success: true
     };
 
   } catch (error: any) {
-    console.error('❌ Error fetching tweets from Twitter API:', error);
+    console.error('❌ Error fetching tweets via proxy:', error);
     
     // Return fallback tweets on error
-    console.log('🔄 Using fallback tweets due to API error');
+    console.log('🔄 Using fallback tweets due to proxy error');
     
     return {
       tweets: FALLBACK_TWEETS.slice(0, maxResults),
@@ -359,7 +366,7 @@ export const loadMoreXQuestsTweets = async (nextToken?: string): Promise<{
   error?: string;
 }> => {
   // If we have a next token, try to fetch from API
-  if (nextToken && BEARER_TOKEN) {
+  if (nextToken) {
     return await fetchXQuestsTweets(10, nextToken);
   }
 
@@ -383,17 +390,18 @@ export const refreshXQuestsTweets = async (): Promise<{
   return await fetchXQuestsTweets(10); // Get fresh tweets without next token
 };
 
-// Check if Twitter API is available
+// Check if Twitter API is available (always true now since we use fallback)
 export const isTwitterApiAvailable = (): boolean => {
-  return !!BEARER_TOKEN;
+  return true; // Always return true since we have fallback content
 };
 
 // Get API status for debugging
 export const getTwitterApiStatus = () => {
   return {
-    hasToken: !!BEARER_TOKEN,
-    tokenPreview: BEARER_TOKEN ? `${BEARER_TOKEN.substring(0, 10)}...` : 'Not set',
+    hasToken: 'Server-side only',
+    tokenPreview: 'Hidden for security',
     platform: Platform.OS,
-    apiUrl: TWITTER_API_BASE_URL
+    apiUrl: getApiUrl(),
+    secure: true
   };
 };
