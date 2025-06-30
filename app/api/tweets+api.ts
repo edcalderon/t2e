@@ -23,15 +23,6 @@ export async function GET(request: Request) {
     });
   }
 
-  // Enhanced logging for debugging
-  console.log('🔍 Twitter API Request Debug Info:');
-  console.log('- Environment:', process.env.NODE_ENV || 'development');
-  console.log('- Has Bearer Token:', !!TWITTER_BEARER_TOKEN);
-  console.log('- Token Length:', TWITTER_BEARER_TOKEN?.length || 0);
-  console.log('- Token Preview:', TWITTER_BEARER_TOKEN ? `${TWITTER_BEARER_TOKEN.substring(0, 10)}...` : 'None');
-  console.log('- Max Results:', maxResults);
-  console.log('- Next Token:', nextToken ? 'Present' : 'None');
-
   // Check if Bearer Token is available
   if (!TWITTER_BEARER_TOKEN) {
     console.log('❌ No Twitter Bearer Token found');
@@ -116,7 +107,12 @@ export async function GET(request: Request) {
       try {
         console.log(`🔄 Trying ${strategy.name}...`);
         
-        const params = new URLSearchParams(strategy.params);
+        const params = new URLSearchParams();
+        Object.entries(strategy.params).forEach(([key, value]) => {
+          if (value !== undefined) {
+            params.append(key, value);
+          }
+        });
         
         // Only add next_token for the first strategy to maintain pagination
         if (nextToken && strategy.name === 'Free Essential Access - Basic Search') {

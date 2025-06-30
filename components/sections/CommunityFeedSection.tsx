@@ -3,13 +3,16 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
-  Animated,
+  TouchableOpacity,
   ActivityIndicator,
   Platform,
-  Alert,
+  Animated,
   Dimensions,
+  FlatList,
+  RefreshControl,
+  ImageStyle,
+  Alert,
 } from 'react-native';
 import { Hash, RefreshCw, ChevronLeft, ChevronRight, Wifi, WifiOff, CheckCircle } from 'lucide-react-native';
 import { Image } from 'expo-image';
@@ -17,13 +20,11 @@ import {
   fetchXQuestsTweets, 
   loadMoreXQuestsTweets, 
   refreshXQuestsTweets, 
-  isTwitterApiAvailable,
   getTwitterApiStatus,
   type CommunityTweet,
   type TweetLoadResult
 } from '../../lib/twitterApi';
 
-const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 
 // Skeleton Tweet Component
@@ -738,15 +739,20 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   scrollArrowDisabled: {
     opacity: 0.4,
-    ...(Platform.OS === 'web' && {
-      cursor: 'not-allowed',
-    }),
+    ...(Platform.OS === 'web' ? {
+      cursor: 'not-allowed' as any,
+    } : {}),
   },
   communityFeed: {
-    ...(Platform.OS === 'web' && {
-      overflow: 'auto',
+    flex: 1,
+    ...(Platform.OS === 'web' ? {
+      // Using type assertion for web-specific styles
+      overflow: 'auto' as any,
+      WebkitOverflowScrolling: 'touch' as any,
+    } : {
+      // On native, we'll rely on ScrollView for scrolling
     }),
-  },
+  } as const,
   communityFeedContent: {
     paddingHorizontal: 16,
     gap: 12,
@@ -793,6 +799,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 12,
+    overflow: 'hidden',
   },
   tweetUserInfo: {
     flex: 1,
