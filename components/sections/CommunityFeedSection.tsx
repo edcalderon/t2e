@@ -171,6 +171,7 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
   const [hasMoreTweets, setHasMoreTweets] = useState(true);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [currentScrollX, setCurrentScrollX] = useState(0);
   
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -299,24 +300,41 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
     }
   };
 
-  // Enhanced scroll functions with proper ScrollView methods
+  // Fixed scroll functions with proper implementation
   const scrollLeft = () => {
     if (scrollViewRef.current && isWeb) {
-      scrollViewRef.current.scrollTo({ x: Math.max(0, (scrollViewRef.current as any)._scrollMetrics?.contentOffset?.x - 300 || 0), animated: true });
+      const newScrollX = Math.max(0, currentScrollX - 300);
+      scrollViewRef.current.scrollTo({ x: newScrollX, animated: true });
+      console.log('⬅️ Scrolling left to:', newScrollX);
     }
   };
 
   const scrollRight = () => {
     if (scrollViewRef.current && isWeb) {
-      scrollViewRef.current.scrollTo({ x: ((scrollViewRef.current as any)._scrollMetrics?.contentOffset?.x || 0) + 300, animated: true });
+      const newScrollX = currentScrollX + 300;
+      scrollViewRef.current.scrollTo({ x: newScrollX, animated: true });
+      console.log('➡️ Scrolling right to:', newScrollX);
     }
   };
 
+  // Enhanced scroll handler with proper state tracking
   const handleScroll = (event: any) => {
     if (isWeb) {
       const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-      setCanScrollLeft(contentOffset.x > 10);
-      setCanScrollRight(contentOffset.x < contentSize.width - layoutMeasurement.width - 10);
+      const scrollX = contentOffset.x;
+      
+      setCurrentScrollX(scrollX);
+      setCanScrollLeft(scrollX > 10);
+      setCanScrollRight(scrollX < contentSize.width - layoutMeasurement.width - 10);
+      
+      // Debug logging
+      console.log('📊 Scroll metrics:', {
+        scrollX: Math.round(scrollX),
+        contentWidth: Math.round(contentSize.width),
+        viewWidth: Math.round(layoutMeasurement.width),
+        canScrollLeft,
+        canScrollRight
+      });
     }
   };
 
@@ -405,23 +423,41 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
 
       {/* Community Feed Container with Navigation */}
       <View style={styles.communityFeedContainer}>
-        {/* Web Navigation Arrows */}
+        {/* Web Navigation Arrows - Enhanced with better positioning */}
         {isWeb && !loadingInitialTweets && communityTweets.length > 0 && (
           <>
             <TouchableOpacity
-              style={[styles.scrollArrow, styles.scrollArrowLeft, !canScrollLeft && styles.scrollArrowDisabled]}
+              style={[
+                styles.scrollArrow, 
+                styles.scrollArrowLeft, 
+                !canScrollLeft && styles.scrollArrowDisabled
+              ]}
               onPress={scrollLeft}
               disabled={!canScrollLeft}
+              activeOpacity={0.7}
             >
-              <ChevronLeft size={20} color={canScrollLeft ? theme.colors.text : theme.colors.textTertiary} />
+              <ChevronLeft 
+                size={24} 
+                color={canScrollLeft ? theme.colors.text : theme.colors.textTertiary} 
+                strokeWidth={2.5}
+              />
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={[styles.scrollArrow, styles.scrollArrowRight, !canScrollRight && styles.scrollArrowDisabled]}
+              style={[
+                styles.scrollArrow, 
+                styles.scrollArrowRight, 
+                !canScrollRight && styles.scrollArrowDisabled
+              ]}
               onPress={scrollRight}
               disabled={!canScrollRight}
+              activeOpacity={0.7}
             >
-              <ChevronRight size={20} color={canScrollRight ? theme.colors.text : theme.colors.textTertiary} />
+              <ChevronRight 
+                size={24} 
+                color={canScrollRight ? theme.colors.text : theme.colors.textTertiary} 
+                strokeWidth={2.5}
+              />
             </TouchableOpacity>
           </>
         )}
@@ -442,12 +478,15 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
           <ScrollView 
             ref={scrollViewRef}
             horizontal 
-            showsHorizontalScrollIndicator={isWeb}
+            showsHorizontalScrollIndicator={false}
             style={styles.communityFeed}
             contentContainerStyle={styles.communityFeedContent}
             nestedScrollEnabled={true}
             scrollEventThrottle={16}
             onScroll={handleScroll}
+            decelerationRate="fast"
+            snapToInterval={292} // 280 (card width) + 12 (gap)
+            snapToAlignment="start"
             {...(isWeb && {
               overScrollMode: 'never',
               bounces: false,
@@ -563,7 +602,7 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
       {isWeb && !loadingInitialTweets && communityTweets.length > 0 && (
         <View style={styles.scrollIndicator}>
           <Text style={styles.scrollIndicatorText}>
-            Scroll horizontally to see more tweets
+            Use arrow buttons or scroll horizontally to see more tweets
           </Text>
         </View>
       )}
@@ -668,32 +707,34 @@ const createStyles = (theme: any) => StyleSheet.create({
     position: 'absolute',
     top: '50%',
     zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.background,
+    borderWidth: 2,
     borderColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: theme.colors.text,
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    transform: [{ translateY: -20 }],
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    transform: [{ translateY: -22 }],
+    cursor: 'pointer',
   },
   scrollArrowLeft: {
-    left: 8,
+    left: 12,
   },
   scrollArrowRight: {
-    right: 8,
+    right: 12,
   },
   scrollArrowDisabled: {
-    opacity: 0.3,
+    opacity: 0.4,
+    cursor: 'not-allowed',
   },
   communityFeed: {
     ...(Platform.OS === 'web' && {
