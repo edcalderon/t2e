@@ -1,4 +1,4 @@
-// Updated Twitter API client that uses secure server-side proxy
+// Updated Twitter API client with enhanced load more functionality and feedback
 import { Platform } from 'react-native';
 
 export interface TwitterTweet {
@@ -54,7 +54,16 @@ export interface CommunityTweet {
   challengeTag?: string;
 }
 
-// Fallback tweets for when API is not available or fails
+export interface TweetLoadResult {
+  tweets: CommunityTweet[];
+  nextToken?: string;
+  success: boolean;
+  error?: string;
+  hasMore: boolean;
+  isUsingFallback: boolean;
+}
+
+// Enhanced fallback tweets for when API is not available
 const FALLBACK_TWEETS: CommunityTweet[] = [
   {
     id: "fallback_1",
@@ -136,70 +145,52 @@ const FALLBACK_TWEETS: CommunityTweet[] = [
   }
 ];
 
-// Generate additional fallback tweets for "load more" functionality
-const generateMoreFallbackTweets = (count: number = 3): CommunityTweet[] => {
-  const templates = [
-    {
-      username: "crypto_newbie",
-      displayName: "Emma Johnson",
-      avatar: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      content: "Learning about smart contracts through #xquests has been amazing! The community here is so supportive 💪 #blockchain #learning",
-      verified: false,
-      challengeTag: "Education"
-    },
-    {
-      username: "algo_trader",
-      displayName: "Michael Chen",
-      avatar: "https://images.pexels.com/photos/1212984/pexels-photo-1212984.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      content: "Passive income through DeFi staking explained! My #xquests challenge breaks down the risks and rewards 📈 #defi #algorand",
-      verified: true,
-      challengeTag: "DeFi Education"
-    },
-    {
-      username: "web3_builder",
-      displayName: "Lisa Park",
-      avatar: "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      content: "Building the future one dApp at a time! My #xquests submission showcases how blockchain can revolutionize supply chains 🔗",
-      verified: false,
-      challengeTag: "Innovation"
-    },
-    {
-      username: "nft_artist",
-      displayName: "Carlos Rodriguez",
-      avatar: "https://images.pexels.com/photos/1300402/pexels-photo-1300402.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      content: "Creating meaningful NFT art for my #xquests challenge! Art + blockchain = endless possibilities 🎨⛓️ #nft #digitalart",
-      verified: false,
-      challengeTag: "NFT Art"
-    },
-    {
-      username: "dao_governance",
-      displayName: "Rachel Kim",
-      avatar: "https://images.pexels.com/photos/1181424/pexels-photo-1181424.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      content: "Decentralized governance is the future of organizations! My #xquests submission explores DAO best practices 🗳️ #dao #governance",
-      verified: true,
-      challengeTag: "DAO"
-    }
-  ];
+// Additional fallback tweets for load more functionality
+const ADDITIONAL_FALLBACK_TWEETS: CommunityTweet[] = [
+  {
+    id: "fallback_7",
+    username: "crypto_newbie",
+    displayName: "Emma Johnson",
+    avatar: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+    content: "Learning about smart contracts through #xquests has been amazing! The community here is so supportive 💪 #blockchain #learning",
+    timestamp: "22m",
+    likes: 31,
+    retweets: 12,
+    replies: 5,
+    verified: false,
+    challengeTag: "Education"
+  },
+  {
+    id: "fallback_8",
+    username: "algo_trader",
+    displayName: "Michael Chen",
+    avatar: "https://images.pexels.com/photos/1212984/pexels-photo-1212984.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+    content: "Passive income through DeFi staking explained! My #xquests challenge breaks down the risks and rewards 📈 #defi #algorand",
+    timestamp: "25m",
+    likes: 58,
+    retweets: 21,
+    replies: 8,
+    verified: true,
+    challengeTag: "DeFi Education"
+  },
+  {
+    id: "fallback_9",
+    username: "web3_builder",
+    displayName: "Lisa Park",
+    avatar: "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
+    content: "Building the future one dApp at a time! My #xquests submission showcases how blockchain can revolutionize supply chains 🔗",
+    timestamp: "28m",
+    likes: 42,
+    retweets: 16,
+    replies: 6,
+    verified: false,
+    challengeTag: "Innovation"
+  }
+];
 
-  return Array.from({ length: count }, (_, index) => {
-    const template = templates[index % templates.length];
-    const timestamp = Math.floor(Math.random() * 60) + 20; // 20-80 minutes ago
-    
-    return {
-      id: `generated_${Date.now()}_${index}`,
-      username: template.username,
-      displayName: template.displayName,
-      avatar: template.avatar,
-      content: template.content,
-      timestamp: `${timestamp}m`,
-      likes: Math.floor(Math.random() * 100) + 10,
-      retweets: Math.floor(Math.random() * 50) + 5,
-      replies: Math.floor(Math.random() * 20) + 2,
-      verified: template.verified,
-      challengeTag: template.challengeTag
-    };
-  });
-};
+// Track pagination state for fallback mode
+let fallbackPageIndex = 0;
+const FALLBACK_PAGE_SIZE = 3;
 
 // Format timestamp from Twitter API format to relative time
 const formatTimestamp = (twitterTimestamp: string): string => {
@@ -276,22 +267,14 @@ const transformTwitterTweets = (apiResponse: TwitterApiResponse): CommunityTweet
 // Get the API endpoint URL (works for both web and mobile)
 const getApiUrl = () => {
   if (Platform.OS === 'web') {
-    // For web, use relative URL
     return '/api/tweets';
   } else {
-    // For mobile, you'd need to use your deployed server URL
-    // This would be your production API URL
     return 'https://your-app-domain.com/api/tweets';
   }
 };
 
-// Fetch tweets using secure server-side proxy
-export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: string): Promise<{
-  tweets: CommunityTweet[];
-  nextToken?: string;
-  success: boolean;
-  error?: string;
-}> => {
+// Fetch tweets using secure server-side proxy with enhanced load more
+export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: string): Promise<TweetLoadResult> => {
   try {
     const params = new URLSearchParams({
       max_results: maxResults.toString()
@@ -321,10 +304,28 @@ export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: st
     // Handle fallback case
     if (result.fallback || !result.success) {
       console.log('🔄 Using fallback tweets (API not configured or failed)');
+      
+      // Reset pagination for initial load
+      if (!nextToken) {
+        fallbackPageIndex = 0;
+      }
+      
+      const startIndex = fallbackPageIndex * FALLBACK_PAGE_SIZE;
+      const endIndex = startIndex + maxResults;
+      const allFallbackTweets = [...FALLBACK_TWEETS, ...ADDITIONAL_FALLBACK_TWEETS];
+      const paginatedTweets = allFallbackTweets.slice(startIndex, endIndex);
+      const hasMore = endIndex < allFallbackTweets.length;
+      
+      // Update pagination index for next load
+      fallbackPageIndex++;
+      
       return {
-        tweets: FALLBACK_TWEETS.slice(0, maxResults),
+        tweets: paginatedTweets,
         success: true,
-        error: result.error
+        error: result.error,
+        hasMore,
+        isUsingFallback: true,
+        nextToken: hasMore ? `fallback_page_${fallbackPageIndex}` : undefined
       };
     }
 
@@ -341,7 +342,9 @@ export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: st
     return {
       tweets: transformedTweets,
       nextToken: result.nextToken,
-      success: true
+      success: true,
+      hasMore: !!result.nextToken && transformedTweets.length > 0,
+      isUsingFallback: false
     };
 
   } catch (error: any) {
@@ -350,47 +353,80 @@ export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: st
     // Return fallback tweets on error
     console.log('🔄 Using fallback tweets due to proxy error');
     
+    // Reset pagination for error fallback
+    if (!nextToken) {
+      fallbackPageIndex = 0;
+    }
+    
+    const startIndex = fallbackPageIndex * FALLBACK_PAGE_SIZE;
+    const endIndex = startIndex + maxResults;
+    const allFallbackTweets = [...FALLBACK_TWEETS, ...ADDITIONAL_FALLBACK_TWEETS];
+    const paginatedTweets = allFallbackTweets.slice(startIndex, endIndex);
+    const hasMore = endIndex < allFallbackTweets.length;
+    
+    fallbackPageIndex++;
+    
     return {
-      tweets: FALLBACK_TWEETS.slice(0, maxResults),
+      tweets: paginatedTweets,
       success: false,
-      error: error.message
+      error: error.message,
+      hasMore,
+      isUsingFallback: true,
+      nextToken: hasMore ? `fallback_page_${fallbackPageIndex}` : undefined
     };
   }
 };
 
-// Load more tweets (either from API or generate fallback)
-export const loadMoreXQuestsTweets = async (nextToken?: string): Promise<{
-  tweets: CommunityTweet[];
-  nextToken?: string;
-  success: boolean;
-  error?: string;
-}> => {
-  // If we have a next token, try to fetch from API
-  if (nextToken) {
-    return await fetchXQuestsTweets(10, nextToken);
+// Enhanced load more tweets with proper pagination and feedback
+export const loadMoreXQuestsTweets = async (nextToken?: string): Promise<TweetLoadResult> => {
+  console.log('🔄 Loading more #xquests tweets...', { nextToken });
+  
+  if (!nextToken) {
+    console.log('⚠️ No next token provided for load more');
+    return {
+      tweets: [],
+      success: true,
+      hasMore: false,
+      isUsingFallback: false
+    };
   }
 
-  // Otherwise, generate more fallback tweets
-  console.log('🔄 Generating additional fallback tweets');
-  
-  return {
-    tweets: generateMoreFallbackTweets(3),
-    success: true
-  };
+  // Handle fallback pagination
+  if (nextToken.startsWith('fallback_page_')) {
+    console.log('🔄 Loading more fallback tweets');
+    
+    const startIndex = fallbackPageIndex * FALLBACK_PAGE_SIZE;
+    const endIndex = startIndex + FALLBACK_PAGE_SIZE;
+    const allFallbackTweets = [...FALLBACK_TWEETS, ...ADDITIONAL_FALLBACK_TWEETS];
+    const paginatedTweets = allFallbackTweets.slice(startIndex, endIndex);
+    const hasMore = endIndex < allFallbackTweets.length;
+    
+    fallbackPageIndex++;
+    
+    return {
+      tweets: paginatedTweets,
+      success: true,
+      hasMore,
+      isUsingFallback: true,
+      nextToken: hasMore ? `fallback_page_${fallbackPageIndex}` : undefined
+    };
+  }
+
+  // Load more real tweets using the next token
+  return await fetchXQuestsTweets(10, nextToken);
 };
 
-// Refresh tweets (get latest)
-export const refreshXQuestsTweets = async (): Promise<{
-  tweets: CommunityTweet[];
-  nextToken?: string;
-  success: boolean;
-  error?: string;
-}> => {
+// Refresh tweets (get latest) with reset pagination
+export const refreshXQuestsTweets = async (): Promise<TweetLoadResult> => {
   console.log('🔄 Refreshing #xquests tweets...');
+  
+  // Reset fallback pagination
+  fallbackPageIndex = 0;
+  
   return await fetchXQuestsTweets(10); // Get fresh tweets without next token
 };
 
-// Check if Twitter API is available (always true now since we use fallback)
+// Check if Twitter API is available
 export const isTwitterApiAvailable = (): boolean => {
   return true; // Always return true since we have fallback content
 };

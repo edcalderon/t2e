@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
-import { Award, Plus, Sparkles, TrendingUp, Users, Trophy, Heart, MessageCircle, Repeat, ExternalLink, Hash, RefreshCw, ChevronLeft, ChevronRight, Wifi, WifiOff } from "lucide-react-native";
+import { Award, Plus, Sparkles, TrendingUp, Users, Trophy, Heart, MessageCircle, Repeat, ExternalLink, Hash, RefreshCw, ChevronLeft, ChevronRight, Wifi, WifiOff, AlertCircle, CheckCircle } from "lucide-react-native";
 import { useRouter } from 'expo-router';
 import ChallengeCard from "../../src/components/ChallengeCard";
 import LeaderboardSection from "../../src/components/LeaderboardSection";
@@ -29,7 +29,8 @@ import {
   refreshXQuestsTweets, 
   isTwitterApiAvailable,
   getTwitterApiStatus,
-  type CommunityTweet 
+  type CommunityTweet,
+  type TweetLoadResult
 } from '../../lib/twitterApi';
 
 const { width, height } = Dimensions.get('window');
@@ -211,6 +212,7 @@ export default function ExploreScreen() {
   const [nextToken, setNextToken] = useState<string | undefined>();
   const [apiError, setApiError] = useState<string | null>(null);
   const [isUsingFallback, setIsUsingFallback] = useState(false);
+  const [hasMoreTweets, setHasMoreTweets] = useState(true);
 
   // Animation for theme toggle
   const [themeAnimation] = useState(new Animated.Value(isDark ? 1 : 0));
@@ -252,29 +254,32 @@ export default function ExploreScreen() {
       console.log('🔄 Loading initial #xquests tweets...');
       console.log('📊 Twitter API Status:', getTwitterApiStatus());
       
-      const result = await fetchXQuestsTweets(10);
+      const result: TweetLoadResult = await fetchXQuestsTweets(10);
       
       if (result.success) {
         setCommunityTweets(result.tweets);
         setNextToken(result.nextToken);
-        setIsUsingFallback(!isTwitterApiAvailable());
+        setHasMoreTweets(result.hasMore);
+        setIsUsingFallback(result.isUsingFallback);
         
         if (result.error) {
           setApiError(result.error);
         }
         
         console.log(`✅ Loaded ${result.tweets.length} tweets`);
-        if (!isTwitterApiAvailable()) {
+        if (result.isUsingFallback) {
           console.log('ℹ️ Using fallback tweets (no Twitter API token)');
         }
       } else {
         setApiError(result.error || 'Failed to load tweets');
         setIsUsingFallback(true);
+        setHasMoreTweets(result.hasMore);
       }
     } catch (error: any) {
       console.error('❌ Error loading initial tweets:', error);
       setApiError(error.message);
       setIsUsingFallback(true);
+      setHasMoreTweets(false);
     } finally {
       setLoadingInitialTweets(false);
     }
@@ -310,12 +315,13 @@ export default function ExploreScreen() {
     
     try {
       console.log('🔄 Refreshing #xquests tweets...');
-      const result = await refreshXQuestsTweets();
+      const result: TweetLoadResult = await refreshXQuestsTweets();
       
       if (result.success) {
         setCommunityTweets(result.tweets);
         setNextToken(result.nextToken);
-        setIsUsingFallback(!isTwitterApiAvailable());
+        setHasMoreTweets(result.hasMore);
+        setIsUsingFallback(result.isUsingFallback);
         
         if (result.error) {
           setApiError(result.error);
@@ -324,6 +330,7 @@ export default function ExploreScreen() {
         console.log(`✅ Refreshed with ${result.tweets.length} tweets`);
       } else {
         setApiError(result.error || 'Failed to refresh tweets');
+        setHasMoreTweets(result.hasMore);
       }
     } catch (error: any) {
       console.error('❌ Error refreshing tweets:', error);
@@ -334,26 +341,33 @@ export default function ExploreScreen() {
   };
 
   const loadMoreTweets = async () => {
-    if (loadingMoreTweets) return;
+    if (loadingMoreTweets || !hasMoreTweets) return;
     
     setLoadingMoreTweets(true);
     setApiError(null);
     
     try {
       console.log('🔄 Loading more #xquests tweets...');
-      const result = await loadMoreXQuestsTweets(nextToken);
+      const result: TweetLoadResult = await loadMoreXQuestsTweets(nextToken);
       
       if (result.success) {
-        setCommunityTweets(prev => [...prev, ...result.tweets]);
-        setNextToken(result.nextToken);
+        if (result.tweets.length > 0) {
+          setCommunityTweets(prev => [...prev, ...result.tweets]);
+          setNextToken(result.nextToken);
+          setHasMoreTweets(result.hasMore);
+          
+          console.log(`✅ Loaded ${result.tweets.length} more tweets`);
+        } else {
+          setHasMoreTweets(false);
+          console.log('ℹ️ No more tweets available');
+        }
         
         if (result.error) {
           setApiError(result.error);
         }
-        
-        console.log(`✅ Loaded ${result.tweets.length} more tweets`);
       } else {
         setApiError(result.error || 'Failed to load more tweets');
+        setHasMoreTweets(result.hasMore);
       }
     } catch (error: any) {
       console.error('❌ Error loading more tweets:', error);
@@ -394,10 +408,11 @@ export default function ExploreScreen() {
     const status = getTwitterApiStatus();
     Alert.alert(
       'Twitter API Status',
-      `Has Token: ${status.hasToken ? 'Yes' : 'No'}\n` +
+      `Has Token: ${status.hasToken}\n` +
       `Token Preview: ${status.tokenPreview}\n` +
       `Platform: ${status.platform}\n` +
       `Using Fallback: ${isUsingFallback ? 'Yes' : 'No'}\n` +
+      `Has More Tweets: ${hasMoreTweets ? 'Yes' : 'No'}\n` +
       `Error: ${apiError || 'None'}`,
       [{ text: 'OK' }]
     );
@@ -570,20 +585,25 @@ export default function ExploreScreen() {
                 </TouchableOpacity>
               </View>
               <TouchableOpacity 
-                style={[styles.reloadButton, loadingMoreTweets && styles.reloadButtonDisabled]}
+                style={[
+                  styles.reloadButton, 
+                  (loadingMoreTweets || !hasMoreTweets) && styles.reloadButtonDisabled
+                ]}
                 onPress={loadMoreTweets}
-                disabled={loadingMoreTweets}
+                disabled={loadingMoreTweets || !hasMoreTweets}
               >
                 {loadingMoreTweets ? (
                   <ActivityIndicator size="small" color={theme.colors.primary} />
+                ) : !hasMoreTweets ? (
+                  <CheckCircle size={16} color={theme.colors.success} />
                 ) : (
                   <RefreshCw size={16} color={theme.colors.primary} />
                 )}
                 <Text style={[
                   styles.reloadButtonText,
-                  loadingMoreTweets && styles.reloadButtonTextDisabled
+                  (loadingMoreTweets || !hasMoreTweets) && styles.reloadButtonTextDisabled
                 ]}>
-                  {loadingMoreTweets ? 'Loading...' : 'Load More'}
+                  {loadingMoreTweets ? 'Loading...' : !hasMoreTweets ? 'All Loaded' : 'Load More'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -655,17 +675,8 @@ export default function ExploreScreen() {
                     bounces: false,
                   })}
                 >
-                  {/* Show skeleton loading when loading more tweets */}
-                  {loadingMoreTweets && (
-                    <>
-                      <SkeletonTweet theme={theme} />
-                      <SkeletonTweet theme={theme} />
-                      <SkeletonTweet theme={theme} />
-                    </>
-                  )}
-
-                  {/* Actual tweets - hide when loading more */}
-                  {!loadingMoreTweets && communityTweets.map((tweet) => (
+                  {/* Actual tweets */}
+                  {communityTweets.map((tweet) => (
                     <View key={tweet.id} style={styles.tweetCard}>
                       {/* Tweet Header */}
                       <View style={styles.tweetHeader}>
@@ -725,6 +736,15 @@ export default function ExploreScreen() {
                     </View>
                   ))}
 
+                  {/* Loading More Tweets Skeleton */}
+                  {loadingMoreTweets && (
+                    <>
+                      <SkeletonTweet theme={theme} />
+                      <SkeletonTweet theme={theme} />
+                      <SkeletonTweet theme={theme} />
+                    </>
+                  )}
+
                   {/* Empty State */}
                   {!loadingMoreTweets && communityTweets.length === 0 && (
                     <View style={styles.emptyTweetsState}>
@@ -739,6 +759,24 @@ export default function ExploreScreen() {
                       <TouchableOpacity style={styles.retryButton} onPress={loadInitialTweets}>
                         <RefreshCw size={16} color={theme.colors.primary} />
                         <Text style={styles.retryButtonText}>Retry</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* End of Feed Message */}
+                  {!loadingMoreTweets && !hasMoreTweets && communityTweets.length > 0 && (
+                    <View style={styles.endOfFeedState}>
+                      <CheckCircle size={32} color={theme.colors.success} />
+                      <Text style={styles.endOfFeedTitle}>You're all caught up!</Text>
+                      <Text style={styles.endOfFeedText}>
+                        {isUsingFallback ? 
+                          'No more demo tweets available' :
+                          'No more #xquests tweets to load'
+                        }
+                      </Text>
+                      <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+                        <RefreshCw size={16} color={theme.colors.primary} />
+                        <Text style={styles.refreshButtonText}>Refresh Feed</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -1338,6 +1376,48 @@ const createStyles = (theme: any) => StyleSheet.create({
   retryButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  endOfFeedState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    width: 280,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  endOfFeedTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginTop: 12,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  endOfFeedText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary + '20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '30',
+  },
+  refreshButtonText: {
+    color: theme.colors.primary,
+    fontSize: 12,
     fontWeight: '600',
   },
   activityItem: {
