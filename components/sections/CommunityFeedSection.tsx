@@ -171,7 +171,6 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
   const [hasMoreTweets, setHasMoreTweets] = useState(true);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [currentScrollX, setCurrentScrollX] = useState(0);
   
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -300,20 +299,24 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
     }
   };
 
-  // Fixed scroll functions with proper implementation
+  // Fixed scroll functions with proper scroll view reference
   const scrollLeft = () => {
     if (scrollViewRef.current && isWeb) {
-      const newScrollX = Math.max(0, currentScrollX - 300);
-      scrollViewRef.current.scrollTo({ x: newScrollX, animated: true });
-      console.log('⬅️ Scrolling left to:', newScrollX);
+      scrollViewRef.current.scrollTo({ 
+        x: Math.max(0, (scrollViewRef.current as any)._component?.scrollLeft - 300 || 0), 
+        animated: true 
+      });
+      console.log('⬅️ Scrolling left by 300px');
     }
   };
 
   const scrollRight = () => {
     if (scrollViewRef.current && isWeb) {
-      const newScrollX = currentScrollX + 300;
-      scrollViewRef.current.scrollTo({ x: newScrollX, animated: true });
-      console.log('➡️ Scrolling right to:', newScrollX);
+      scrollViewRef.current.scrollTo({ 
+        x: ((scrollViewRef.current as any)._component?.scrollLeft || 0) + 300, 
+        animated: true 
+      });
+      console.log('➡️ Scrolling right by 300px');
     }
   };
 
@@ -323,7 +326,6 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
       const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
       const scrollX = contentOffset.x;
       
-      setCurrentScrollX(scrollX);
       setCanScrollLeft(scrollX > 10);
       setCanScrollRight(scrollX < contentSize.width - layoutMeasurement.width - 10);
       
@@ -332,8 +334,8 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
         scrollX: Math.round(scrollX),
         contentWidth: Math.round(contentSize.width),
         viewWidth: Math.round(layoutMeasurement.width),
-        canScrollLeft,
-        canScrollRight
+        canScrollLeft: scrollX > 10,
+        canScrollRight: scrollX < contentSize.width - layoutMeasurement.width - 10
       });
     }
   };
@@ -478,7 +480,7 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
           <ScrollView 
             ref={scrollViewRef}
             horizontal 
-            showsHorizontalScrollIndicator={false}
+            showsHorizontalScrollIndicator={isWeb}
             style={styles.communityFeed}
             contentContainerStyle={styles.communityFeedContent}
             nestedScrollEnabled={true}
@@ -724,7 +726,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     transform: [{ translateY: -22 }],
-    cursor: 'pointer',
+    ...(Platform.OS === 'web' && {
+      cursor: 'pointer',
+    }),
   },
   scrollArrowLeft: {
     left: 12,
@@ -734,7 +738,9 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   scrollArrowDisabled: {
     opacity: 0.4,
-    cursor: 'not-allowed',
+    ...(Platform.OS === 'web' && {
+      cursor: 'not-allowed',
+    }),
   },
   communityFeed: {
     ...(Platform.OS === 'web' && {
