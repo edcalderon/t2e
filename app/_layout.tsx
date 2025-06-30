@@ -21,6 +21,24 @@ export default function RootLayout() {
     // Register service worker for PWA functionality
     if (Platform.OS === 'web') {
       registerSW();
+      
+      // Handle client-side routing for direct URL access
+      if (typeof window !== 'undefined') {
+        // Ensure the app handles direct navigation properly
+        const handlePopState = () => {
+          // Force a re-render when user navigates with browser buttons
+          window.location.reload();
+        };
+        
+        // Only add listener if we're not on the home page
+        if (window.location.pathname !== '/') {
+          window.addEventListener('popstate', handlePopState);
+          
+          return () => {
+            window.removeEventListener('popstate', handlePopState);
+          };
+        }
+      }
     }
   }, []);
 
@@ -30,6 +48,9 @@ export default function RootLayout() {
         <SidebarProvider>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+            <Stack.Screen name="privacy" options={{ headerShown: false }} />
+            <Stack.Screen name="terms" options={{ headerShown: false }} />
             <Stack.Screen name="+not-found" />
           </Stack>
           <StatusBar style="auto" />
