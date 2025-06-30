@@ -5,13 +5,14 @@
   "scripts": {
     "start": "npx expo start",
     "dev": "npx expo start --web",
-    "build": "npx expo export",
+    "build": "npx expo export -p web",
     "build:web": "expo export -p web && workbox generateSW workbox-config.js",
     "android": "npx expo start --android",
     "ios": "npx expo start --ios",
     "web": "npx expo start --web",
     "test": "jest --watchAll",
-    "lint": "npx expo lint"
+    "lint": "npx expo lint",
+    "deploy": "npm run build && netlify deploy --prod --dir=dist"
   },
   "jest": {
     "preset": "jest-expo"
