@@ -16,11 +16,24 @@ export default function PWAUpdatePrompt() {
   const { updateAvailable, updateApp } = usePWA();
   const [isVisible, setIsVisible] = useState(false);
   const [slideAnim] = useState(new Animated.Value(-100));
+  const [isDismissed, setIsDismissed] = useState(false);
 
   const styles = createStyles(theme);
 
   useEffect(() => {
-    if (Platform.OS === 'web' && updateAvailable) {
+    // Check if user has dismissed this update recently
+    const checkDismissed = () => {
+      if (typeof window !== 'undefined') {
+        const dismissed = localStorage.getItem('pwa-update-dismissed');
+        const dismissedTime = dismissed ? parseInt(dismissed) : 0;
+        const now = Date.now();
+        // Show again after 1 hour if dismissed
+        return now - dismissedTime < 3600000; // 1 hour in milliseconds
+      }
+      return false;
+    };
+
+    if (Platform.OS === 'web' && updateAvailable && !checkDismissed() && !isDismissed) {
       setIsVisible(true);
       Animated.timing(slideAnim, {
         toValue: 0,
@@ -28,7 +41,7 @@ export default function PWAUpdatePrompt() {
         useNativeDriver: true,
       }).start();
     }
-  }, [updateAvailable]);
+  }, [updateAvailable, isDismissed]);
 
   const handleUpdate = () => {
     updateApp();
@@ -42,10 +55,16 @@ export default function PWAUpdatePrompt() {
       useNativeDriver: true,
     }).start(() => {
       setIsVisible(false);
+      setIsDismissed(true);
+      
+      // Store dismissal time
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pwa-update-dismissed', Date.now().toString());
+      }
     });
   };
 
-  if (!isVisible || Platform.OS !== 'web') {
+  if (!isVisible || Platform.OS !== 'web' || !updateAvailable) {
     return null;
   }
 
