@@ -1,4 +1,4 @@
-// Enhanced server-side API route with better error handling and debugging
+// Enhanced server-side API route with comprehensive 403 error handling
 // The Bearer Token stays on the server and is never exposed to clients
 
 const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN; // Server-only environment variable
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         debug: {
           hasToken: false,
           environment: process.env.NODE_ENV || 'development',
-          suggestion: 'Add TWITTER_BEARER_TOKEN to your environment variables'
+          suggestion: 'Add TWITTER_BEARER_TOKEN to your .env file'
         }
       },
       { 
@@ -75,82 +75,173 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Build Twitter API request with enhanced parameters
-    const params = new URLSearchParams({
-      'query': '#xquests -is:retweet lang:en',
-      'max_results': Math.min(parseInt(maxResults), 100).toString(),
-      'tweet.fields': 'created_at,public_metrics,author_id,context_annotations',
-      'user.fields': 'name,username,profile_image_url,verified,public_metrics',
-      'expansions': 'author_id',
-      'sort_order': 'recency' // Changed from 'relevancy' to 'recency' for better results
-    });
+    // Try multiple search strategies to handle 403 errors
+    const searchStrategies = [
+      {
+        name: 'Primary Search',
+        params: {
+          'query': '#xquests -is:retweet lang:en',
+          'max_results': Math.min(parseInt(maxResults), 10).toString(), // Reduced for testing
+          'tweet.fields': 'created_at,public_metrics,author_id',
+          'user.fields': 'name,username,profile_image_url,verified',
+          'expansions': 'author_id'
+        }
+      },
+      {
+        name: 'Simplified Search',
+        params: {
+          'query': '#xquests',
+          'max_results': '10',
+          'tweet.fields': 'created_at,public_metrics',
+          'user.fields': 'name,username,profile_image_url'
+        }
+      },
+      {
+        name: 'Basic Search',
+        params: {
+          'query': 'xquests',
+          'max_results': '10'
+        }
+      }
+    ];
 
-    if (nextToken) {
-      params.append('next_token', nextToken);
+    let lastError = null;
+
+    for (const strategy of searchStrategies) {
+      try {
+        console.log(`🔄 Trying ${strategy.name}...`);
+        
+        const params = new URLSearchParams(strategy.params);
+        
+        if (nextToken && strategy.name === 'Primary Search') {
+          params.append('next_token', nextToken);
+        }
+
+        const twitterUrl = `https://api.twitter.com/2/tweets/search/recent?${params.toString()}`;
+        
+        console.log('🐦 Making Twitter API request...');
+        console.log('- Strategy:', strategy.name);
+        console.log('- Query:', strategy.params.query);
+
+        const response = await fetch(twitterUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${TWITTER_BEARER_TOKEN}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'XQuests/1.0.0'
+          },
+        });
+
+        console.log('📡 Twitter API Response:');
+        console.log('- Status:', response.status);
+        console.log('- Status Text:', response.statusText);
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          console.log('✅ Twitter API Success with', strategy.name);
+          console.log('- Data count:', data.data?.length || 0);
+          console.log('- Has next token:', !!data.meta?.next_token);
+
+          // Handle empty results
+          if (!data.data || data.data.length === 0) {
+            console.log('ℹ️ No tweets found, but API call succeeded');
+            return Response.json(
+              {
+                success: true,
+                data: [],
+                includes: {},
+                meta: { result_count: 0 },
+                nextToken: null,
+                message: 'No tweets found for this search'
+              },
+              { headers: corsHeaders }
+            );
+          }
+
+          return Response.json(
+            {
+              success: true,
+              data: data.data || [],
+              includes: data.includes || {},
+              meta: data.meta || {},
+              nextToken: data.meta?.next_token,
+              strategy: strategy.name
+            },
+            { headers: corsHeaders }
+          );
+        } else {
+          // Store error for potential fallback
+          const errorText = await response.text();
+          lastError = {
+            status: response.status,
+            statusText: response.statusText,
+            body: errorText,
+            strategy: strategy.name
+          };
+          
+          console.log(`❌ ${strategy.name} failed:`, response.status, response.statusText);
+          
+          // If it's not a 403, break and handle the error
+          if (response.status !== 403) {
+            break;
+          }
+          
+          // Continue to next strategy for 403 errors
+          continue;
+        }
+      } catch (strategyError: any) {
+        console.error(`❌ ${strategy.name} network error:`, strategyError.message);
+        lastError = {
+          status: 0,
+          statusText: 'Network Error',
+          body: strategyError.message,
+          strategy: strategy.name
+        };
+        continue;
+      }
     }
 
-    const twitterUrl = `https://api.twitter.com/2/tweets/search/recent?${params.toString()}`;
+    // If we get here, all strategies failed
+    console.error('❌ All Twitter API strategies failed');
     
-    console.log('🐦 Making Twitter API request...');
-    console.log('- URL:', twitterUrl.replace(TWITTER_BEARER_TOKEN, '[REDACTED]'));
-
-    const response = await fetch(twitterUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${TWITTER_BEARER_TOKEN}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'XQuests/1.0.0'
-      },
-    });
-
-    console.log('📡 Twitter API Response:');
-    console.log('- Status:', response.status);
-    console.log('- Status Text:', response.statusText);
-    console.log('- Headers:', Object.fromEntries(response.headers.entries()));
-
-    // Handle different HTTP status codes
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Twitter API Error Response:', errorText);
-      
-      let errorMessage = `Twitter API error: ${response.status} ${response.statusText}`;
+    if (lastError) {
+      let errorMessage = `Twitter API error: ${lastError.status} ${lastError.statusText}`;
       let suggestions = [];
       
-      switch (response.status) {
+      switch (lastError.status) {
         case 401:
           errorMessage = 'Twitter API authentication failed - Invalid Bearer Token';
           suggestions = [
-            'Verify your Bearer Token is correct',
+            'Verify your Bearer Token is correct and active',
             'Check if the token has expired',
-            'Ensure the token has proper permissions'
+            'Regenerate your Bearer Token in Twitter Developer Portal'
           ];
           break;
         case 403:
-          errorMessage = 'Twitter API access forbidden - Insufficient permissions';
+          errorMessage = 'Twitter API access forbidden - Account or app restrictions';
           suggestions = [
-            'Verify your Twitter Developer account is approved',
-            'Check if your app has the required permissions',
-            'Ensure you have access to Twitter API v2',
-            'For localhost development, some restrictions may apply'
+            '🔑 Your Twitter Developer account may need approval',
+            '📋 Check if your app has "Read" permissions',
+            '🏢 You may need Twitter API Basic or Pro access',
+            '🌐 Some endpoints require elevated access',
+            '💻 For localhost development, ensure your app allows it',
+            '🔄 Try applying for elevated access in Twitter Developer Portal'
           ];
           break;
         case 429:
           errorMessage = 'Twitter API rate limit exceeded';
           suggestions = [
-            'Wait before making more requests',
-            'Implement proper rate limiting',
-            'Consider upgrading your API plan'
+            'Wait 15 minutes before making more requests',
+            'Implement proper rate limiting in your app'
           ];
           break;
-        case 500:
-        case 502:
-        case 503:
-          errorMessage = 'Twitter API server error - Try again later';
+        default:
           suggestions = [
-            'This is a temporary Twitter server issue',
-            'Retry the request after a few minutes'
+            'Check Twitter API status page',
+            'Verify your internet connection',
+            'Try again in a few minutes'
           ];
-          break;
       }
 
       return Response.json(
@@ -159,76 +250,54 @@ export async function GET(request: Request) {
           error: errorMessage,
           fallback: true,
           debug: {
-            status: response.status,
-            statusText: response.statusText,
+            allStrategiesFailed: true,
+            lastError: lastError,
             suggestions,
-            errorDetails: errorText,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            helpUrl: 'https://developer.twitter.com/en/support'
           }
         },
         { 
-          status: 200, // Return 200 so client can handle gracefully
+          status: 200,
           headers: corsHeaders 
         }
       );
     }
 
-    const data = await response.json();
-    
-    console.log('✅ Twitter API Success:');
-    console.log('- Data count:', data.data?.length || 0);
-    console.log('- Has next token:', !!data.meta?.next_token);
-    console.log('- Result count:', data.meta?.result_count || 0);
-
-    // Handle empty results
-    if (!data.data || data.data.length === 0) {
-      console.log('ℹ️ No tweets found for #xquests');
-      return Response.json(
-        {
-          success: true,
-          data: [],
-          includes: {},
-          meta: { result_count: 0 },
-          nextToken: null,
-          message: 'No #xquests tweets found at this time'
-        },
-        { headers: corsHeaders }
-      );
-    }
-
+    // Fallback error
     return Response.json(
       {
-        success: true,
-        data: data.data || [],
-        includes: data.includes || {},
-        meta: data.meta || {},
-        nextToken: data.meta?.next_token
+        success: false,
+        error: 'All Twitter API strategies failed',
+        fallback: true,
+        debug: {
+          message: 'Unable to connect to Twitter API with any strategy',
+          timestamp: new Date().toISOString()
+        }
       },
-      { headers: corsHeaders }
+      { 
+        status: 200,
+        headers: corsHeaders 
+      }
     );
 
   } catch (error: any) {
-    console.error('❌ Twitter API Network Error:', error);
+    console.error('❌ Twitter API Unexpected Error:', error);
     
     return Response.json(
       {
         success: false,
-        error: `Network error: ${error.message}`,
+        error: `Unexpected error: ${error.message}`,
         fallback: true,
         debug: {
-          errorType: 'NetworkError',
+          errorType: 'UnexpectedError',
           errorMessage: error.message,
           stack: error.stack,
-          timestamp: new Date().toISOString(),
-          suggestions: [
-            'Check your internet connection',
-            'Verify Twitter API endpoints are accessible',
-            'Check for firewall or proxy issues'
-          ]
+          timestamp: new Date().toISOString()
         }
       },
       { 
-        status: 200, // Return 200 so client can handle gracefully
+        status: 200,
         headers: corsHeaders 
       }
     );
