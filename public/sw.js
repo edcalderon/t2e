@@ -1,7 +1,7 @@
 // XQuests Service Worker
-const CACHE_NAME = 'xquests-v1.0.1'; // Increment version to force update
-const STATIC_CACHE_NAME = 'xquests-static-v1.0.1';
-const DYNAMIC_CACHE_NAME = 'xquests-dynamic-v1.0.1';
+const CACHE_NAME = 'xquests-v1.0.2'; // Increment version to force update
+const STATIC_CACHE_NAME = 'xquests-static-v1.0.2';
+const DYNAMIC_CACHE_NAME = 'xquests-dynamic-v1.0.2';
 
 // Assets to cache immediately
 const STATIC_ASSETS = [
