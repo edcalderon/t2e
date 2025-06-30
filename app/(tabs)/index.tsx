@@ -11,10 +11,11 @@ import {
   RefreshControl,
   ActivityIndicator,
   Platform,
+  Alert,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
-import { Award, Plus, Sparkles, TrendingUp, Users, Trophy, Heart, MessageCircle, Repeat, ExternalLink, Hash, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { Award, Plus, Sparkles, TrendingUp, Users, Trophy, Heart, MessageCircle, Repeat, ExternalLink, Hash, RefreshCw, ChevronLeft, ChevronRight, Wifi, WifiOff } from "lucide-react-native";
 import { useRouter } from 'expo-router';
 import ChallengeCard from "../../src/components/ChallengeCard";
 import LeaderboardSection from "../../src/components/LeaderboardSection";
@@ -22,23 +23,17 @@ import AccountSetupModal from "../../src/components/AccountSetupModal";
 import ResponsiveLayout from "../../components/ResponsiveLayout";
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { 
+  fetchXQuestsTweets, 
+  loadMoreXQuestsTweets, 
+  refreshXQuestsTweets, 
+  isTwitterApiAvailable,
+  getTwitterApiStatus,
+  type CommunityTweet 
+} from '../../lib/twitterApi';
 
 const { width, height } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
-
-interface CommunityTweet {
-  id: string;
-  username: string;
-  displayName: string;
-  avatar: string;
-  content: string;
-  timestamp: string;
-  likes: number;
-  retweets: number;
-  replies: number;
-  verified: boolean;
-  challengeTag?: string;
-}
 
 // Skeleton Tweet Component
 const SkeletonTweet = ({ theme }: { theme: any }) => {
@@ -206,92 +201,16 @@ export default function ExploreScreen() {
     },
   ]);
 
-  const [communityTweets, setCommunityTweets] = useState<CommunityTweet[]>([
-    {
-      id: "1",
-      username: "cryptodev_alex",
-      displayName: "Alex Chen",
-      avatar: "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      content: "Just completed my first #xquests challenge! Explaining DeFi to my non-crypto friends was harder than I thought, but so rewarding 🚀 #crypto #education",
-      timestamp: "2m",
-      likes: 24,
-      retweets: 8,
-      replies: 3,
-      verified: false,
-      challengeTag: "DeFi Education"
-    },
-    {
-      id: "2",
-      username: "web3_sarah",
-      displayName: "Sarah Martinez",
-      avatar: "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      content: "The future of AI is here and it's incredible! Working on my #xquests submission about AI in healthcare. The potential to save lives is mind-blowing 🤖💊",
-      timestamp: "5m",
-      likes: 67,
-      retweets: 23,
-      replies: 12,
-      verified: true,
-      challengeTag: "AI Innovation"
-    },
-    {
-      id: "3",
-      username: "blockchain_bob",
-      displayName: "Bob Thompson",
-      avatar: "https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      content: "Building communities in web3 isn't just about tech - it's about people! My #xquests challenge focuses on human connection in digital spaces 🌐❤️",
-      timestamp: "8m",
-      likes: 45,
-      retweets: 15,
-      replies: 7,
-      verified: false,
-      challengeTag: "Community Building"
-    },
-    {
-      id: "4",
-      username: "algo_enthusiast",
-      displayName: "Maria Rodriguez",
-      avatar: "https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      content: "Algorand's carbon-negative blockchain is the future! 🌱 Just earned 35 ALGO from my #xquests sustainability challenge. Green crypto FTW! #algorand #sustainability",
-      timestamp: "12m",
-      likes: 89,
-      retweets: 34,
-      replies: 18,
-      verified: true,
-      challengeTag: "Sustainability"
-    },
-    {
-      id: "5",
-      username: "nft_creator_jane",
-      displayName: "Jane Wilson",
-      avatar: "https://images.pexels.com/photos/1040880/pexels-photo-1040880.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      content: "NFTs beyond art: digital identity, certificates, memberships... the possibilities are endless! My #xquests submission explores real-world utility 🎨➡️🌍",
-      timestamp: "15m",
-      likes: 52,
-      retweets: 19,
-      replies: 9,
-      verified: false,
-      challengeTag: "NFT Innovation"
-    },
-    {
-      id: "6",
-      username: "defi_wizard",
-      displayName: "David Kim",
-      avatar: "https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-      content: "Yield farming strategies that actually make sense! Breaking down complex DeFi concepts for my #xquests challenge. Education is key to adoption 📚💰",
-      timestamp: "18m",
-      likes: 73,
-      retweets: 28,
-      replies: 14,
-      verified: true,
-      challengeTag: "DeFi Education"
-    }
-  ]);
-
+  const [communityTweets, setCommunityTweets] = useState<CommunityTweet[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMoreTweets, setLoadingMoreTweets] = useState(false);
+  const [loadingInitialTweets, setLoadingInitialTweets] = useState(true);
   const [scrollViewRef, setScrollViewRef] = useState<ScrollView | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [nextToken, setNextToken] = useState<string | undefined>();
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [isUsingFallback, setIsUsingFallback] = useState(false);
 
   // Animation for theme toggle
   const [themeAnimation] = useState(new Animated.Value(isDark ? 1 : 0));
@@ -304,10 +223,14 @@ export default function ExploreScreen() {
     }).start();
   }, [isDark]);
 
-  // Simulate real-time updates
+  // Load initial tweets on component mount
+  useEffect(() => {
+    loadInitialTweets();
+  }, []);
+
+  // Simulate real-time updates for engagement metrics
   useEffect(() => {
     const interval = setInterval(() => {
-      // Randomly update engagement metrics
       setCommunityTweets(prevTweets => 
         prevTweets.map(tweet => ({
           ...tweet,
@@ -316,10 +239,46 @@ export default function ExploreScreen() {
           replies: tweet.replies + Math.floor(Math.random() * 2),
         }))
       );
-    }, 30000); // Update every 30 seconds
+    }, 45000); // Update every 45 seconds
 
     return () => clearInterval(interval);
   }, []);
+
+  const loadInitialTweets = async () => {
+    setLoadingInitialTweets(true);
+    setApiError(null);
+    
+    try {
+      console.log('🔄 Loading initial #xquests tweets...');
+      console.log('📊 Twitter API Status:', getTwitterApiStatus());
+      
+      const result = await fetchXQuestsTweets(10);
+      
+      if (result.success) {
+        setCommunityTweets(result.tweets);
+        setNextToken(result.nextToken);
+        setIsUsingFallback(!isTwitterApiAvailable());
+        
+        if (result.error) {
+          setApiError(result.error);
+        }
+        
+        console.log(`✅ Loaded ${result.tweets.length} tweets`);
+        if (!isTwitterApiAvailable()) {
+          console.log('ℹ️ Using fallback tweets (no Twitter API token)');
+        }
+      } else {
+        setApiError(result.error || 'Failed to load tweets');
+        setIsUsingFallback(true);
+      }
+    } catch (error: any) {
+      console.error('❌ Error loading initial tweets:', error);
+      setApiError(error.message);
+      setIsUsingFallback(true);
+    } finally {
+      setLoadingInitialTweets(false);
+    }
+  };
 
   const handleSetupComplete = () => {
     setShowSetupModal(false);
@@ -345,79 +304,63 @@ export default function ExploreScreen() {
     toggleTheme();
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate fetching new tweets
-    setTimeout(() => {
-      // Add a new tweet at the beginning
-      const newTweet: CommunityTweet = {
-        id: Date.now().toString(),
-        username: "new_user_" + Math.floor(Math.random() * 1000),
-        displayName: "New User",
-        avatar: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-        content: "Just joined #xquests and loving the community! Ready to start earning ALGO 🚀",
-        timestamp: "now",
-        likes: 1,
-        retweets: 0,
-        replies: 0,
-        verified: false,
-        challengeTag: "Welcome"
-      };
-      setCommunityTweets(prev => [newTweet, ...prev.slice(0, 5)]);
+    setApiError(null);
+    
+    try {
+      console.log('🔄 Refreshing #xquests tweets...');
+      const result = await refreshXQuestsTweets();
+      
+      if (result.success) {
+        setCommunityTweets(result.tweets);
+        setNextToken(result.nextToken);
+        setIsUsingFallback(!isTwitterApiAvailable());
+        
+        if (result.error) {
+          setApiError(result.error);
+        }
+        
+        console.log(`✅ Refreshed with ${result.tweets.length} tweets`);
+      } else {
+        setApiError(result.error || 'Failed to refresh tweets');
+      }
+    } catch (error: any) {
+      console.error('❌ Error refreshing tweets:', error);
+      setApiError(error.message);
+    } finally {
       setRefreshing(false);
-    }, 1500);
+    }
   };
 
-  const loadMoreTweets = () => {
-    setLoadingMoreTweets(true);
+  const loadMoreTweets = async () => {
+    if (loadingMoreTweets) return;
     
-    // Simulate loading more tweets
-    setTimeout(() => {
-      const newTweets: CommunityTweet[] = [
-        {
-          id: Date.now().toString() + "_1",
-          username: "crypto_newbie",
-          displayName: "Emma Johnson",
-          avatar: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-          content: "Learning about smart contracts through #xquests has been amazing! The community here is so supportive 💪 #blockchain #learning",
-          timestamp: "22m",
-          likes: 31,
-          retweets: 12,
-          replies: 5,
-          verified: false,
-          challengeTag: "Education"
-        },
-        {
-          id: Date.now().toString() + "_2",
-          username: "algo_trader",
-          displayName: "Michael Chen",
-          avatar: "https://images.pexels.com/photos/1212984/pexels-photo-1212984.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-          content: "Passive income through DeFi staking explained! My #xquests challenge breaks down the risks and rewards 📈 #defi #algorand",
-          timestamp: "25m",
-          likes: 94,
-          retweets: 41,
-          replies: 23,
-          verified: true,
-          challengeTag: "DeFi Education"
-        },
-        {
-          id: Date.now().toString() + "_3",
-          username: "web3_builder",
-          displayName: "Lisa Park",
-          avatar: "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-          content: "Building the future one dApp at a time! My #xquests submission showcases how blockchain can revolutionize supply chains 🔗",
-          timestamp: "28m",
-          likes: 67,
-          retweets: 25,
-          replies: 11,
-          verified: false,
-          challengeTag: "Innovation"
-        }
-      ];
+    setLoadingMoreTweets(true);
+    setApiError(null);
+    
+    try {
+      console.log('🔄 Loading more #xquests tweets...');
+      const result = await loadMoreXQuestsTweets(nextToken);
       
-      setCommunityTweets(prev => [...prev, ...newTweets]);
+      if (result.success) {
+        setCommunityTweets(prev => [...prev, ...result.tweets]);
+        setNextToken(result.nextToken);
+        
+        if (result.error) {
+          setApiError(result.error);
+        }
+        
+        console.log(`✅ Loaded ${result.tweets.length} more tweets`);
+      } else {
+        setApiError(result.error || 'Failed to load more tweets');
+      }
+    } catch (error: any) {
+      console.error('❌ Error loading more tweets:', error);
+      setApiError(error.message);
+    } finally {
       setLoadingMoreTweets(false);
-    }, 2000);
+    }
   };
 
   const scrollLeft = () => {
@@ -445,6 +388,19 @@ export default function ExploreScreen() {
       return (num / 1000).toFixed(1) + 'k';
     }
     return num.toString();
+  };
+
+  const showApiStatus = () => {
+    const status = getTwitterApiStatus();
+    Alert.alert(
+      'Twitter API Status',
+      `Has Token: ${status.hasToken ? 'Yes' : 'No'}\n` +
+      `Token Preview: ${status.tokenPreview}\n` +
+      `Platform: ${status.platform}\n` +
+      `Using Fallback: ${isUsingFallback ? 'Yes' : 'No'}\n` +
+      `Error: ${apiError || 'None'}`,
+      [{ text: 'OK' }]
+    );
   };
 
   // Get user stats or show zeros
@@ -604,6 +560,14 @@ export default function ExploreScreen() {
                   <View style={styles.liveIndicator} />
                   <Text style={styles.liveText}>LIVE</Text>
                 </View>
+                {/* API Status Indicator */}
+                <TouchableOpacity onPress={showApiStatus} style={styles.apiStatusBadge}>
+                  {isUsingFallback ? (
+                    <WifiOff size={12} color={theme.colors.warning} />
+                  ) : (
+                    <Wifi size={12} color={theme.colors.success} />
+                  )}
+                </TouchableOpacity>
               </View>
               <TouchableOpacity 
                 style={[styles.reloadButton, loadingMoreTweets && styles.reloadButtonDisabled]}
@@ -625,13 +589,26 @@ export default function ExploreScreen() {
             </View>
 
             <Text style={styles.sectionSubtitle}>
-              Real-time #xquests tweets from our community
+              {isUsingFallback ? 
+                'Demo tweets with #xquests hashtag (Twitter API not configured)' :
+                'Real-time #xquests tweets from our community'
+              }
             </Text>
+
+            {/* API Error Banner */}
+            {apiError && (
+              <View style={styles.errorBanner}>
+                <WifiOff size={16} color={theme.colors.error} />
+                <Text style={styles.errorText}>
+                  API Error: {apiError}. Showing demo content.
+                </Text>
+              </View>
+            )}
 
             {/* Community Feed Container with Navigation */}
             <View style={styles.communityFeedContainer}>
               {/* Web Navigation Arrows */}
-              {isWeb && (
+              {isWeb && !loadingInitialTweets && communityTweets.length > 0 && (
                 <>
                   <TouchableOpacity
                     style={[styles.scrollArrow, styles.scrollArrowLeft, !canScrollLeft && styles.scrollArrowDisabled]}
@@ -651,94 +628,126 @@ export default function ExploreScreen() {
                 </>
               )}
 
-              <ScrollView 
-                ref={setScrollViewRef}
-                horizontal 
-                showsHorizontalScrollIndicator={isWeb}
-                style={styles.communityFeed}
-                contentContainerStyle={styles.communityFeedContent}
-                nestedScrollEnabled={true}
-                scrollEventThrottle={16}
-                onScroll={handleScroll}
-                {...(isWeb && {
-                  overScrollMode: 'never',
-                  bounces: false,
-                })}
-              >
-                {/* Show skeleton loading when loading more tweets */}
-                {loadingMoreTweets && (
-                  <>
-                    <SkeletonTweet theme={theme} />
-                    <SkeletonTweet theme={theme} />
-                    <SkeletonTweet theme={theme} />
-                  </>
-                )}
+              {/* Loading Initial Tweets */}
+              {loadingInitialTweets ? (
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.communityFeed}
+                  contentContainerStyle={styles.communityFeedContent}
+                >
+                  <SkeletonTweet theme={theme} />
+                  <SkeletonTweet theme={theme} />
+                  <SkeletonTweet theme={theme} />
+                </ScrollView>
+              ) : (
+                <ScrollView 
+                  ref={setScrollViewRef}
+                  horizontal 
+                  showsHorizontalScrollIndicator={isWeb}
+                  style={styles.communityFeed}
+                  contentContainerStyle={styles.communityFeedContent}
+                  nestedScrollEnabled={true}
+                  scrollEventThrottle={16}
+                  onScroll={handleScroll}
+                  {...(isWeb && {
+                    overScrollMode: 'never',
+                    bounces: false,
+                  })}
+                >
+                  {/* Show skeleton loading when loading more tweets */}
+                  {loadingMoreTweets && (
+                    <>
+                      <SkeletonTweet theme={theme} />
+                      <SkeletonTweet theme={theme} />
+                      <SkeletonTweet theme={theme} />
+                    </>
+                  )}
 
-                {/* Actual tweets - hide when loading */}
-                {!loadingMoreTweets && communityTweets.map((tweet) => (
-                  <View key={tweet.id} style={styles.tweetCard}>
-                    {/* Tweet Header */}
-                    <View style={styles.tweetHeader}>
-                      <Image
-                        source={{ uri: tweet.avatar }}
-                        style={styles.tweetAvatar}
-                      />
-                      <View style={styles.tweetUserInfo}>
-                        <View style={styles.tweetUserNameRow}>
-                          <Text style={styles.tweetDisplayName}>{tweet.displayName}</Text>
-                          {tweet.verified && (
-                            <View style={styles.verifiedBadge}>
-                              <Text style={styles.verifiedIcon}>✓</Text>
-                            </View>
-                          )}
+                  {/* Actual tweets - hide when loading more */}
+                  {!loadingMoreTweets && communityTweets.map((tweet) => (
+                    <View key={tweet.id} style={styles.tweetCard}>
+                      {/* Tweet Header */}
+                      <View style={styles.tweetHeader}>
+                        <Image
+                          source={{ uri: tweet.avatar }}
+                          style={styles.tweetAvatar}
+                        />
+                        <View style={styles.tweetUserInfo}>
+                          <View style={styles.tweetUserNameRow}>
+                            <Text style={styles.tweetDisplayName}>{tweet.displayName}</Text>
+                            {tweet.verified && (
+                              <View style={styles.verifiedBadge}>
+                                <Text style={styles.verifiedIcon}>✓</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={styles.tweetUsername}>@{tweet.username}</Text>
                         </View>
-                        <Text style={styles.tweetUsername}>@{tweet.username}</Text>
+                        <Text style={styles.tweetTimestamp}>{tweet.timestamp}</Text>
                       </View>
-                      <Text style={styles.tweetTimestamp}>{tweet.timestamp}</Text>
+
+                      {/* Tweet Content */}
+                      <Text style={styles.tweetContent}>{tweet.content}</Text>
+
+                      {/* Challenge Tag */}
+                      {tweet.challengeTag && (
+                        <View style={styles.challengeTagContainer}>
+                          <Award size={12} color={theme.colors.primary} />
+                          <Text style={styles.challengeTag}>{tweet.challengeTag}</Text>
+                        </View>
+                      )}
+
+                      {/* Tweet Engagement */}
+                      <View style={styles.tweetEngagement}>
+                        <View style={styles.engagementItem}>
+                          <Heart size={14} color={theme.colors.textSecondary} />
+                          <Text style={styles.engagementText}>
+                            {formatEngagementNumber(tweet.likes)}
+                          </Text>
+                        </View>
+                        <View style={styles.engagementItem}>
+                          <Repeat size={14} color={theme.colors.textSecondary} />
+                          <Text style={styles.engagementText}>
+                            {formatEngagementNumber(tweet.retweets)}
+                          </Text>
+                        </View>
+                        <View style={styles.engagementItem}>
+                          <MessageCircle size={14} color={theme.colors.textSecondary} />
+                          <Text style={styles.engagementText}>
+                            {formatEngagementNumber(tweet.replies)}
+                          </Text>
+                        </View>
+                        <TouchableOpacity style={styles.engagementItem}>
+                          <ExternalLink size={14} color={theme.colors.primary} />
+                        </TouchableOpacity>
+                      </View>
                     </View>
+                  ))}
 
-                    {/* Tweet Content */}
-                    <Text style={styles.tweetContent}>{tweet.content}</Text>
-
-                    {/* Challenge Tag */}
-                    {tweet.challengeTag && (
-                      <View style={styles.challengeTagContainer}>
-                        <Award size={12} color={theme.colors.primary} />
-                        <Text style={styles.challengeTag}>{tweet.challengeTag}</Text>
-                      </View>
-                    )}
-
-                    {/* Tweet Engagement */}
-                    <View style={styles.tweetEngagement}>
-                      <View style={styles.engagementItem}>
-                        <Heart size={14} color={theme.colors.textSecondary} />
-                        <Text style={styles.engagementText}>
-                          {formatEngagementNumber(tweet.likes)}
-                        </Text>
-                      </View>
-                      <View style={styles.engagementItem}>
-                        <Repeat size={14} color={theme.colors.textSecondary} />
-                        <Text style={styles.engagementText}>
-                          {formatEngagementNumber(tweet.retweets)}
-                        </Text>
-                      </View>
-                      <View style={styles.engagementItem}>
-                        <MessageCircle size={14} color={theme.colors.textSecondary} />
-                        <Text style={styles.engagementText}>
-                          {formatEngagementNumber(tweet.replies)}
-                        </Text>
-                      </View>
-                      <TouchableOpacity style={styles.engagementItem}>
-                        <ExternalLink size={14} color={theme.colors.primary} />
+                  {/* Empty State */}
+                  {!loadingMoreTweets && communityTweets.length === 0 && (
+                    <View style={styles.emptyTweetsState}>
+                      <Hash size={48} color={theme.colors.textTertiary} />
+                      <Text style={styles.emptyTweetsTitle}>No tweets found</Text>
+                      <Text style={styles.emptyTweetsText}>
+                        {isUsingFallback ? 
+                          'Configure Twitter API to see real tweets' :
+                          'No #xquests tweets available right now'
+                        }
+                      </Text>
+                      <TouchableOpacity style={styles.retryButton} onPress={loadInitialTweets}>
+                        <RefreshCw size={16} color={theme.colors.primary} />
+                        <Text style={styles.retryButtonText}>Retry</Text>
                       </TouchableOpacity>
                     </View>
-                  </View>
-                ))}
-              </ScrollView>
+                  )}
+                </ScrollView>
+              )}
             </View>
 
             {/* Web Scroll Indicator */}
-            {isWeb && (
+            {isWeb && !loadingInitialTweets && communityTweets.length > 0 && (
               <View style={styles.scrollIndicator}>
                 <Text style={styles.scrollIndicatorText}>
                   Scroll horizontally to see more tweets
@@ -1090,6 +1099,11 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.error,
   },
+  apiStatusBadge: {
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: theme.colors.surface,
+  },
   reloadButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1116,6 +1130,21 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     color: theme.colors.primary,
     fontWeight: '500',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.error + '10',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  errorText: {
+    fontSize: 12,
+    color: theme.colors.error,
+    flex: 1,
   },
   communityFeedContainer: {
     position: 'relative',
@@ -1275,6 +1304,41 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textSecondary,
     fontWeight: '500',
+  },
+  emptyTweetsState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+    width: 280,
+  },
+  emptyTweetsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyTweetsText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   activityItem: {
     flexDirection: 'row',
