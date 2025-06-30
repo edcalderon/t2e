@@ -1,1 +1,21 @@
+# Netlify redirects file for SPA routing
+# This tells Netlify to serve index.html for any route that doesn't match a file
+
+# Handle all routes by serving index.html with 200 status
 /*    /index.html   200
+
+# Optional: Handle specific API routes if you have them
+/api/*  /api/:splat  200
+
+# Optional: Handle assets with proper caching
+/assets/*  /assets/:splat  200
+/static/*  /static/:splat  200
+
+# Handle common file extensions directly
+/*.js    /:splat  200
+/*.css   /:splat  200
+/*.png   /:splat  200
+/*.jpg   /:splat  200
+/*.svg   /:splat  200
+/*.ico   /:splat  200
+/*.json  /:splat  200

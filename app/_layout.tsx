@@ -22,22 +22,46 @@ export default function RootLayout() {
     if (Platform.OS === 'web') {
       registerSW();
       
-      // Handle client-side routing for direct URL access
+      // Enhanced client-side routing for direct URL access
       if (typeof window !== 'undefined') {
-        // Ensure the app handles direct navigation properly
-        const handlePopState = () => {
-          // Force a re-render when user navigates with browser buttons
-          window.location.reload();
+        // Handle browser navigation properly
+        const handlePopState = (event: PopStateEvent) => {
+          // Let Expo Router handle the navigation
+          console.log('Browser navigation detected:', window.location.pathname);
         };
         
-        // Only add listener if we're not on the home page
-        if (window.location.pathname !== '/') {
-          window.addEventListener('popstate', handlePopState);
+        // Handle initial page load for direct URLs
+        const handleInitialLoad = () => {
+          const currentPath = window.location.pathname;
+          console.log('Initial page load:', currentPath);
           
-          return () => {
-            window.removeEventListener('popstate', handlePopState);
-          };
+          // If we're not on the home page and this is a direct load,
+          // ensure the router is ready to handle it
+          if (currentPath !== '/' && currentPath !== '/index') {
+            // Add a small delay to ensure router is initialized
+            setTimeout(() => {
+              // Check if the current route is valid by seeing if we're on a 404
+              if (document.title.includes('404') || document.title.includes('Not Found')) {
+                console.log('Detected 404, may need redirect handling');
+              }
+            }, 100);
+          }
+        };
+        
+        // Add event listeners
+        window.addEventListener('popstate', handlePopState);
+        
+        // Handle initial load
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', handleInitialLoad);
+        } else {
+          handleInitialLoad();
         }
+        
+        return () => {
+          window.removeEventListener('popstate', handlePopState);
+          document.removeEventListener('DOMContentLoaded', handleInitialLoad);
+        };
       }
     }
   }, []);
