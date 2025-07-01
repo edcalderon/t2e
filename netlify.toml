@@ -43,9 +43,3 @@
   for = "/offline.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
-
-[build.environment]
-  NODE_ENV = "production"
-  
-[build.environment.production]
-  NODE_ENV = "production"
