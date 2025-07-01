@@ -1,40 +1,49 @@
 import { Tabs } from 'expo-router';
 import { Home, Compass, Bell, Award, Settings } from 'lucide-react-native';
+import { useColorScheme } from 'react-native';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function TabLayout() {
+  const colorScheme = useColorScheme();
+  const { theme } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: colorScheme === 'dark' ? '#999' : '#666',
         tabBarStyle: {
-          display: 'none',
+          backgroundColor: colorScheme === 'dark' ? '#121212' : '#fff',
+          borderTopWidth: 1,
+          borderTopColor: colorScheme === 'dark' ? '#333' : '#eee',
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          marginTop: 4,
         },
         lazy: true,
       }}
-      initialRouteName="explorer"
+      initialRouteName="index"
+      backBehavior="history"
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ size, color }) => (
-            <Home size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="explorer"
-        options={{
-          title: 'Explorer',
+          title: 'Explore',
           tabBarIcon: ({ size, color }) => (
             <Compass size={size} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="notifications"
         options={{
-          title: 'Notifications',
+          title: 'Activity',
           tabBarIcon: ({ size, color }) => (
             <Bell size={size} color={color} />
           ),
@@ -52,7 +61,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: 'Profile',
           tabBarIcon: ({ size, color }) => (
             <Settings size={size} color={color} />
           ),

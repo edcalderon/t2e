@@ -3,16 +3,16 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "npx expo start",
-    "dev": "npx expo start --web",
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
     "build": "npx expo export -p web",
+    "dev": "npx expo start --web",
     "build:web": "expo export -p web && workbox generateSW workbox-config.js",
-    "android": "npx expo start --android",
-    "ios": "npx expo start --ios",
-    "web": "npx expo start --web",
     "test": "jest --watchAll",
-    "lint": "npx expo lint",
-    "deploy": "npm run build:web && netlify deploy --prod --dir=dist"
+    "lint": "expo lint",
+    "deploy": "expo export -p web && netlify deploy --prod --dir=dist"
   },
   "jest": {
     "preset": "jest-expo"
@@ -62,7 +62,6 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@expo/webpack-config": "^19.0.1",
     "@types/jest": "^29.5.12",
     "@types/react": "~18.2.79",
     "@types/react-test-renderer": "^18.3.0",

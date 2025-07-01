@@ -2,20 +2,118 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
   <title>XQuests</title>
   <link rel="manifest" href="/manifest.json">
-  <script>
-    // This script ensures the user is redirected to the correct path
-    // if they land on the root path
-    if (window.location.pathname === '/') {
-      window.location.href = '/index.html';
+  <style>
+    html, body, #root, #loading {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
     }
-  </script>
+    #loading {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #000;
+      color: #fff;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+    }
+    #loading.hidden {
+      display: none;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      margin: 20px auto;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
   <div id="root"></div>
-  <script src="/index.js"></script>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Loading XQuests...</div>
+  </div>
+
+  <!-- Expo web entry point -->
+  <script>
+    // Show loading state immediately
+    document.addEventListener('DOMContentLoaded', function() {
+      const loading = document.getElementById('loading');
+      
+      // Set a timeout to show error if app doesn't load
+      const loadTimeout = setTimeout(() => {
+        if (loading && !window.__EXPO_LOADED__) {
+          loading.innerHTML = `
+            <div style="text-align: center; padding: 20px;">
+              <h2>Loading is taking longer than expected</h2>
+              <p>Please check your internet connection and refresh the page.</p>
+              <button onclick="window.location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #6200ee; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Refresh Page
+              </button>
+            </div>
+          `;
+        }
+      }, 10000); // 10 seconds timeout
+
+      // This will be called by Expo when the app is loaded
+      window.__EXPO_LOADED__ = false;
+      window.addEventListener('expo-loaded', () => {
+        window.__EXPO_LOADED__ = true;
+        if (loading) {
+          loading.classList.add('hidden');
+          clearTimeout(loadTimeout);
+        }
+      });
+
+      // Error handling for script loading
+      window.addEventListener('error', function(error) {
+        console.error('Script loading error:', error);
+        if (loading) {
+          loading.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #ff6b6b;">
+              <h2>Error Loading Application</h2>
+              <p>${error.message || 'An error occurred while loading the application.'}</p>
+              <button onclick="window.location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #6200ee; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Try Again
+              </button>
+            </div>
+          `;
+        }
+      }, true);
+
+      // Service worker registration
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('ServiceWorker registration successful');
+            })
+            .catch(err => {
+              console.warn('ServiceWorker registration failed: ', err);
+            });
+        });
+      }
+    });
+  </script>
+  
+  <!-- The Expo web entry point will be injected here -->
+  <script src="/_expo/static/js/web/entry-7f8c9a3f9b6f3a7f1f0d.js" defer></script>
 </body>
 </html>

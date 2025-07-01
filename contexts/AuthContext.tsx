@@ -24,6 +24,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  initialized: boolean;
   login: (userData: User) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
@@ -53,6 +54,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showSetupModal, setShowSetupModal] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   // Integrate Supabase authentication
   const { 
@@ -96,6 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Error loading user data:', error);
     } finally {
       setIsLoading(false);
+      setInitialized(true);
     }
   };
 
@@ -269,19 +272,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const finalIsLoading = isLoading || isSupabaseLoading;
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      isAuthenticated,
-      isLoading: finalIsLoading,
-      login,
-      logout,
-      updateUser,
-      showSetupModal,
-      setShowSetupModal,
-      twitterUser,
-      isSupabaseAuthenticated,
-      signOutFromTwitter,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        initialized,
+        login,
+        logout,
+        updateUser,
+        showSetupModal,
+        setShowSetupModal,
+        // Supabase auth integration
+        twitterUser,
+        isSupabaseAuthenticated,
+        signOutFromTwitter,
+      }}>
       {children}
     </AuthContext.Provider>
   );
