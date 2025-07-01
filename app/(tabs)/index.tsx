@@ -9,6 +9,7 @@ import {
   Dimensions,
   Animated,
   RefreshControl,
+  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
@@ -32,6 +33,8 @@ export default function ExploreScreen() {
   const { user, isAuthenticated, showSetupModal, setShowSetupModal } = useAuth();
   const router = useRouter();
   
+  // Component state
+  const [isLoading, setIsLoading] = useState(true);
   const [challenges, setChallenges] = useState([
     {
       id: "1",
@@ -66,6 +69,19 @@ export default function ExploreScreen() {
 
   // Animation for theme toggle
   const [themeAnimation] = useState(new Animated.Value(isDark ? 1 : 0));
+
+  // Initialize component
+  useEffect(() => {
+    console.log('🎯 ExploreScreen mounted');
+    
+    // Simulate initial loading
+    const loadTimer = setTimeout(() => {
+      setIsLoading(false);
+      console.log('✅ ExploreScreen loaded');
+    }, 500);
+
+    return () => clearTimeout(loadTimer);
+  }, []);
 
   useEffect(() => {
     Animated.timing(themeAnimation, {
@@ -137,6 +153,29 @@ export default function ExploreScreen() {
       ? require("../../assets/images/small_logo_white.svg")
       : require("../../assets/images/small_logo_black.svg");
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar 
+          style={isDark ? "light" : "dark"} 
+          backgroundColor={theme.colors.background} 
+        />
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingContent}>
+            <Image
+              source={getLogoSource()}
+              style={styles.loadingLogo}
+              contentFit="contain"
+            />
+            <Text style={styles.loadingTitle}>XQuests</Text>
+            <Text style={styles.loadingSubtitle}>Loading your experience...</Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -328,6 +367,29 @@ const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+  },
+  loadingContent: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingLogo: {
+    width: 64,
+    height: 64,
+  },
+  loadingTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  loadingSubtitle: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
   },
   header: {
     backgroundColor: theme.colors.background,

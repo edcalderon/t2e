@@ -320,7 +320,7 @@
                 document.getElementById('errorContainer').style.display = 'block';
                 console.error('App loading timeout - check network connection');
             }
-        }, 15000); // 15 second timeout
+        }, 10000); // 10 second timeout
         
         // Function to hide loading screen when app is ready
         window.hideLoadingScreen = function() {
@@ -363,14 +363,14 @@
                 }
             }, 100);
             
-            // Fallback timeout - reduced to 3 seconds for faster loading
+            // Fallback timeout - reduced to 2 seconds for faster loading
             setTimeout(() => {
                 clearInterval(checkInterval);
                 if (!appLoaded) {
                     console.log('Fallback: hiding loading screen after timeout');
                     window.hideLoadingScreen();
                 }
-            }, 3000);
+            }, 2000);
         });
         
         // Service Worker Registration for PWA (with error handling)
@@ -413,7 +413,7 @@
             console.log('🚀 Framework ready signal received');
             setTimeout(() => {
                 window.hideLoadingScreen();
-            }, 100);
+            }, 50);
         };
         
         // Error handling for uncaught errors
