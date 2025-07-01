@@ -9,8 +9,8 @@
     "web": "expo start --web",
     "build": "expo export -p web",
     "dev": "expo start --web",
-    "build:web": "npm run prebuild && expo export -p web --output-dir dist",
-    "prebuild": "rm -rf dist",
+    "build:web": "npm run prebuild && expo start --web",
+    "prebuild": "rm -rf dist && expo export -p web --output-dir dist",
     "test": "jest --watchAll",
     "lint": "expo lint",
     "deploy": "npm run build:web && netlify deploy --prod --dir=dist"

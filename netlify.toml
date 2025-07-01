@@ -6,7 +6,7 @@
   from = "/*"
   to = "/index.html"
   status = 200
-  force = true
+  force = false
 
 [[headers]]
   for = "/*"
@@ -17,6 +17,12 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Cache-Control = "public, max-age=0, must-revalidate"
     Content-Security-Policy = "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https:;"
+    
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+    Cache-Control = "public, max-age=31536000, immutable"
     
 [[headers]]
   for = "/static/*"

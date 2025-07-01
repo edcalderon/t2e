@@ -16,7 +16,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "server",
       "favicon": "./assets/images/favicon.ico",
       "themeColor": "#1D9BF0",
       "backgroundColor": "#000000",
