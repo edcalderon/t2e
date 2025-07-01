@@ -13,13 +13,15 @@ import {
   RefreshControl,
   ImageStyle,
   Alert,
+  TextInput,
 } from 'react-native';
-import { Hash, RefreshCw, ChevronLeft, ChevronRight, Wifi, WifiOff, CheckCircle } from 'lucide-react-native';
+import { Hash, RefreshCw, ChevronLeft, ChevronRight, Wifi, WifiOff, CheckCircle, Search, X } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { 
   fetchXQuestsTweets, 
   loadMoreXQuestsTweets, 
   refreshXQuestsTweets, 
+  searchTweets,
   getTwitterApiStatus,
   type CommunityTweet,
   type TweetLoadResult
@@ -172,6 +174,10 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
   const [hasMoreTweets, setHasMoreTweets] = useState(true);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [currentQuery, setCurrentQuery] = useState('#xquests');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -196,27 +202,28 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
     return () => clearInterval(interval);
   }, []);
 
-  const loadInitialTweets = async () => {
+  const loadInitialTweets = async (query: string = '#xquests') => {
     setLoadingInitialTweets(true);
     setApiError(null);
     
     try {
-      console.log('🔄 Loading initial #xquests tweets...');
+      console.log('🔄 Loading initial tweets for query:', query);
       console.log('📊 Twitter API Status:', getTwitterApiStatus());
       
-      const result: TweetLoadResult = await fetchXQuestsTweets(10);
+      const result: TweetLoadResult = await fetchXQuestsTweets(10, undefined, query);
       
       if (result.success) {
         setCommunityTweets(result.tweets);
         setNextToken(result.nextToken);
         setHasMoreTweets(result.hasMore);
         setIsUsingFallback(result.isUsingFallback);
+        setCurrentQuery(result.query || query);
         
         if (result.error) {
           setApiError(result.error);
         }
         
-        console.log(`✅ Loaded ${result.tweets.length} tweets`);
+        console.log(`✅ Loaded ${result.tweets.length} tweets for query: ${result.query}`);
         if (result.isUsingFallback) {
           console.log('ℹ️ Using fallback tweets (no Twitter API token)');
         }
@@ -242,8 +249,8 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
     setApiError(null);
     
     try {
-      console.log('🔄 Loading more #xquests tweets...');
-      const result: TweetLoadResult = await loadMoreXQuestsTweets(nextToken);
+      console.log('🔄 Loading more tweets for query:', currentQuery);
+      const result: TweetLoadResult = await loadMoreXQuestsTweets(nextToken, currentQuery);
       
       if (result.success) {
         if (result.tweets.length > 0) {
@@ -276,8 +283,8 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
     setApiError(null);
     
     try {
-      console.log('🔄 Refreshing #xquests tweets...');
-      const result: TweetLoadResult = await refreshXQuestsTweets();
+      console.log('🔄 Refreshing tweets for query:', currentQuery);
+      const result: TweetLoadResult = await refreshXQuestsTweets(currentQuery);
       
       if (result.success) {
         setCommunityTweets(result.tweets);
@@ -298,6 +305,47 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
       console.error('❌ Error refreshing tweets:', error);
       setApiError(error.message);
     }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsSearching(true);
+    setApiError(null);
+    
+    try {
+      console.log('🔍 Searching tweets with query:', searchQuery);
+      const result: TweetLoadResult = await searchTweets(searchQuery, 10);
+      
+      if (result.success) {
+        setCommunityTweets(result.tweets);
+        setNextToken(result.nextToken);
+        setHasMoreTweets(result.hasMore);
+        setIsUsingFallback(result.isUsingFallback);
+        setCurrentQuery(result.query || searchQuery);
+        
+        if (result.error) {
+          setApiError(result.error);
+        }
+        
+        console.log(`✅ Search completed with ${result.tweets.length} tweets`);
+        setShowSearch(false);
+      } else {
+        setApiError(result.error || 'Search failed');
+        setHasMoreTweets(result.hasMore);
+      }
+    } catch (error: any) {
+      console.error('❌ Error searching tweets:', error);
+      setApiError(error.message);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const resetToDefault = async () => {
+    setSearchQuery('');
+    setShowSearch(false);
+    await loadInitialTweets('#xquests');
   };
 
   // Fixed scroll functions with proper scroll view reference
@@ -329,15 +377,6 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
       
       setCanScrollLeft(scrollX > 10);
       setCanScrollRight(scrollX < contentSize.width - layoutMeasurement.width - 10);
-      
-      // Debug logging
-      console.log('📊 Scroll metrics:', {
-        scrollX: Math.round(scrollX),
-        contentWidth: Math.round(contentSize.width),
-        viewWidth: Math.round(layoutMeasurement.width),
-        canScrollLeft: scrollX > 10,
-        canScrollRight: scrollX < contentSize.width - layoutMeasurement.width - 10
-      });
     }
   };
 
@@ -355,6 +394,7 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
       `Has Token: ${status.hasToken}\n` +
       `Token Preview: ${status.tokenPreview}\n` +
       `Platform: ${status.platform}\n` +
+      `Current Query: ${currentQuery}\n` +
       `Using Fallback: ${isUsingFallback ? 'Yes' : 'No'}\n` +
       `Has More Tweets: ${hasMoreTweets ? 'Yes' : 'No'}\n` +
       `Error: ${apiError || 'None'}`,
@@ -383,34 +423,81 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
             )}
           </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={[
-            styles.reloadButton, 
-            (loadingMoreTweets || !hasMoreTweets) && styles.reloadButtonDisabled
-          ]}
-          onPress={loadMoreTweets}
-          disabled={loadingMoreTweets || !hasMoreTweets}
-        >
-          {loadingMoreTweets ? (
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-          ) : !hasMoreTweets ? (
-            <CheckCircle size={16} color={theme.colors.success} />
-          ) : (
-            <RefreshCw size={16} color={theme.colors.primary} />
-          )}
-          <Text style={[
-            styles.reloadButtonText,
-            (loadingMoreTweets || !hasMoreTweets) && styles.reloadButtonTextDisabled
-          ]}>
-            {loadingMoreTweets ? 'Loading...' : !hasMoreTweets ? 'All Loaded' : 'Load More'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.searchButton}
+            onPress={() => setShowSearch(!showSearch)}
+          >
+            <Search size={16} color={theme.colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.reloadButton, 
+              (loadingMoreTweets || !hasMoreTweets) && styles.reloadButtonDisabled
+            ]}
+            onPress={loadMoreTweets}
+            disabled={loadingMoreTweets || !hasMoreTweets}
+          >
+            {loadingMoreTweets ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : !hasMoreTweets ? (
+              <CheckCircle size={16} color={theme.colors.success} />
+            ) : (
+              <RefreshCw size={16} color={theme.colors.primary} />
+            )}
+            <Text style={[
+              styles.reloadButtonText,
+              (loadingMoreTweets || !hasMoreTweets) && styles.reloadButtonTextDisabled
+            ]}>
+              {loadingMoreTweets ? 'Loading...' : !hasMoreTweets ? 'All Loaded' : 'Load More'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Search Bar */}
+      {showSearch && (
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
+            <Search size={16} color={theme.colors.textSecondary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search tweets... (e.g., #crypto, #ai, blockchain)"
+              placeholderTextColor={theme.colors.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={handleSearch}
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <X size={16} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity 
+            style={[styles.searchActionButton, isSearching && styles.searchActionButtonDisabled]}
+            onPress={handleSearch}
+            disabled={isSearching || !searchQuery.trim()}
+          >
+            {isSearching ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.searchActionButtonText}>Search</Text>
+            )}
+          </TouchableOpacity>
+          {currentQuery !== '#xquests' && (
+            <TouchableOpacity style={styles.resetButton} onPress={resetToDefault}>
+              <Text style={styles.resetButtonText}>Reset</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       <Text style={styles.sectionSubtitle}>
         {isUsingFallback ? 
-          'Demo tweets with #xquests hashtag (Twitter API not configured)' :
-          'Real-time #xquests tweets from our community'
+          `Demo tweets for "${currentQuery}" (Twitter API not configured)` :
+          `Real-time "${currentQuery}" tweets from our community`
         }
       </Text>
 
@@ -426,7 +513,7 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
 
       {/* Community Feed Container with Navigation */}
       <View style={styles.communityFeedContainer}>
-        {/* Web Navigation Arrows - Enhanced with better positioning */}
+        {/* Web Navigation Arrows */}
         {isWeb && !loadingInitialTweets && communityTweets.length > 0 && (
           <>
             <TouchableOpacity
@@ -514,6 +601,11 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
                       )}
                     </View>
                     <Text style={styles.tweetUsername}>@{tweet.username}</Text>
+                    {tweet.followerCount && tweet.followerCount > 0 && (
+                      <Text style={styles.followerCount}>
+                        {tweet.followerCount.toLocaleString()} followers
+                      </Text>
+                    )}
                   </View>
                   <Text style={styles.tweetTimestamp}>{tweet.timestamp}</Text>
                 </View>
@@ -569,11 +661,11 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
                 <Text style={styles.emptyTweetsTitle}>No tweets found</Text>
                 <Text style={styles.emptyTweetsText}>
                   {isUsingFallback ? 
-                    'Configure Twitter API to see real tweets' :
-                    'No #xquests tweets available right now'
+                    `Configure Twitter API to see real tweets for "${currentQuery}"` :
+                    `No tweets available for "${currentQuery}" right now`
                   }
                 </Text>
-                <TouchableOpacity style={styles.retryButton} onPress={loadInitialTweets}>
+                <TouchableOpacity style={styles.retryButton} onPress={() => loadInitialTweets(currentQuery)}>
                   <RefreshCw size={16} color={theme.colors.primary} />
                   <Text style={styles.retryButtonText}>Retry</Text>
                 </TouchableOpacity>
@@ -587,8 +679,8 @@ export default function CommunityFeedSection({ theme, refreshing, onRefresh }: C
                 <Text style={styles.endOfFeedTitle}>You're all caught up!</Text>
                 <Text style={styles.endOfFeedText}>
                   {isUsingFallback ? 
-                    'No more demo tweets available' :
-                    'No more #xquests tweets to load'
+                    `No more demo tweets available for "${currentQuery}"` :
+                    `No more "${currentQuery}" tweets to load`
                   }
                 </Text>
                 <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
@@ -628,6 +720,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   sectionTitle: {
     fontSize: 20,
@@ -665,6 +758,18 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: 8,
     backgroundColor: theme.colors.surface,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
   reloadButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -686,6 +791,58 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   reloadButtonTextDisabled: {
     color: theme.colors.textTertiary,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  searchInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.text,
+    paddingVertical: 4,
+  },
+  searchActionButton: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  searchActionButtonDisabled: {
+    opacity: 0.6,
+  },
+  searchActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  resetButton: {
+    backgroundColor: theme.colors.textSecondary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  resetButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   errorBanner: {
     flexDirection: 'row',
@@ -746,12 +903,9 @@ const createStyles = (theme: any) => StyleSheet.create({
   communityFeed: {
     flex: 1,
     ...(Platform.OS === 'web' ? {
-      // Using type assertion for web-specific styles
       overflow: 'auto' as any,
       WebkitOverflowScrolling: 'touch' as any,
-    } : {
-      // On native, we'll rely on ScrollView for scrolling
-    }),
+    } : {}),
   } as const,
   communityFeedContent: {
     paddingHorizontal: 16,
@@ -830,6 +984,11 @@ const createStyles = (theme: any) => StyleSheet.create({
   tweetUsername: {
     fontSize: 12,
     color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  followerCount: {
+    fontSize: 10,
+    color: theme.colors.textTertiary,
     marginTop: 2,
   },
   tweetTimestamp: {

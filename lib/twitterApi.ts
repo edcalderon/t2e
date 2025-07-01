@@ -1,4 +1,4 @@
-// Updated Twitter API client with enhanced load more functionality and feedback
+// Enhanced Twitter API client with proper #xquests query implementation
 import { Platform } from 'react-native';
 
 export interface TwitterTweet {
@@ -12,12 +12,17 @@ export interface TwitterTweet {
     reply_count: number;
     quote_count: number;
   };
-  author?: {
+  user?: {
     id: string;
     name: string;
     username: string;
     profile_image_url: string;
     verified: boolean;
+    public_metrics?: {
+      followers_count: number;
+      following_count: number;
+      tweet_count: number;
+    };
   };
 }
 
@@ -30,6 +35,11 @@ export interface TwitterApiResponse {
       username: string;
       profile_image_url: string;
       verified: boolean;
+      public_metrics?: {
+        followers_count: number;
+        following_count: number;
+        tweet_count: number;
+      };
     }>;
   };
   meta: {
@@ -52,6 +62,7 @@ export interface CommunityTweet {
   replies: number;
   verified: boolean;
   challengeTag?: string;
+  followerCount?: number;
 }
 
 export interface TweetLoadResult {
@@ -61,130 +72,140 @@ export interface TweetLoadResult {
   error?: string;
   hasMore: boolean;
   isUsingFallback: boolean;
+  query?: string;
 }
 
-// Enhanced fallback tweets for when API is not available
+// Enhanced fallback tweets with #xquests theme
 const FALLBACK_TWEETS: CommunityTweet[] = [
   {
     id: "fallback_1",
     username: "cryptodev_alex",
     displayName: "Alex Chen",
     avatar: "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-    content: "Just completed my first #xquests challenge! Explaining DeFi to my non-crypto friends was harder than I thought, but so rewarding 🚀 #crypto #education",
+    content: "Just completed my first #xquests challenge! 🚀 Explaining DeFi to my non-crypto friends was harder than I thought, but the 25 ALGO reward made it worth it! #crypto #education #algorand",
     timestamp: "2m",
     likes: 24,
     retweets: 8,
     replies: 3,
     verified: false,
-    challengeTag: "DeFi Education"
+    challengeTag: "DeFi Education",
+    followerCount: 1250
   },
   {
     id: "fallback_2",
     username: "web3_sarah",
     displayName: "Sarah Martinez",
     avatar: "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-    content: "The future of AI is here and it's incredible! Working on my #xquests submission about AI in healthcare. The potential to save lives is mind-blowing 🤖💊",
+    content: "The future of AI is here and it's incredible! 🤖 Working on my #xquests submission about AI in healthcare. The potential to save lives is mind-blowing! Who else is participating? #AI #innovation",
     timestamp: "5m",
     likes: 67,
     retweets: 23,
     replies: 12,
     verified: true,
-    challengeTag: "AI Innovation"
+    challengeTag: "AI Innovation",
+    followerCount: 5420
   },
   {
     id: "fallback_3",
     username: "blockchain_bob",
     displayName: "Bob Thompson",
     avatar: "https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-    content: "Building communities in web3 isn't just about tech - it's about people! My #xquests challenge focuses on human connection in digital spaces 🌐❤️",
+    content: "Building communities in web3 isn't just about tech - it's about people! 🌐❤️ My #xquests challenge focuses on human connection in digital spaces. What's your take? #web3 #community",
     timestamp: "8m",
     likes: 45,
     retweets: 15,
     replies: 7,
     verified: false,
-    challengeTag: "Community Building"
+    challengeTag: "Community Building",
+    followerCount: 890
   },
   {
     id: "fallback_4",
     username: "algo_enthusiast",
     displayName: "Maria Rodriguez",
     avatar: "https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-    content: "Algorand's carbon-negative blockchain is the future! 🌱 Just earned 35 ALGO from my #xquests sustainability challenge. Green crypto FTW! #algorand #sustainability",
+    content: "Algorand's carbon-negative blockchain is the future! 🌱 Just earned 35 ALGO from my #xquests sustainability challenge. Green crypto FTW! Who's joining the movement? #algorand #sustainability",
     timestamp: "12m",
     likes: 89,
     retweets: 34,
     replies: 18,
     verified: true,
-    challengeTag: "Sustainability"
+    challengeTag: "Sustainability",
+    followerCount: 3200
   },
   {
     id: "fallback_5",
     username: "nft_creator_jane",
     displayName: "Jane Wilson",
     avatar: "https://images.pexels.com/photos/1040880/pexels-photo-1040880.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-    content: "NFTs beyond art: digital identity, certificates, memberships... the possibilities are endless! My #xquests submission explores real-world utility 🎨➡️🌍",
+    content: "NFTs beyond art: digital identity, certificates, memberships... the possibilities are endless! 🎨➡️🌍 My #xquests submission explores real-world utility. What use cases excite you most?",
     timestamp: "15m",
     likes: 52,
     retweets: 19,
     replies: 9,
     verified: false,
-    challengeTag: "NFT Innovation"
+    challengeTag: "NFT Innovation",
+    followerCount: 2100
   },
   {
     id: "fallback_6",
     username: "defi_wizard",
     displayName: "David Kim",
     avatar: "https://images.pexels.com/photos/1065084/pexels-photo-1065084.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-    content: "Yield farming strategies that actually make sense! Breaking down complex DeFi concepts for my #xquests challenge. Education is key to adoption 📚💰",
+    content: "Yield farming strategies that actually make sense! 📚💰 Breaking down complex DeFi concepts for my #xquests challenge. Education is key to adoption. What would you like to learn about?",
     timestamp: "18m",
     likes: 73,
     retweets: 28,
     replies: 14,
     verified: true,
-    challengeTag: "DeFi Education"
+    challengeTag: "DeFi Education",
+    followerCount: 4800
   }
 ];
 
-// Additional fallback tweets for load more functionality
+// Additional fallback tweets for pagination
 const ADDITIONAL_FALLBACK_TWEETS: CommunityTweet[] = [
   {
     id: "fallback_7",
     username: "crypto_newbie",
     displayName: "Emma Johnson",
     avatar: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-    content: "Learning about smart contracts through #xquests has been amazing! The community here is so supportive 💪 #blockchain #learning",
+    content: "Learning about smart contracts through #xquests has been amazing! 💪 The community here is so supportive. Already earned my first 15 ALGO! #blockchain #learning #smartcontracts",
     timestamp: "22m",
     likes: 31,
     retweets: 12,
     replies: 5,
     verified: false,
-    challengeTag: "Education"
+    challengeTag: "Education",
+    followerCount: 450
   },
   {
     id: "fallback_8",
     username: "algo_trader",
     displayName: "Michael Chen",
     avatar: "https://images.pexels.com/photos/1212984/pexels-photo-1212984.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-    content: "Passive income through DeFi staking explained! My #xquests challenge breaks down the risks and rewards 📈 #defi #algorand",
+    content: "Passive income through DeFi staking explained! 📈 My #xquests challenge breaks down the risks and rewards. DYOR but here's what I've learned... #defi #algorand #staking",
     timestamp: "25m",
     likes: 58,
     retweets: 21,
     replies: 8,
     verified: true,
-    challengeTag: "DeFi Education"
+    challengeTag: "DeFi Education",
+    followerCount: 6700
   },
   {
     id: "fallback_9",
     username: "web3_builder",
     displayName: "Lisa Park",
     avatar: "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2",
-    content: "Building the future one dApp at a time! My #xquests submission showcases how blockchain can revolutionize supply chains 🔗",
+    content: "Building the future one dApp at a time! 🔗 My #xquests submission showcases how blockchain can revolutionize supply chains. The transparency is game-changing! #innovation #blockchain",
     timestamp: "28m",
     likes: 42,
     retweets: 16,
     replies: 6,
     verified: false,
-    challengeTag: "Innovation"
+    challengeTag: "Innovation",
+    followerCount: 1800
   }
 ];
 
@@ -223,7 +244,9 @@ const extractChallengeTag = (content: string): string | undefined => {
     'dao': 'DAO',
     'education': 'Education',
     'community': 'Community Building',
-    'innovation': 'Innovation'
+    'innovation': 'Innovation',
+    'smartcontract': 'Smart Contracts',
+    'staking': 'Staking'
   };
 
   const lowerContent = content.toLowerCase();
@@ -244,8 +267,8 @@ const transformTwitterTweets = (apiResponse: TwitterApiResponse): CommunityTweet
   }
 
   return apiResponse.data.map((tweet) => {
-    // Find the author from includes
-    const author = apiResponse.includes?.users?.find(user => user.id === tweet.author_id);
+    // Find the author from includes or use embedded user data
+    const author = tweet.user || apiResponse.includes?.users?.find(user => user.id === tweet.author_id);
     
     return {
       id: tweet.id,
@@ -259,7 +282,8 @@ const transformTwitterTweets = (apiResponse: TwitterApiResponse): CommunityTweet
       retweets: tweet.public_metrics.retweet_count,
       replies: tweet.public_metrics.reply_count,
       verified: author?.verified || false,
-      challengeTag: extractChallengeTag(tweet.text)
+      challengeTag: extractChallengeTag(tweet.text),
+      followerCount: author?.public_metrics?.followers_count || 0
     };
   });
 };
@@ -273,11 +297,12 @@ const getApiUrl = () => {
   }
 };
 
-// Fetch tweets using secure server-side proxy with enhanced load more
-export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: string): Promise<TweetLoadResult> => {
+// Fetch tweets using the enhanced API with #xquests query
+export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: string, customQuery?: string): Promise<TweetLoadResult> => {
   try {
     const params = new URLSearchParams({
-      max_results: maxResults.toString()
+      max_results: maxResults.toString(),
+      query: customQuery || '#xquests'
     });
 
     if (nextToken) {
@@ -286,7 +311,8 @@ export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: st
 
     const url = `${getApiUrl()}?${params.toString()}`;
     
-    console.log('🔒 Fetching tweets via secure proxy...');
+    console.log('🔒 Fetching #xquests tweets via secure proxy...');
+    console.log('🔍 Query:', customQuery || '#xquests');
 
     const response = await fetch(url, {
       method: 'GET',
@@ -325,7 +351,8 @@ export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: st
         error: result.error,
         hasMore,
         isUsingFallback: true,
-        nextToken: hasMore ? `fallback_page_${fallbackPageIndex}` : undefined
+        nextToken: hasMore ? `fallback_page_${fallbackPageIndex}` : undefined,
+        query: customQuery || '#xquests'
       };
     }
 
@@ -336,19 +363,20 @@ export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: st
       meta: result.meta
     });
 
-    console.log('✅ Successfully fetched tweets via secure proxy');
-    console.log(`📊 Retrieved ${transformedTweets.length} tweets`);
+    console.log('✅ Successfully fetched #xquests tweets via secure proxy');
+    console.log(`📊 Retrieved ${transformedTweets.length} tweets for query: ${result.query}`);
 
     return {
       tweets: transformedTweets,
       nextToken: result.nextToken,
       success: true,
       hasMore: !!result.nextToken && transformedTweets.length > 0,
-      isUsingFallback: false
+      isUsingFallback: false,
+      query: result.query
     };
 
   } catch (error: any) {
-    console.error('❌ Error fetching tweets via proxy:', error);
+    console.error('❌ Error fetching #xquests tweets via proxy:', error);
     
     // Return fallback tweets on error
     console.log('🔄 Using fallback tweets due to proxy error');
@@ -372,14 +400,15 @@ export const fetchXQuestsTweets = async (maxResults: number = 10, nextToken?: st
       error: error.message,
       hasMore,
       isUsingFallback: true,
-      nextToken: hasMore ? `fallback_page_${fallbackPageIndex}` : undefined
+      nextToken: hasMore ? `fallback_page_${fallbackPageIndex}` : undefined,
+      query: customQuery || '#xquests'
     };
   }
 };
 
-// Enhanced load more tweets with proper pagination and feedback
-export const loadMoreXQuestsTweets = async (nextToken?: string): Promise<TweetLoadResult> => {
-  console.log('🔄 Loading more #xquests tweets...', { nextToken });
+// Enhanced load more tweets with proper pagination
+export const loadMoreXQuestsTweets = async (nextToken?: string, customQuery?: string): Promise<TweetLoadResult> => {
+  console.log('🔄 Loading more #xquests tweets...', { nextToken, query: customQuery });
   
   if (!nextToken) {
     console.log('⚠️ No next token provided for load more');
@@ -387,7 +416,8 @@ export const loadMoreXQuestsTweets = async (nextToken?: string): Promise<TweetLo
       tweets: [],
       success: true,
       hasMore: false,
-      isUsingFallback: false
+      isUsingFallback: false,
+      query: customQuery || '#xquests'
     };
   }
 
@@ -408,22 +438,33 @@ export const loadMoreXQuestsTweets = async (nextToken?: string): Promise<TweetLo
       success: true,
       hasMore,
       isUsingFallback: true,
-      nextToken: hasMore ? `fallback_page_${fallbackPageIndex}` : undefined
+      nextToken: hasMore ? `fallback_page_${fallbackPageIndex}` : undefined,
+      query: customQuery || '#xquests'
     };
   }
 
   // Load more real tweets using the next token
-  return await fetchXQuestsTweets(10, nextToken);
+  return await fetchXQuestsTweets(10, nextToken, customQuery);
 };
 
 // Refresh tweets (get latest) with reset pagination
-export const refreshXQuestsTweets = async (): Promise<TweetLoadResult> => {
-  console.log('🔄 Refreshing #xquests tweets...');
+export const refreshXQuestsTweets = async (customQuery?: string): Promise<TweetLoadResult> => {
+  console.log('🔄 Refreshing #xquests tweets...', { query: customQuery });
   
   // Reset fallback pagination
   fallbackPageIndex = 0;
   
-  return await fetchXQuestsTweets(10); // Get fresh tweets without next token
+  return await fetchXQuestsTweets(10, undefined, customQuery); // Get fresh tweets without next token
+};
+
+// Search tweets with custom query
+export const searchTweets = async (query: string, maxResults: number = 10): Promise<TweetLoadResult> => {
+  console.log('🔍 Searching tweets with query:', query);
+  
+  // Reset fallback pagination for new search
+  fallbackPageIndex = 0;
+  
+  return await fetchXQuestsTweets(maxResults, undefined, query);
 };
 
 // Check if Twitter API is available
@@ -438,6 +479,7 @@ export const getTwitterApiStatus = () => {
     tokenPreview: 'Hidden for security',
     platform: Platform.OS,
     apiUrl: getApiUrl(),
-    secure: true
+    secure: true,
+    defaultQuery: '#xquests'
   };
 };
