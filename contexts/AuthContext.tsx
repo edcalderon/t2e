@@ -52,7 +52,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Start as false for faster loading
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
@@ -90,6 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const loadUserData = async () => {
     try {
+      setIsLoading(true);
       const userData = await AsyncStorage.getItem('user');
       if (userData) {
         setUser(JSON.parse(userData));
@@ -276,7 +277,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       value={{
         user,
         isAuthenticated: !!user,
-        isLoading,
+        isLoading: finalIsLoading,
         initialized,
         login,
         logout,

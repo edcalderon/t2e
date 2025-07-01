@@ -22,7 +22,7 @@
   <meta name="twitter:description" content="Tweet. Engage. Earn cryptocurrency rewards.">
   
   <style>
-    /* Minimal critical CSS for loading state */
+    /* Critical CSS for immediate rendering */
     html, body, #root {
       width: 100%;
       height: 100%;
@@ -31,6 +31,7 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #000000;
       color: #ffffff;
+      overflow: hidden;
     }
     
     #loading {
@@ -45,11 +46,12 @@
       align-items: center;
       background: #000000;
       z-index: 9999;
-      transition: opacity 0.3s ease-out;
+      transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
     }
     
     #loading.hidden {
       opacity: 0;
+      visibility: hidden;
       pointer-events: none;
     }
     
@@ -89,6 +91,12 @@
       animation: spin 1s linear infinite;
     }
     
+    .loading-text {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+    
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
@@ -97,63 +105,116 @@
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.05); }
     }
+    
+    /* Ensure React app is ready to render */
+    #root {
+      opacity: 0;
+      transition: opacity 0.3s ease-in;
+    }
+    
+    #root.ready {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
   <!-- React app mounts here -->
   <div id="root"></div>
   
-  <!-- Simple loading screen -->
+  <!-- Optimized loading screen -->
   <div id="loading">
     <div class="logo">X</div>
     <div class="title">XQuests</div>
     <div class="subtitle">Tweet. Engage. Earn.</div>
     <div class="spinner"></div>
+    <div class="loading-text">Loading your experience...</div>
   </div>
 
   <script>
-    // Simple loading management for Netlify
+    // Optimized loading management
     (function() {
       const loading = document.getElementById('loading');
+      const root = document.getElementById('root');
       let isHidden = false;
+      let hideTimeout;
       
       function hideLoading() {
         if (isHidden || !loading) return;
+        
+        console.log('🎯 Hiding loading screen');
         isHidden = true;
+        
+        // Show the React app
+        if (root) {
+          root.classList.add('ready');
+        }
+        
+        // Hide loading screen
         loading.classList.add('hidden');
+        
+        // Remove from DOM after transition
         setTimeout(() => {
-          if (loading.parentNode) {
+          if (loading && loading.parentNode) {
             loading.parentNode.removeChild(loading);
           }
         }, 300);
       }
       
-      // Hide when React app is ready
+      // Multiple event listeners for reliability
       window.addEventListener('expo-loaded', hideLoading);
       window.addEventListener('react-loaded', hideLoading);
+      window.addEventListener('framework-ready', hideLoading);
       
-      // Fallback: hide after 10 seconds
-      setTimeout(hideLoading, 10000);
-      
-      // Check if React mounted
+      // Check for React mounting
       const checkReactMount = () => {
-        const root = document.getElementById('root');
         if (root && root.children.length > 0) {
+          console.log('✅ React app detected, hiding loading');
           hideLoading();
           return true;
         }
         return false;
       };
       
-      // Check periodically
-      const interval = setInterval(() => {
-        if (checkReactMount()) {
-          clearInterval(interval);
-        }
-      }, 500);
+      // Immediate check
+      if (checkReactMount()) {
+        return;
+      }
       
-      // Manual trigger
+      // Periodic checks with exponential backoff
+      let checkInterval = 100;
+      const maxInterval = 1000;
+      
+      const scheduleCheck = () => {
+        setTimeout(() => {
+          if (!isHidden && !checkReactMount()) {
+            checkInterval = Math.min(checkInterval * 1.2, maxInterval);
+            scheduleCheck();
+          }
+        }, checkInterval);
+      };
+      
+      scheduleCheck();
+      
+      // Fallback: hide after 8 seconds maximum
+      hideTimeout = setTimeout(() => {
+        if (!isHidden) {
+          console.log('⏰ Fallback: hiding loading screen after timeout');
+          hideLoading();
+        }
+      }, 8000);
+      
+      // Manual trigger function
       window.hideLoadingScreen = hideLoading;
+      
+      // Cleanup timeout when hiding
+      const originalHide = hideLoading;
+      hideLoading = function() {
+        if (hideTimeout) {
+          clearTimeout(hideTimeout);
+          hideTimeout = null;
+        }
+        originalHide();
+      };
     })();
   </script>
 </body>
