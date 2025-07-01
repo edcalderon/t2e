@@ -2,7 +2,7 @@
   # Build command for Expo web
   command = "npm run build:web"
   # Output directory
-  publish = "dist"
+  publish = "/dist"
 
 [build.environment]
   # Node version
