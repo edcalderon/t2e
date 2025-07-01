@@ -2,7 +2,7 @@
   # Build command for Expo web
   command = "npm run build:web"
   # Output directory
-  publish = "/dist"
+  publish = "dist"
 
 [build.environment]
   # Node version
@@ -19,7 +19,7 @@
   # Security headers for all pages
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
+    X-Frame-Options = "DENY"1
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"

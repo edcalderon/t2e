@@ -324,70 +324,69 @@
         
         // Function to hide loading screen when app is ready
         window.hideLoadingScreen = function() {
-            appLoaded = true;
-            clearTimeout(loadingTimeout);
-            
-            const loadingContainer = document.getElementById('loadingContainer');
-            if (loadingContainer) {
-                loadingContainer.style.transition = 'opacity 0.5s ease-out';
-                loadingContainer.style.opacity = '0';
-                setTimeout(() => {
-                    loadingContainer.style.display = 'none';
-                    document.body.classList.add('app-ready');
-                }, 500);
+            try {
+                appLoaded = true;
+                clearTimeout(loadingTimeout);
+                
+                const loadingContainer = document.getElementById('loadingContainer');
+                if (loadingContainer) {
+                    loadingContainer.style.transition = 'opacity 0.5s ease-out';
+                    loadingContainer.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingContainer.style.display = 'none';
+                        document.body.classList.add('app-ready');
+                    }, 500);
+                }
+            } catch (error) {
+                console.error('Error in hideLoadingScreen:', error);
             }
         };
-        
-        // Enhanced app ready detection
-        function checkAppReady() {
-            const rootElement = document.getElementById('root');
-            if (rootElement && rootElement.children.length > 0) {
-                console.log('App content detected, hiding loading screen');
-                window.hideLoadingScreen();
-                return true;
+
+        // Single event listener for page load
+        function handlePageLoad() {
+            console.log('Page fully loaded, hiding loading screen');
+            window.hideLoadingScreen();
+            
+            // Notify React Native WebView if needed
+            if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage('appReady');
             }
-            return false;
         }
+
+      // Check if we should hide the loading screen immediately
+      if (document.readyState === 'complete') {
+        handlePageLoad();
+      } else {
+        // Wait for the page to fully load
+        window.addEventListener('load', handlePageLoad);
         
-        // Multiple detection methods for app readiness
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM Content Loaded');
-            
-            // Check immediately
-            if (checkAppReady()) return;
-            
-            // Check periodically with faster intervals
-            const checkInterval = setInterval(() => {
-                if (checkAppReady()) {
-                    clearInterval(checkInterval);
-                }
-            }, 50); // Reduced from 100ms to 50ms
-            
-            // Fallback timeout - reduced for faster loading
-            setTimeout(() => {
-                clearInterval(checkInterval);
-                if (!appLoaded) {
-                    console.log('Fallback: hiding loading screen after timeout');
-                    window.hideLoadingScreen();
-                }
-            }, 1500); // Reduced from 2000ms to 1500ms
+        // Fallback in case the load event doesn't fire
+        setTimeout(handlePageLoad, 3000);
+      }
+      
+      // Listen for messages from React Native WebView
+      if (window.ReactNativeWebView) {
+        document.addEventListener('message', function(e) {
+          if (e.data === 'appReady') {
+            handlePageLoad();
+          }
         });
-        
-        // Service Worker Registration for PWA (with error handling)
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then((registration) => {
-                        console.log('✅ SW registered successfully:', registration);
-                        swRegistered = true;
-                    })
-                    .catch((registrationError) => {
-                        console.log('⚠️ SW registration failed (this is OK):', registrationError);
-                        // Don't treat SW registration failure as a critical error
-                        swRegistered = false;
-                    });
+      }
+
+      // Service Worker Registration for PWA (with error handling)
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('✅ SW registered successfully:', registration);
+              swRegistered = true;
+            })
+            .catch((registrationError) => {
+              console.log('⚠️ SW registration failed (this is OK):', registrationError);
+              swRegistered = false;
             });
-        }
+        });
+      }
         
         // Handle online/offline status
         window.addEventListener('online', () => {

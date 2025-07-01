@@ -6,10 +6,8 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StyleSheet,
-  Dimensions,
   Animated,
   RefreshControl,
-  Platform,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
@@ -26,7 +24,6 @@ import ActivitySection from "../../components/sections/ActivitySection";
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 
-const { width, height } = Dimensions.get('window');
 
 export default function ExploreScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
@@ -164,11 +161,6 @@ export default function ExploreScreen() {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.headerLeft}>
-              <Image
-                source={getLogoSource()}
-                style={styles.headerLogo}
-                contentFit="contain"
-              />
               <Text style={styles.headerTitle}>XQuests</Text>
             </View>
 
@@ -235,16 +227,7 @@ export default function ExploreScreen() {
             />
           }
         >
-          {/* Welcome Section */}
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeTitle}>
-              Welcome to the Future of Social Engagement
-            </Text>
-            <Text style={styles.welcomeSubtitle}>
-              Tweet. Engage. Earn ALGO rewards for your social media activity.
-            </Text>
-          </View>
-
+        
           {/* Authentication Status Banner */}
           {!isAuthenticated && (
             <TouchableOpacity 

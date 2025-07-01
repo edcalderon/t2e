@@ -1,26 +1,33 @@
 import { Tabs } from 'expo-router';
-import { Search, Bell, Award, Settings } from 'lucide-react-native';
-import { useTheme } from '../../contexts/ThemeContext';
+import { Home, Compass, Bell, Award, Settings } from 'lucide-react-native';
 
 export default function TabLayout() {
-  const { theme } = useTheme();
-
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          display: 'none', // Hide default tab bar since we have custom sidebar
+          display: 'none',
         },
-        lazy: false, // Disable lazy loading to prevent black screens
+        lazy: true,
       }}
+      initialRouteName="explorer"
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Explore',
+          title: 'Home',
           tabBarIcon: ({ size, color }) => (
-            <Search size={size} color={color} />
+            <Home size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="explorer"
+        options={{
+          title: 'Explorer',
+          tabBarIcon: ({ size, color }) => (
+            <Compass size={size} color={color} />
           ),
         }}
       />
