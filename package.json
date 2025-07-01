@@ -9,7 +9,7 @@
     "web": "expo start --web",
     "build": "expo export -p web",
     "dev": "expo start --web",
-    "build:web": "prebuild && expo export -p web --output-dir dist && workbox generateSW workbox-config.js && postbuild",
+    "build:web": "npm run prebuild && expo export -p web --output-dir dist && workbox generateSW workbox-config.js && npm run postbuild",
     "prebuild": "rm -rf dist",
     "postbuild": "cp -r public/* dist/ && echo '/* /index.html 200' > dist/_redirects",
     "test": "jest --watchAll",
