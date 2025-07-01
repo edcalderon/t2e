@@ -149,7 +149,14 @@ export default function ExploreScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Explore</Text>
+            <View style={styles.headerLeft}>
+              <Image
+                source={getLogoSource()}
+                style={styles.headerLogo}
+                contentFit="contain"
+              />
+              <Text style={styles.headerTitle}>XQuests</Text>
+            </View>
 
             <View style={styles.headerActions}>
               <TouchableOpacity 
@@ -214,6 +221,16 @@ export default function ExploreScreen() {
             />
           }
         >
+          {/* Welcome Section */}
+          <View style={styles.welcomeSection}>
+            <Text style={styles.welcomeTitle}>
+              Welcome to the Future of Social Engagement
+            </Text>
+            <Text style={styles.welcomeSubtitle}>
+              Tweet. Engage. Earn ALGO rewards for your social media activity.
+            </Text>
+          </View>
+
           {/* Authentication Status Banner */}
           {!isAuthenticated && (
             <TouchableOpacity 
@@ -223,7 +240,7 @@ export default function ExploreScreen() {
               <View style={styles.authBannerContent}>
                 <Sparkles size={20} color={theme.colors.primary} />
                 <Text style={styles.authBannerText}>
-                  Connect your account to start earning rewards
+                  Connect your X account to start earning rewards
                 </Text>
               </View>
             </TouchableOpacity>
@@ -287,6 +304,10 @@ export default function ExploreScreen() {
             />
             <Text style={styles.brandingTitle}>XQuests</Text>
             <Text style={styles.brandingSubtitle}>Tweet. Engage. Earn.</Text>
+            <Text style={styles.brandingDescription}>
+              The future of social media engagement is here. Connect your X account, 
+              participate in challenges, and earn cryptocurrency rewards for your authentic engagement.
+            </Text>
           </View>
         </ScrollView>
       </ResponsiveLayout>
@@ -320,6 +341,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingBottom: 12,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerLogo: {
+    width: 32,
+    height: 32,
   },
   headerTitle: {
     fontSize: 20,
@@ -385,6 +415,31 @@ const createStyles = (theme: any) => StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  welcomeSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 32,
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
   authBanner: {
     backgroundColor: theme.colors.primary + '10',
     marginHorizontal: 16,
@@ -427,22 +482,37 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   brandingContainer: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: 40,
     paddingHorizontal: 16,
+    backgroundColor: theme.colors.surface,
+    marginHorizontal: 16,
+    marginTop: 24,
+    marginBottom: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   brandingLogo: {
-    width: 60,
-    height: 60,
+    width: 80,
+    height: 80,
   },
   brandingTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: theme.colors.primary,
-    marginTop: 12,
+    marginTop: 16,
   },
   brandingSubtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: theme.colors.textSecondary,
     marginTop: 4,
+    marginBottom: 16,
+  },
+  brandingDescription: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 400,
   },
 });

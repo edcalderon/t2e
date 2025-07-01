@@ -71,6 +71,7 @@ export default function RootLayout() {
       <ThemeProvider>
         <SidebarProvider>
           <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
             <Stack.Screen name="privacy" options={{ headerShown: false }} />
