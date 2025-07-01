@@ -9,9 +9,8 @@
     "web": "expo start --web",
     "build": "expo export -p web",
     "dev": "expo start --web",
-    "build:web": "npm run prebuild && expo export -p web --output-dir dist && workbox generateSW workbox-config.js && postbuild",
+    "build:web": "npm run prebuild && expo export -p web --output-dir dist && cp -r public/* dist/ && echo '/* /index.html 200' > dist/_redirects",
     "prebuild": "rm -rf dist",
-    "postbuild": "cp -r public/* dist/ && echo '/* /index.html 200' > dist/_redirects",
     "test": "jest --watchAll",
     "lint": "expo lint",
     "deploy": "npm run build:web && netlify deploy --prod --dir=dist"
