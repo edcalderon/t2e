@@ -9,7 +9,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { registerSW } from '../hooks/usePWA';
 import PWAInstallPrompt from '../components/PWAInstallPrompt';
 import PWAUpdatePrompt from '../components/PWAUpdatePrompt';
-import SplashScreen from '../components/SplashScreen'
+import SplashScreen from '../components/SplashScreen';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 
 // Enable screens before any navigation components are rendered
@@ -24,13 +24,14 @@ function AppContent() {
   const { initialized: authInitialized } = useAuth();
   
   const handleSplashComplete = () => {
+    console.log('🎬 Splash screen completed');
     setShowSplash(false);
   };
 
   // Handle app initialization
   useEffect(() => {
     let mounted = true;
-    let timeoutId: NodeJS.Timeout;
+    let initTimeout: NodeJS.Timeout;
 
     const initialize = async () => {
       try {
@@ -42,32 +43,25 @@ function AppContent() {
 
           // Handle initial navigation
           const currentPath = window.location.pathname;
-          const isTabRoute = currentPath.startsWith('/(tabs)');
+          const isTabRoute = currentPath.startsWith('/(tabs)') || currentPath === '/';
           
-          if (!isTabRoute && currentPath !== '/') {
+          if (!isTabRoute) {
             console.log('🔄 Redirecting to tabs from:', currentPath);
             window.history.replaceState({}, '', '/(tabs)');
             await router.replace('/(tabs)');
           }
-          
-          // Signal that the app is loaded
-          setTimeout(() => {
-            if (typeof window !== 'undefined') {
-              console.log('📡 Dispatching expo-loaded event');
-              window.dispatchEvent(new CustomEvent('expo-loaded'));
-              
-              // Also try the manual trigger
-              if (window.hideLoadingScreen) {
-                window.hideLoadingScreen();
-              }
-            }
-          }, 100);
         } else if (pathname === '/' || pathname === '') {
           await router.replace('/(tabs)');
         }
+        
+        // Mark as ready
+        if (mounted) {
+          setAppReady(true);
+          setInitialized(true);
+          console.log('✅ App initialization complete');
+        }
       } catch (error) {
         console.error('❌ Initialization error:', error);
-      } finally {
         if (mounted) {
           setAppReady(true);
           setInitialized(true);
@@ -75,17 +69,42 @@ function AppContent() {
       }
     };
 
-    // Small delay to ensure DOM is ready
-    const timer = setTimeout(() => {
+    // Initialize with a small delay
+    initTimeout = setTimeout(() => {
       initialize();
     }, 100);
 
     return () => {
       mounted = false;
-      clearTimeout(timer);
-      if (timeoutId) clearTimeout(timeoutId);
+      if (initTimeout) clearTimeout(initTimeout);
     };
   }, [pathname, router]);
+
+  // Signal app ready to loading screen
+  useEffect(() => {
+    if (Platform.OS === 'web' && appReady && authInitialized && !showSplash) {
+      console.log('🎯 App fully ready, signaling to loading screen');
+      
+      // Multiple signals to ensure loading screen hides
+      const signalReady = () => {
+        if (typeof window !== 'undefined') {
+          // Dispatch multiple events
+          window.dispatchEvent(new CustomEvent('expo-loaded'));
+          window.dispatchEvent(new CustomEvent('react-loaded'));
+          
+          // Manual trigger as fallback
+          if (window.hideLoadingScreen) {
+            window.hideLoadingScreen();
+          }
+        }
+      };
+      
+      // Signal immediately and with delays
+      signalReady();
+      setTimeout(signalReady, 100);
+      setTimeout(signalReady, 500);
+    }
+  }, [appReady, authInitialized, showSplash]);
 
   // Handle Android back button
   useEffect(() => {
@@ -139,22 +158,6 @@ function AppContent() {
     );
   }
 
-  // Signal app is ready on web
-  useEffect(() => {
-    if (Platform.OS === 'web' && appReady && authInitialized) {
-      setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          console.log('🎯 App fully ready, dispatching react-loaded event');
-          window.dispatchEvent(new CustomEvent('react-loaded'));
-          
-          if (window.hideLoadingScreen) {
-            window.hideLoadingScreen();
-          }
-        }
-      }, 200);
-    }
-  }, [appReady, authInitialized]);
-
   // Main app content
   return (
     <View style={{ flex: 1 }}>
@@ -179,6 +182,7 @@ function AppContent() {
 
 export default function RootLayout() {
   useFrameworkReady();
+  
   return (
     <ThemeProvider>
       <AuthProvider>

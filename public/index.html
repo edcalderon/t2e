@@ -4,16 +4,33 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
-  <title>XQuests</title>
+  <title>XQuests - Tweet. Engage. Earn.</title>
+  <meta name="description" content="Social media engagement platform that rewards users with cryptocurrency for completing challenges">
   <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/assets/images/favicon.png">
+  
+  <!-- Preload critical resources -->
+  <link rel="preload" href="/assets/images/icon.png" as="image">
+  
+  <!-- Social Media Meta Tags -->
+  <meta property="og:title" content="XQuests - Tweet. Engage. Earn.">
+  <meta property="og:description" content="Connect your X account, complete challenges, and earn ALGO cryptocurrency rewards">
+  <meta property="og:image" content="/assets/images/icon.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="XQuests">
+  <meta name="twitter:description" content="Tweet. Engage. Earn cryptocurrency rewards.">
+  
   <style>
+    /* Minimal critical CSS for loading state */
     html, body, #root {
       width: 100%;
       height: 100%;
       margin: 0;
       padding: 0;
-      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #000000;
+      color: #ffffff;
     }
     
     #loading {
@@ -26,9 +43,7 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: linear-gradient(135deg, #000000 0%, #1e293b 100%);
-      color: #fff;
+      background: #000000;
       z-index: 9999;
       transition: opacity 0.3s ease-out;
     }
@@ -38,128 +53,40 @@
       pointer-events: none;
     }
     
-    #loading.removed {
-      display: none;
-    }
-    
-    .logo-container {
-      margin-bottom: 32px;
+    .logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      background: #1D9BF0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 24px;
       animation: pulse 2s ease-in-out infinite;
     }
     
-    .logo {
-      width: 120px;
-      height: 120px;
-      border-radius: 30px;
-      background: #1D9BF0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 48px;
-      font-weight: bold;
-      color: white;
-      box-shadow: 0 10px 30px rgba(29, 155, 240, 0.3);
-    }
-    
-    .app-title {
-      font-size: 32px;
+    .title {
+      font-size: 24px;
       font-weight: 700;
-      margin-bottom: 8px;
       color: #1D9BF0;
+      margin-bottom: 8px;
     }
     
-    .app-subtitle {
+    .subtitle {
       font-size: 16px;
       color: #94a3b8;
-      margin-bottom: 40px;
-      font-weight: 500;
-    }
-    
-    .spinner {
-      width: 40px;
-      height: 40px;
-      margin: 20px auto;
-      border: 4px solid rgba(29, 155, 240, 0.3);
-      border-radius: 50%;
-      border-top-color: #1D9BF0;
-      animation: spin 1s linear infinite;
-    }
-    
-    .loading-text {
-      font-size: 16px;
-      font-weight: 500;
-      margin-bottom: 8px;
-    }
-    
-    .loading-subtext {
-      font-size: 14px;
-      color: #64748b;
       margin-bottom: 32px;
     }
     
-    .features {
-      max-width: 300px;
-      text-align: left;
-    }
-    
-    .feature {
-      display: flex;
-      align-items: center;
-      margin-bottom: 12px;
-      font-size: 14px;
-      color: #94a3b8;
-    }
-    
-    .feature-icon {
-      width: 24px;
-      height: 24px;
-      border-radius: 12px;
-      background: rgba(29, 155, 240, 0.1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-right: 12px;
-      font-size: 12px;
-    }
-    
-    .error-container {
-      text-align: center;
-      padding: 20px;
-      max-width: 400px;
-    }
-    
-    .error-title {
-      font-size: 24px;
-      font-weight: 700;
-      color: #ef4444;
-      margin-bottom: 16px;
-    }
-    
-    .error-message {
-      font-size: 16px;
-      color: #94a3b8;
-      margin-bottom: 24px;
-      line-height: 1.5;
-    }
-    
-    .retry-button {
-      background: #1D9BF0;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .retry-button:hover {
-      background: #1a8cd8;
-      transform: translateY(-1px);
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(29, 155, 240, 0.3);
+      border-radius: 50%;
+      border-top-color: #1D9BF0;
+      animation: spin 1s linear infinite;
     }
     
     @keyframes spin {
@@ -170,200 +97,63 @@
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.05); }
     }
-    
-    /* Hide scrollbars during loading */
-    body.loading {
-      overflow: hidden;
-    }
   </style>
 </head>
-<body class="loading">
+<body>
+  <!-- React app mounts here -->
   <div id="root"></div>
+  
+  <!-- Simple loading screen -->
   <div id="loading">
-    <div class="logo-container">
-      <div class="logo">X</div>
-    </div>
-    
-    <div class="app-title">XQuests</div>
-    <div class="app-subtitle">Tweet. Engage. Earn.</div>
-    
+    <div class="logo">X</div>
+    <div class="title">XQuests</div>
+    <div class="subtitle">Tweet. Engage. Earn.</div>
     <div class="spinner"></div>
-    <div class="loading-text">Loading your experience...</div>
-    <div class="loading-subtext">Connecting to the future of social engagement</div>
-    
-    <div class="features">
-      <div class="feature">
-        <div class="feature-icon">🐦</div>
-        <span>Connect your X account</span>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">💰</div>
-        <span>Earn ALGO rewards</span>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🏆</div>
-        <span>Complete challenges</span>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">📈</div>
-        <span>Track your progress</span>
-      </div>
-    </div>
   </div>
 
   <script>
-    // Enhanced loading management
+    // Simple loading management for Netlify
     (function() {
-      let loadingElement = document.getElementById('loading');
-      let appLoaded = false;
-      let loadTimeout;
-      let errorTimeout;
+      const loading = document.getElementById('loading');
+      let isHidden = false;
       
-      // Set loading timeouts
-      const LOAD_TIMEOUT = 15000; // 15 seconds
-      const ERROR_TIMEOUT = 30000; // 30 seconds
-      
-      console.log('🚀 XQuests loading started');
-      
-      // Function to hide loading screen
       function hideLoading() {
-        if (!loadingElement || appLoaded) return;
-        
-        console.log('✅ Hiding loading screen');
-        appLoaded = true;
-        document.body.classList.remove('loading');
-        
-        // Clear timeouts
-        if (loadTimeout) clearTimeout(loadTimeout);
-        if (errorTimeout) clearTimeout(errorTimeout);
-        
-        // Smooth fade out
-        loadingElement.classList.add('hidden');
+        if (isHidden || !loading) return;
+        isHidden = true;
+        loading.classList.add('hidden');
         setTimeout(() => {
-          if (loadingElement) {
-            loadingElement.classList.add('removed');
+          if (loading.parentNode) {
+            loading.parentNode.removeChild(loading);
           }
         }, 300);
       }
       
-      // Function to show error state
-      function showError(message, details) {
-        if (!loadingElement || appLoaded) return;
-        
-        console.error('❌ Loading error:', message, details);
-        
-        loadingElement.innerHTML = `
-          <div class="error-container">
-            <div class="error-title">Loading Error</div>
-            <div class="error-message">${message}</div>
-            <button class="retry-button" onclick="window.location.reload()">
-              <span>🔄</span>
-              <span>Retry</span>
-            </button>
-          </div>
-        `;
-      }
+      // Hide when React app is ready
+      window.addEventListener('expo-loaded', hideLoading);
+      window.addEventListener('react-loaded', hideLoading);
       
-      // Set up load timeout
-      loadTimeout = setTimeout(() => {
-        if (!appLoaded) {
-          console.warn('⏰ App loading timeout');
-          showError(
-            'The app is taking longer than expected to load.',
-            'This might be due to a slow internet connection or server issues.'
-          );
-        }
-      }, LOAD_TIMEOUT);
+      // Fallback: hide after 10 seconds
+      setTimeout(hideLoading, 10000);
       
-      // Set up error timeout
-      errorTimeout = setTimeout(() => {
-        if (!appLoaded) {
-          console.error('💥 App failed to load within error timeout');
-          showError(
-            'Failed to load the application.',
-            'Please check your internet connection and try again.'
-          );
-        }
-      }, ERROR_TIMEOUT);
-      
-      // Listen for app ready signals
-      window.addEventListener('DOMContentLoaded', () => {
-        console.log('📄 DOM Content Loaded');
-      });
-      
-      // Expo app loaded event
-      window.addEventListener('expo-loaded', () => {
-        console.log('🎯 Expo app loaded');
-        setTimeout(hideLoading, 500); // Small delay for smooth transition
-      });
-      
-      // React app ready (fallback)
-      window.addEventListener('react-loaded', () => {
-        console.log('⚛️ React app loaded');
-        setTimeout(hideLoading, 500);
-      });
-      
-      // Manual trigger for app ready
-      window.hideLoadingScreen = hideLoading;
-      
-      // Global error handler
-      window.addEventListener('error', function(event) {
-        console.error('🚨 Global error:', event.error);
-        if (!appLoaded) {
-          showError(
-            'An error occurred while loading the application.',
-            event.error?.message || 'Unknown error'
-          );
-        }
-      });
-      
-      // Unhandled promise rejection handler
-      window.addEventListener('unhandledrejection', function(event) {
-        console.error('🚨 Unhandled promise rejection:', event.reason);
-        if (!appLoaded) {
-          showError(
-            'A network error occurred while loading the application.',
-            event.reason?.message || 'Network error'
-          );
-        }
-      });
-      
-      // Service worker registration
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-              console.log('✅ ServiceWorker registration successful');
-            })
-            .catch(err => {
-              console.warn('⚠️ ServiceWorker registration failed:', err);
-              // Don't show error for SW registration failure
-            });
-        });
-      }
-      
-      // Detect if app scripts fail to load
-      const scripts = document.querySelectorAll('script[src]');
-      scripts.forEach(script => {
-        script.addEventListener('error', () => {
-          console.error('❌ Script failed to load:', script.src);
-          if (!appLoaded) {
-            showError(
-              'Failed to load application resources.',
-              'Please check your internet connection and try again.'
-            );
-          }
-        });
-      });
-      
-      // Auto-hide loading after maximum time (safety net)
-      setTimeout(() => {
-        if (!appLoaded) {
-          console.log('🔧 Auto-hiding loading screen (safety net)');
+      // Check if React mounted
+      const checkReactMount = () => {
+        const root = document.getElementById('root');
+        if (root && root.children.length > 0) {
           hideLoading();
+          return true;
         }
-      }, ERROR_TIMEOUT + 5000);
+        return false;
+      };
       
+      // Check periodically
+      const interval = setInterval(() => {
+        if (checkReactMount()) {
+          clearInterval(interval);
+        }
+      }, 500);
+      
+      // Manual trigger
+      window.hideLoadingScreen = hideLoading;
     })();
   </script>
 </body>

@@ -9,24 +9,20 @@ export function useFrameworkReady() {
 
     const initializeFramework = async () => {
       try {
-        console.log('🔧 Framework initialization started');
-        
-        // Simulate framework initialization
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Minimal initialization delay
+        await new Promise(resolve => setTimeout(resolve, 50));
         
         if (mounted) {
           setIsReady(true);
-          console.log('✅ Framework ready');
-          
+
           // Signal framework ready on web
           if (Platform.OS === 'web' && typeof window !== 'undefined') {
             setTimeout(() => {
               window.dispatchEvent(new CustomEvent('framework-ready'));
-            }, 50);
+            }, 100);
           }
         }
       } catch (error) {
-        console.error('❌ Framework initialization error:', error);
         if (mounted) {
           setIsReady(true); // Set ready even on error to prevent infinite loading
         }
