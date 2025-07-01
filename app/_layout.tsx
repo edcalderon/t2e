@@ -9,7 +9,8 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { registerSW } from '../hooks/usePWA';
 import PWAInstallPrompt from '../components/PWAInstallPrompt';
 import PWAUpdatePrompt from '../components/PWAUpdatePrompt';
-import SplashScreen from '../components/SplashScreen';
+import SplashScreen from '../components/SplashScreen'
+import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 
 // Enable screens before any navigation components are rendered
 enableScreens();
@@ -177,6 +178,7 @@ function AppContent() {
 }
 
 export default function RootLayout() {
+  useFrameworkReady();
   return (
     <ThemeProvider>
       <AuthProvider>
