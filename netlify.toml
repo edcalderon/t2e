@@ -8,22 +8,6 @@
   # Node version
   NODE_VERSION = "20.19.2"
 
-[[redirects]]
-  # Handle all routes by serving index.html
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  force = false
-
-[[headers]]
-  # Security headers for all pages
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"1
-    X-Content-Type-Options = "nosniff"
-    X-XSS-Protection = "1; mode=block"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-
 [[headers]]
   # Cache static assets
   for = "/assets/*"
