@@ -8,6 +8,12 @@
   # Node version
   NODE_VERSION = "20.19.2"
 
+# Handle client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
 [[headers]]
   # Cache static assets
   for = "/assets/*"
