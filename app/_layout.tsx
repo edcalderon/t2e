@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, useRouter, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { enableScreens } from 'react-native-screens';
 import { Platform, View, ActivityIndicator, Text, BackHandler } from 'react-native';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { SidebarProvider } from '../contexts/SidebarContext';
-import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { AuthProvider } from '../contexts/AuthContext';
 import { registerSW } from '../hooks/usePWA';
 import PWAInstallPrompt from '../components/PWAInstallPrompt';
 import PWAUpdatePrompt from '../components/PWAUpdatePrompt';
@@ -38,9 +38,9 @@ function AppContent() {
     };
 
     // If the app is already loaded, hide the loading screen immediately
-    if (document.readyState === 'complete') {
+    if (typeof document !== 'undefined' && document.readyState === 'complete') {
       handleLoad();
-    } else {
+    } else if (typeof window !== 'undefined') {
       // Otherwise, wait for the load event
       window.addEventListener('load', handleLoad);
       return () => window.removeEventListener('load', handleLoad);
@@ -65,7 +65,7 @@ function AppContent() {
 
       return () => backHandler.remove();
     }
-  }, [pathname]);
+  }, [pathname, router]);
   
   // Handle client-side navigation and app initialization
   useEffect(() => {
@@ -73,36 +73,23 @@ function AppContent() {
     
     console.log('🚀 RootLayout mounted');
     
-    const initApp = async () => {
+    const initializeApp = () => {
+      console.log('✅ App initialization complete');
+      setAppReady(true);
+      setInitialized(true);
+    };
+    
+    const handleNavigation = async () => {
       try {
-        console.log('🔄 Initializing app...');
-        
-        const initializeApp = () => {
-          setAppReady(true);
-          setInitialized(true);
-        };
-        
-        if (Platform.OS === 'web') {
-          // Handle initial navigation first
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
           const currentPath = window.location.pathname;
           const targetPath = '/(tabs)';
-          
-          // Only redirect if not already on a tabs route
-          if (currentPath === '/' || currentPath === '' || !currentPath.startsWith('/(tabs)')) {
-            // Use setTimeout to ensure the router is ready
-            setTimeout(() => {
-              router.replace(targetPath);
-              initializeApp();
-            }, 0);
-          } else {
-            initializeApp();
-          }
           
           // Register service worker
           try {
             await registerSW();
           } catch (error) {
-            // Silent fail for service worker
+            console.warn('Service worker registration failed:', error);
           }
           
           // Handle browser back/forward navigation
@@ -110,31 +97,43 @@ function AppContent() {
             const path = window.location.pathname;
             if (path === '/' || path === '' || path === '/(tabs)' || !path.startsWith('/(tabs)')) {
               window.history.replaceState({}, '', '/(tabs)');
-              router.replace({ pathname: '/(tabs)' } as never);
+              router.replace('/(tabs)');
             }
           };
           
           window.addEventListener('popstate', handleRouteChange);
+          
+          // Only redirect if not already on a tabs route
+          if (currentPath === '/' || currentPath === '' || !currentPath.startsWith('/(tabs)')) {
+            console.log('🔄 Navigating to initial route:', targetPath);
+            await router.replace(targetPath);
+            console.log('✅ Navigation complete');
+          } else {
+            console.log('ℹ️ Already on a tabs route');
+          }
+          
           return () => {
             window.removeEventListener('popstate', handleRouteChange);
           };
-        } else {
+        } else if (pathname === '/' || pathname === '') {
           // For native platforms
-          if (pathname === '/' || pathname === '') {
-            router.replace({ pathname: '/(tabs)' } as never);
-          }
+          await router.replace('/(tabs)');
         }
       } catch (error) {
-        console.error('❌ Error initializing app:', error);
+        console.error('❌ Navigation error:', error);
       } finally {
-        console.log('✅ App initialization complete');
-        setAppReady(true);
-        setInitialized(true);
+        initializeApp();
       }
     };
     
-    initApp();
-  }, [initialized]);
+    // Ensure the layout is mounted before attempting navigation
+    const timer = setTimeout(() => {
+      console.log('🔄 Starting navigation after ensuring layout is mounted');
+      handleNavigation();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [initialized, pathname, router]);
 
   // Show loading indicator while app is initializing
   if (!appReady) {
@@ -174,7 +173,6 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-
   return (
     <AuthProvider>
       <ThemeProvider>
