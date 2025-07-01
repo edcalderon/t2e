@@ -28,8 +28,13 @@ function AppContent() {
 
   // Handle app initialization
   useEffect(() => {
+    let mounted = true;
+    let timeoutId: NodeJS.Timeout;
+
     const initialize = async () => {
       try {
+        console.log('🚀 Initializing XQuests app...');
+        
         if (Platform.OS === 'web') {
           // Register service worker in the background
           registerSW().catch(() => {});
@@ -38,26 +43,47 @@ function AppContent() {
           const currentPath = window.location.pathname;
           const isTabRoute = currentPath.startsWith('/(tabs)');
           
-          if (!isTabRoute) {
+          if (!isTabRoute && currentPath !== '/') {
+            console.log('🔄 Redirecting to tabs from:', currentPath);
             window.history.replaceState({}, '', '/(tabs)');
             await router.replace('/(tabs)');
           }
+          
+          // Signal that the app is loaded
+          setTimeout(() => {
+            if (typeof window !== 'undefined') {
+              console.log('📡 Dispatching expo-loaded event');
+              window.dispatchEvent(new CustomEvent('expo-loaded'));
+              
+              // Also try the manual trigger
+              if (window.hideLoadingScreen) {
+                window.hideLoadingScreen();
+              }
+            }
+          }, 100);
         } else if (pathname === '/' || pathname === '') {
           await router.replace('/(tabs)');
         }
       } catch (error) {
-        console.error('Initialization error:', error);
+        console.error('❌ Initialization error:', error);
       } finally {
-        setAppReady(true);
-        setInitialized(true);
+        if (mounted) {
+          setAppReady(true);
+          setInitialized(true);
+        }
       }
     };
 
+    // Small delay to ensure DOM is ready
     const timer = setTimeout(() => {
       initialize();
     }, 100);
 
-    return () => clearTimeout(timer);
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [pathname, router]);
 
   // Handle Android back button
@@ -97,13 +123,36 @@ function AppContent() {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#ffffff'
+        backgroundColor: '#000000'
       }}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text style={{ marginTop: 10 }}>Loading XQuests...</Text>
+        <ActivityIndicator size="large" color="#1D9BF0" />
+        <Text style={{ 
+          marginTop: 10, 
+          color: '#ffffff',
+          fontSize: 16,
+          fontWeight: '500'
+        }}>
+          Loading XQuests...
+        </Text>
       </View>
     );
   }
+
+  // Signal app is ready on web
+  useEffect(() => {
+    if (Platform.OS === 'web' && appReady && authInitialized) {
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          console.log('🎯 App fully ready, dispatching react-loaded event');
+          window.dispatchEvent(new CustomEvent('react-loaded'));
+          
+          if (window.hideLoadingScreen) {
+            window.hideLoadingScreen();
+          }
+        }
+      }, 200);
+    }
+  }, [appReady, authInitialized]);
 
   // Main app content
   return (

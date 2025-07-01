@@ -4,8 +4,16 @@ import { useEffect, useRef } from 'react';
 export default function SplashScreen({ onAnimationComplete }: { onAnimationComplete: () => void }) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Fade in animation
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+
     // Pulsing animation
     const pulseAnimation = Animated.loop(
       Animated.sequence([
@@ -35,17 +43,18 @@ export default function SplashScreen({ onAnimationComplete }: { onAnimationCompl
     pulseAnimation.start();
     rotateAnimation.start();
 
-    // Auto-complete after 3 seconds
+    // Auto-complete after 2 seconds (reduced from 3)
     const timer = setTimeout(() => {
+      console.log('🎬 Splash screen animation complete');
       onAnimationComplete();
-    }, 3000);
+    }, 2000);
 
     return () => {
       pulseAnimation.stop();
       rotateAnimation.stop();
       clearTimeout(timer);
     };
-  }, [pulseAnim, rotateAnim, onAnimationComplete]);
+  }, [pulseAnim, rotateAnim, fadeAnim, onAnimationComplete]);
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -53,7 +62,7 @@ export default function SplashScreen({ onAnimationComplete }: { onAnimationCompl
   });
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
       <Animated.View 
         style={[
           styles.logoContainer,
@@ -87,15 +96,29 @@ export default function SplashScreen({ onAnimationComplete }: { onAnimationCompl
           '🏆 Complete challenges',
           '📈 Track your progress'
         ].map((feature, index) => (
-          <View key={index} style={styles.feature}>
+          <Animated.View 
+            key={index} 
+            style={[
+              styles.feature,
+              {
+                opacity: fadeAnim,
+                transform: [{
+                  translateY: fadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  })
+                }]
+              }
+            ]}
+          >
             <View style={styles.featureIcon}>
               <Text>{feature.split(' ')[0]}</Text>
             </View>
             <Text style={styles.featureText}>{feature.split(' ').slice(1).join(' ')}</Text>
-          </View>
+          </Animated.View>
         ))}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

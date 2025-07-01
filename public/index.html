@@ -7,113 +7,364 @@
   <title>XQuests</title>
   <link rel="manifest" href="/manifest.json">
   <style>
-    html, body, #root, #loading {
+    html, body, #root {
       width: 100%;
       height: 100%;
       margin: 0;
       padding: 0;
       overflow: hidden;
+      background: #000000;
     }
+    
     #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: #000;
+      background: linear-gradient(135deg, #000000 0%, #1e293b 100%);
       color: #fff;
-      position: fixed;
-      top: 0;
-      left: 0;
       z-index: 9999;
+      transition: opacity 0.3s ease-out;
     }
+    
     #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    #loading.removed {
       display: none;
     }
+    
+    .logo-container {
+      margin-bottom: 32px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .logo {
+      width: 120px;
+      height: 120px;
+      border-radius: 30px;
+      background: #1D9BF0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      font-weight: bold;
+      color: white;
+      box-shadow: 0 10px 30px rgba(29, 155, 240, 0.3);
+    }
+    
+    .app-title {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #1D9BF0;
+    }
+    
+    .app-subtitle {
+      font-size: 16px;
+      color: #94a3b8;
+      margin-bottom: 40px;
+      font-weight: 500;
+    }
+    
     .spinner {
       width: 40px;
       height: 40px;
       margin: 20px auto;
-      border: 4px solid rgba(255, 255, 255, 0.3);
+      border: 4px solid rgba(29, 155, 240, 0.3);
       border-radius: 50%;
-      border-top-color: #fff;
-      animation: spin 1s ease-in-out infinite;
+      border-top-color: #1D9BF0;
+      animation: spin 1s linear infinite;
     }
+    
+    .loading-text {
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    
+    .loading-subtext {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 32px;
+    }
+    
+    .features {
+      max-width: 300px;
+      text-align: left;
+    }
+    
+    .feature {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+    
+    .feature-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 12px;
+      background: rgba(29, 155, 240, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      font-size: 12px;
+    }
+    
+    .error-container {
+      text-align: center;
+      padding: 20px;
+      max-width: 400px;
+    }
+    
+    .error-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ef4444;
+      margin-bottom: 16px;
+    }
+    
+    .error-message {
+      font-size: 16px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    
+    .retry-button {
+      background: #1D9BF0;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .retry-button:hover {
+      background: #1a8cd8;
+      transform: translateY(-1px);
+    }
+    
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    /* Hide scrollbars during loading */
+    body.loading {
+      overflow: hidden;
+    }
   </style>
 </head>
-<body>
+<body class="loading">
   <div id="root"></div>
   <div id="loading">
+    <div class="logo-container">
+      <div class="logo">X</div>
+    </div>
+    
+    <div class="app-title">XQuests</div>
+    <div class="app-subtitle">Tweet. Engage. Earn.</div>
+    
     <div class="spinner"></div>
-    <div>Loading XQuests...</div>
+    <div class="loading-text">Loading your experience...</div>
+    <div class="loading-subtext">Connecting to the future of social engagement</div>
+    
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🐦</div>
+        <span>Connect your X account</span>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">💰</div>
+        <span>Earn ALGO rewards</span>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🏆</div>
+        <span>Complete challenges</span>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">📈</div>
+        <span>Track your progress</span>
+      </div>
+    </div>
   </div>
 
-  <!-- Expo web entry point -->
   <script>
-    // Show loading state immediately
-    document.addEventListener('DOMContentLoaded', function() {
-      const loading = document.getElementById('loading');
+    // Enhanced loading management
+    (function() {
+      let loadingElement = document.getElementById('loading');
+      let appLoaded = false;
+      let loadTimeout;
+      let errorTimeout;
       
-      // Set a timeout to show error if app doesn't load
-      const loadTimeout = setTimeout(() => {
-        if (loading && !window.__EXPO_LOADED__) {
-          loading.innerHTML = `
-            <div style="text-align: center; padding: 20px;">
-              <h2>Loading is taking longer than expected</h2>
-              <p>Please check your internet connection and refresh the page.</p>
-              <button onclick="window.location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #6200ee; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                Refresh Page
-              </button>
-            </div>
-          `;
+      // Set loading timeouts
+      const LOAD_TIMEOUT = 15000; // 15 seconds
+      const ERROR_TIMEOUT = 30000; // 30 seconds
+      
+      console.log('🚀 XQuests loading started');
+      
+      // Function to hide loading screen
+      function hideLoading() {
+        if (!loadingElement || appLoaded) return;
+        
+        console.log('✅ Hiding loading screen');
+        appLoaded = true;
+        document.body.classList.remove('loading');
+        
+        // Clear timeouts
+        if (loadTimeout) clearTimeout(loadTimeout);
+        if (errorTimeout) clearTimeout(errorTimeout);
+        
+        // Smooth fade out
+        loadingElement.classList.add('hidden');
+        setTimeout(() => {
+          if (loadingElement) {
+            loadingElement.classList.add('removed');
+          }
+        }, 300);
+      }
+      
+      // Function to show error state
+      function showError(message, details) {
+        if (!loadingElement || appLoaded) return;
+        
+        console.error('❌ Loading error:', message, details);
+        
+        loadingElement.innerHTML = `
+          <div class="error-container">
+            <div class="error-title">Loading Error</div>
+            <div class="error-message">${message}</div>
+            <button class="retry-button" onclick="window.location.reload()">
+              <span>🔄</span>
+              <span>Retry</span>
+            </button>
+          </div>
+        `;
+      }
+      
+      // Set up load timeout
+      loadTimeout = setTimeout(() => {
+        if (!appLoaded) {
+          console.warn('⏰ App loading timeout');
+          showError(
+            'The app is taking longer than expected to load.',
+            'This might be due to a slow internet connection or server issues.'
+          );
         }
-      }, 10000); // 10 seconds timeout
-
-      // This will be called by Expo when the app is loaded
-      window.__EXPO_LOADED__ = false;
+      }, LOAD_TIMEOUT);
+      
+      // Set up error timeout
+      errorTimeout = setTimeout(() => {
+        if (!appLoaded) {
+          console.error('💥 App failed to load within error timeout');
+          showError(
+            'Failed to load the application.',
+            'Please check your internet connection and try again.'
+          );
+        }
+      }, ERROR_TIMEOUT);
+      
+      // Listen for app ready signals
+      window.addEventListener('DOMContentLoaded', () => {
+        console.log('📄 DOM Content Loaded');
+      });
+      
+      // Expo app loaded event
       window.addEventListener('expo-loaded', () => {
-        window.__EXPO_LOADED__ = true;
-        if (loading) {
-          loading.classList.add('hidden');
-          clearTimeout(loadTimeout);
+        console.log('🎯 Expo app loaded');
+        setTimeout(hideLoading, 500); // Small delay for smooth transition
+      });
+      
+      // React app ready (fallback)
+      window.addEventListener('react-loaded', () => {
+        console.log('⚛️ React app loaded');
+        setTimeout(hideLoading, 500);
+      });
+      
+      // Manual trigger for app ready
+      window.hideLoadingScreen = hideLoading;
+      
+      // Global error handler
+      window.addEventListener('error', function(event) {
+        console.error('🚨 Global error:', event.error);
+        if (!appLoaded) {
+          showError(
+            'An error occurred while loading the application.',
+            event.error?.message || 'Unknown error'
+          );
         }
       });
-
-      // Error handling for script loading
-      window.addEventListener('error', function(error) {
-        console.error('Script loading error:', error);
-        if (loading) {
-          loading.innerHTML = `
-            <div style="text-align: center; padding: 20px; color: #ff6b6b;">
-              <h2>Error Loading Application</h2>
-              <p>${error.message || 'An error occurred while loading the application.'}</p>
-              <button onclick="window.location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #6200ee; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                Try Again
-              </button>
-            </div>
-          `;
+      
+      // Unhandled promise rejection handler
+      window.addEventListener('unhandledrejection', function(event) {
+        console.error('🚨 Unhandled promise rejection:', event.reason);
+        if (!appLoaded) {
+          showError(
+            'A network error occurred while loading the application.',
+            event.reason?.message || 'Network error'
+          );
         }
-      }, true);
-
+      });
+      
       // Service worker registration
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then(registration => {
-              console.log('ServiceWorker registration successful');
+              console.log('✅ ServiceWorker registration successful');
             })
             .catch(err => {
-              console.warn('ServiceWorker registration failed: ', err);
+              console.warn('⚠️ ServiceWorker registration failed:', err);
+              // Don't show error for SW registration failure
             });
         });
       }
-    });
+      
+      // Detect if app scripts fail to load
+      const scripts = document.querySelectorAll('script[src]');
+      scripts.forEach(script => {
+        script.addEventListener('error', () => {
+          console.error('❌ Script failed to load:', script.src);
+          if (!appLoaded) {
+            showError(
+              'Failed to load application resources.',
+              'Please check your internet connection and try again.'
+            );
+          }
+        });
+      });
+      
+      // Auto-hide loading after maximum time (safety net)
+      setTimeout(() => {
+        if (!appLoaded) {
+          console.log('🔧 Auto-hiding loading screen (safety net)');
+          hideLoading();
+        }
+      }, ERROR_TIMEOUT + 5000);
+      
+    })();
   </script>
-  
-  <!-- The Expo web entry point will be injected here -->
-  <script src="/_expo/static/js/web/entry-7f8c9a3f9b6f3a7f1f0d.js" defer></script>
 </body>
 </html>
