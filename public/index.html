@@ -363,14 +363,14 @@
                 }
             }, 100);
             
-            // Fallback timeout
+            // Fallback timeout - reduced to 3 seconds for faster loading
             setTimeout(() => {
                 clearInterval(checkInterval);
                 if (!appLoaded) {
                     console.log('Fallback: hiding loading screen after timeout');
                     window.hideLoadingScreen();
                 }
-            }, 5000);
+            }, 3000);
         });
         
         // Service Worker Registration for PWA (with error handling)
@@ -413,7 +413,7 @@
             console.log('🚀 Framework ready signal received');
             setTimeout(() => {
                 window.hideLoadingScreen();
-            }, 500);
+            }, 100);
         };
         
         // Error handling for uncaught errors
