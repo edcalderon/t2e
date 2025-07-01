@@ -34,7 +34,6 @@ export default function ExploreScreen() {
   const router = useRouter();
   
   // Component state
-  const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const [challenges, setChallenges] = useState([
     {
@@ -71,33 +70,10 @@ export default function ExploreScreen() {
   // Animation for theme toggle
   const [themeAnimation] = useState(new Animated.Value(isDark ? 1 : 0));
 
-  // Initialize component with proper error handling
+  // Initialize component immediately without delays
   useEffect(() => {
-    console.log('🎯 ExploreScreen mounted');
-    
-    const initializeScreen = async () => {
-      try {
-        // Simulate initialization time
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        console.log('✅ ExploreScreen initialized');
-        setIsInitialized(true);
-        
-        // Small delay before hiding loading
-        setTimeout(() => {
-          setIsLoading(false);
-          console.log('✅ ExploreScreen loading complete');
-        }, 200);
-        
-      } catch (error) {
-        console.error('❌ ExploreScreen initialization error:', error);
-        // Still show the screen even if there's an error
-        setIsInitialized(true);
-        setIsLoading(false);
-      }
-    };
-
-    initializeScreen();
+    console.log('🎯 ExploreScreen mounted - initializing immediately');
+    setIsInitialized(true);
   }, []);
 
   useEffect(() => {
@@ -134,10 +110,14 @@ export default function ExploreScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh delay
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+    // Simulate refresh
+    await new Promise(resolve => {
+      const timer = setTimeout(() => {
+        setRefreshing(false);
+        resolve(undefined);
+      }, 1000);
+      return () => clearTimeout(timer);
+    });
   };
 
   // Get user stats or show zeros
@@ -171,44 +151,7 @@ export default function ExploreScreen() {
       : require("../../assets/images/small_logo_black.svg");
   };
 
-  // Show loading state with better UX
-  if (isLoading || !isInitialized) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar 
-          style={isDark ? "light" : "dark"} 
-          backgroundColor={theme.colors.background} 
-        />
-        <View style={styles.loadingContainer}>
-          <View style={styles.loadingContent}>
-            <Image
-              source={getLogoSource()}
-              style={styles.loadingLogo}
-              contentFit="contain"
-            />
-            <Text style={styles.loadingTitle}>XQuests</Text>
-            <Text style={styles.loadingSubtitle}>
-              {!isInitialized ? 'Initializing...' : 'Loading your experience...'}
-            </Text>
-            <View style={styles.loadingIndicator}>
-              <Animated.View
-                style={[
-                  styles.loadingDot,
-                  {
-                    opacity: themeAnimation.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.3, 1],
-                    }),
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
+  // Show content immediately - no loading states
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar 
@@ -399,38 +342,6 @@ const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background,
-  },
-  loadingContent: {
-    alignItems: 'center',
-    gap: 16,
-  },
-  loadingLogo: {
-    width: 64,
-    height: 64,
-  },
-  loadingTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  loadingSubtitle: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-  },
-  loadingIndicator: {
-    marginTop: 8,
-  },
-  loadingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.primary,
   },
   header: {
     backgroundColor: theme.colors.background,

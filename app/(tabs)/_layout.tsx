@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Search, Bell, Award, Settings } from 'lucide-react-native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Platform } from 'react-native';
 
 export default function TabLayout() {
   const { theme } = useTheme();
@@ -13,8 +12,7 @@ export default function TabLayout() {
         tabBarStyle: {
           display: 'none', // Hide default tab bar since we have custom sidebar
         },
-        // Add lazy loading to improve performance
-        lazy: true,
+        lazy: false, // Disable lazy loading to prevent black screens
       }}
     >
       <Tabs.Screen
