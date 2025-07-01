@@ -1,12 +1,12 @@
 [build]
   # Build command for Expo web
-  command = "npm run build"
+  command = "npm run build:web"
   # Output directory
   publish = "dist"
 
 [build.environment]
   # Node version
-  NODE_VERSION = "18"
+  NODE_VERSION = "20.19.2"
 
 [[redirects]]
   # Handle all routes by serving index.html
