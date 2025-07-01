@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "platforms": ["ios", "android", "web"],
     "jsEngine": "hermes",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "xquests",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
@@ -17,7 +17,7 @@
     "web": {
       "bundler": "metro",
       "output": "server",
-      "favicon": "./assets/images/favicon.png",
+      "favicon": "./assets/images/favicon.ico",
       "themeColor": "#1D9BF0",
       "backgroundColor": "#000000",
       "startUrl": "/?utm_source=web_app_manifest",
@@ -54,7 +54,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
