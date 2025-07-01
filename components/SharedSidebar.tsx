@@ -5,19 +5,35 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  Dimensions,
 } from "react-native";
 import { Image } from "expo-image";
-import { Award, Plus, Search, Bell, Settings, Menu, MoveHorizontal as MoreHorizontal } from "lucide-react-native";
+import { Plus, Menu, MoveHorizontal as MoreHorizontal } from "lucide-react-native";
+import Svg, { SvgProps } from 'react-native-svg';
+import SmallLogoBlack from '../assets/images/small_logo_black.svg';
+import SmallLogoWhite from '../assets/images/small_logo_white.svg';
+import { NAV_ITEMS, getActiveRoute } from '../config/navigation';
 import { useRouter, usePathname } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 
+const { width } = Dimensions.get('window');
+const isMobile = width < 768;
+
 interface SharedSidebarProps {
-  sidebarCollapsed: boolean;
-  setSidebarCollapsed: (collapsed: boolean) => void;
+  children: React.ReactNode;
+  sidebarCollapsed?: boolean;
+  setSidebarCollapsed?: (collapsed: boolean) => void;
 }
 
-export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }: SharedSidebarProps) {
+export default function SharedSidebar({ 
+  children, 
+  sidebarCollapsed: propSidebarCollapsed = false, 
+  setSidebarCollapsed: propSetSidebarCollapsed 
+}: SharedSidebarProps) {
+  const [internalSidebarCollapsed, setInternalSidebarCollapsed] = useState(propSidebarCollapsed);
+  const sidebarCollapsed = propSetSidebarCollapsed ? propSidebarCollapsed : internalSidebarCollapsed;
+  const setSidebarCollapsed = propSetSidebarCollapsed || setInternalSidebarCollapsed;
   const { theme, isDark } = useTheme();
   const { user, isAuthenticated, setShowSetupModal, twitterUser, isSupabaseAuthenticated } = useAuth();
   const router = useRouter();
@@ -45,22 +61,13 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
     console.log('Creating new post');
   };
 
-  const sidebarItems = [
-    { id: 'explore', icon: Search, label: 'Explore', route: '/(tabs)/' },
-    { id: 'notifications', icon: Bell, label: 'Notifications', badge: isAuthenticated ? 3 : 0, route: '/(tabs)/notifications' },
-    { id: 'challenges', icon: Award, label: 'Challenges', route: '/(tabs)/challenges' },
-    { id: 'settings', icon: Settings, label: 'Settings', route: '/(tabs)/settings' },
-  ];
+  // Use shared navigation items and add authentication-specific badges
+  const sidebarItems = NAV_ITEMS.map(item => ({
+    ...item,
+    badge: item.id === 'notifications' && isAuthenticated ? 3 : undefined
+  }));
 
-  const getActiveRoute = () => {
-    if (pathname === '/(tabs)/' || pathname === '/') return 'explore';
-    if (pathname.includes('notifications')) return 'notifications';
-    if (pathname.includes('challenges')) return 'challenges';
-    if (pathname.includes('settings')) return 'settings';
-    return 'explore';
-  };
-
-  const activeRoute = getActiveRoute();
+  const activeRoute = getActiveRoute(pathname);
 
   const sidebarWidth = sidebarAnimation.interpolate({
     inputRange: [0, 1],
@@ -123,27 +130,82 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
   };
 
   const userDisplayData = getUserDisplayData();
-  const styles = createStyles(theme);
-
-  // Get the appropriate logo based on theme
-  const getLogoSource = () => {
-    return isDark 
-      ? require("../assets/images/small_logo_white.svg")
-      : require("../assets/images/small_logo_black.svg");
+  // Merge all styles
+  const themeStyles = createStyles(theme);
+  const bottomNavThemeStyles = bottomNavStyles(theme);
+  const styles = {
+    ...baseStyles,
+    ...themeStyles,
+    ...bottomNavThemeStyles,
+    // Mobile styles override
+    mobileContainer: {
+      ...baseStyles.mobileContainer,
+      backgroundColor: theme.colors.background,
+    },
+    layout: baseStyles.layout,
+    mainContent: baseStyles.mainContent,
   };
 
+  // Get the appropriate logo based on theme
+  const Logo = isDark ? SmallLogoBlack : SmallLogoWhite;
+
+  // Mobile view with custom bottom navigation
+  if (isMobile) {
+    return (
+      <View style={styles.mobileContainer}>
+        <View style={styles.mobileContent}>
+          {children}
+        </View>
+        {/* Bottom Navigation Bar */}
+        <View style={styles.bottomNav}>
+          {sidebarItems.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = activeRoute === item.id;
+            
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.bottomNavItem,
+                  isActive && styles.bottomNavItemActive
+                ]}
+                onPress={() => router.push(item.route)}
+              >
+                <IconComponent 
+                  size={24} 
+                  color={isActive ? theme.colors.primary : theme.colors.textSecondary}
+                  strokeWidth={isActive ? 2.5 : 2}
+                />
+                <Text 
+                  style={[
+                    styles.bottomNavText,
+                    { color: isActive ? theme.colors.primary : theme.colors.textSecondary }
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }
+
+  // Desktop/Tablet view
   return (
-    <Animated.View style={[styles.sidebar, { width: sidebarWidth }]}>
+    <View style={styles.layout}>
+      <Animated.View style={[styles.sidebar, { width: sidebarWidth }]}>
       {/* Custom App Logo */}
       <View style={styles.logoContainer}>
         <View style={[
           styles.appLogo,
           sidebarCollapsed && styles.appLogoCollapsed
         ]}>
-          <Image
-            source={getLogoSource()}
-            style={styles.appLogoImage}
-            contentFit="contain"
+          <Logo 
+            width="100%" 
+            height="100%"
+            preserveAspectRatio="xMidYMid meet"
           />
         </View>
       </View>
@@ -172,7 +234,7 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
                     color={isActive ? theme.colors.text : theme.colors.textSecondary}
                     strokeWidth={isActive ? 2.5 : 2}
                   />
-                  {item.badge > 0 && (
+                  {item.badge && item.badge > 0 && (
                     <View style={styles.badgeCollapsed}>
                       <Text style={styles.badgeText}>{item.badge}</Text>
                     </View>
@@ -187,7 +249,7 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
                       color={isActive ? theme.colors.text : theme.colors.textSecondary}
                       strokeWidth={isActive ? 2.5 : 2}
                     />
-                    {item.badge > 0 && (
+                    {item.badge && item.badge > 0 && (
                       <View style={styles.badge}>
                         <Text style={styles.badgeText}>{item.badge}</Text>
                       </View>
@@ -272,10 +334,71 @@ export default function SharedSidebar({ sidebarCollapsed, setSidebarCollapsed }:
           )}
         </TouchableOpacity>
       </TouchableOpacity>
-    </Animated.View>
+      </Animated.View>
+      <View style={styles.mainContent}>
+        {children}
+      </View>
+    </View>
   );
 }
 
+// Base styles that work with or without theme
+const baseStyles = StyleSheet.create({
+  // Mobile styles
+  mobileContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  mobileContent: {
+    flex: 1,
+    paddingBottom: 60, // Space for bottom navigation
+  },
+  
+  // Desktop/Tablet layout
+  layout: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  mainContent: {
+    flex: 1,
+  },
+  
+  // Theme-specific styles are defined in createStyles
+});
+
+// Bottom navigation styles
+const bottomNavStyles = (theme: any) => StyleSheet.create({
+  bottomNav: {
+    position: 'absolute' as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row' as const,
+    justifyContent: 'space-around' as const,
+    alignItems: 'center' as const,
+    backgroundColor: theme.colors.background,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    paddingVertical: 8,
+    paddingBottom: 12, // Extra padding for better touch targets and safe area
+  },
+  bottomNavItem: {
+    alignItems: 'center' as const,
+    padding: 8,
+    flex: 1,
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  bottomNavItemActive: {
+    backgroundColor: theme.colors.surface,
+  },
+  bottomNavText: {
+    fontSize: 10,
+    marginTop: 4,
+  },
+});
+
+// Theme-specific styles
 const createStyles = (theme: any) => StyleSheet.create({
   sidebar: {
     backgroundColor: theme.colors.background,

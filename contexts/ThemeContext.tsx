@@ -124,11 +124,18 @@ const darkTheme: Theme = {
   isDark: true,
 };
 
+import { StatusBarStyle } from 'expo-status-bar';
+
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
   isDark: boolean;
   setTheme: (isDark: boolean) => void;
+  /**
+   * Preferred status bar style based on current theme.
+   * "light" for dark theme backgrounds, "dark" for light theme backgrounds.
+   */
+  statusBarStyle: StatusBarStyle;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -141,11 +148,11 @@ export const useTheme = () => {
   return context;
 };
 
-interface ThemeProviderProps {
-  children: React.ReactNode;
-}
+type ThemeProviderProps = {
+  children?: React.ReactNode;
+};
 
-export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+export const ThemeProvider = ({ children }: ThemeProviderProps) => {
   const [isDark, setIsDark] = useState(true); // Default to dark theme like X
 
   useEffect(() => {
@@ -183,9 +190,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   const theme = isDark ? darkTheme : lightTheme;
+  const statusBarStyle: StatusBarStyle = isDark ? 'light' : 'dark';
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark, setTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme, isDark, setTheme, statusBarStyle }}>
       {children}
     </ThemeContext.Provider>
   );

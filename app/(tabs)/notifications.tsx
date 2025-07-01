@@ -9,10 +9,10 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Bell, Award, Star } from "lucide-react-native";
-import ResponsiveLayout from "../../components/ResponsiveLayout";
 import AccountSetupModal from "../../src/components/AccountSetupModal";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useAuth } from "../../contexts/AuthContext";
+import SharedSidebar from "@/components/SharedSidebar";
 
 interface Notification {
   id: string;
@@ -111,7 +111,7 @@ export default function NotificationsScreen() {
         backgroundColor={theme.colors.background} 
       />
 
-      <ResponsiveLayout>
+
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Notifications</Text>
@@ -181,7 +181,7 @@ export default function NotificationsScreen() {
             </View>
           )}
         </ScrollView>
-      </ResponsiveLayout>
+
 
       {/* Account Setup Modal */}
       {showSetupModal && (

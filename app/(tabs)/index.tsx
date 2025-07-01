@@ -8,21 +8,21 @@ import {
   StyleSheet,
   Animated,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
 import { Sparkles } from "lucide-react-native";
 import { useRouter } from 'expo-router';
-import ResponsiveLayout from "../../components/ResponsiveLayout";
-import AccountSetupModal from "../../src/components/AccountSetupModal";
-import LeaderboardSection from "../../src/components/LeaderboardSection";
-import CommunityFeedSection from "../../components/sections/CommunityFeedSection";
-import StatsSection from "../../components/sections/StatsSection";
-import QuickActionsSection from "../../components/sections/QuickActionsSection";
-import ChallengesSection from "../../components/sections/ChallengesSection";
-import ActivitySection from "../../components/sections/ActivitySection";
-import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
+import AccountSetupModal from "@/src/components/AccountSetupModal";
+import LeaderboardSection from "@/src/components/LeaderboardSection";
+import CommunityFeedSection from "@/components/sections/CommunityFeedSection";
+import StatsSection from "@/components/sections/StatsSection";
+import QuickActionsSection from "@/components/sections/QuickActionsSection";
+import ChallengesSection from "@/components/sections/ChallengesSection";
+import ActivitySection from "@/components/sections/ActivitySection";
+import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 export default function ExploreScreen() {
@@ -64,22 +64,17 @@ export default function ExploreScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  // Animation for theme toggle
-  const [themeAnimation] = useState(new Animated.Value(isDark ? 1 : 0));
-
-  // Initialize component immediately without delays
+  // Simplified initialization
+  const [isMounted, setIsMounted] = useState(false);
+  
   useEffect(() => {
-    console.log('🎯 ExploreScreen mounted - initializing immediately');
-    setIsInitialized(true);
+    // Set mounted state after a small delay to ensure proper rendering
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+    }, 0);
+    
+    return () => clearTimeout(timer);
   }, []);
-
-  useEffect(() => {
-    Animated.timing(themeAnimation, {
-      toValue: isDark ? 1 : 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [isDark]);
 
   const handleSetupComplete = () => {
     setShowSetupModal(false);
@@ -144,21 +139,27 @@ export default function ExploreScreen() {
   // Get the appropriate logo based on theme
   const getLogoSource = () => {
     return isDark 
-      ? require("../../assets/images/small_logo_white.svg")
-      : require("../../assets/images/small_logo_black.svg");
+      ? require("@/assets/images/logo.png")
+      : require("@/assets/images/logo.png");
   };
 
-  // Show content immediately - no loading states
+  // Show loading state if not mounted yet
+  if (!isMounted) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
+  
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar 
         style={isDark ? "light" : "dark"} 
         backgroundColor={theme.colors.background} 
       />
-
-      <ResponsiveLayout>
-        {/* Header */}
-        <View style={styles.header}>
+      {/* Header */}
+      <View style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.headerLeft}>
               <Text style={styles.headerTitle}>XQuests</Text>
@@ -188,27 +189,13 @@ export default function ExploreScreen() {
                     },
                   ]}
                 >
-                  <Animated.View
-                    style={[
-                      styles.themeToggleThumb,
-                      {
-                        transform: [
-                          {
-                            translateX: themeAnimation.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [2, 22],
-                            }),
-                          },
-                        ],
-                      },
-                    ]}
-                  >
-                    {isDark ? (
-                      <Text style={styles.themeIcon}>🌙</Text>
-                    ) : (
-                      <Text style={styles.themeIcon}>☀️</Text>
-                    )}
-                  </Animated.View>
+                  <View style={styles.themeToggleThumb}>
+                  {isDark ? (
+                    <Text style={styles.themeIcon}>🌙</Text>
+                  ) : (
+                    <Text style={styles.themeIcon}>☀️</Text>
+                  )}
+                </View>
                 </View>
               </TouchableOpacity>
             </View>
@@ -307,17 +294,16 @@ export default function ExploreScreen() {
             </Text>
           </View>
         </ScrollView>
-      </ResponsiveLayout>
 
-      {/* Account Setup Modal */}
-      {showSetupModal && (
-        <AccountSetupModal
-          isVisible={showSetupModal}
-          onComplete={handleSetupComplete}
-          onClose={() => setShowSetupModal(false)}
-        />
-      )}
-    </SafeAreaView>
+        {/* Account Setup Modal */}
+        {showSetupModal && (
+          <AccountSetupModal
+            isVisible={showSetupModal}
+            onComplete={handleSetupComplete}
+            onClose={() => setShowSetupModal(false)}
+          />
+        )}
+      </SafeAreaView>
   );
 }
 

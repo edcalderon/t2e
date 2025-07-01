@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, Dispatch, SetStateAction } from "react";
 import {
   View,
   Text,
@@ -11,17 +11,33 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
 import { User, Wallet, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight } from "lucide-react-native";
-import ResponsiveLayout from "../../components/ResponsiveLayout";
 import AccountSetupModal from "../../src/components/AccountSetupModal";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useAuth } from "../../contexts/AuthContext";
 
+
+type SettingsItem = {
+  id: string;
+  title: string;
+  icon: React.ReactNode;
+  action: string;
+  value?: boolean;
+  onToggle?: (value: boolean) => void;
+  requiresAuth: boolean;
+  danger?: boolean;
+};
+
+type SettingsSection = {
+  title: string;
+  items: SettingsItem[];
+};
+
 export default function SettingsScreen() {
-  const { theme, isDark } = useTheme();
+  const { theme, isDark, setTheme } = useTheme();
   const { user, isAuthenticated, logout, showSetupModal, setShowSetupModal } = useAuth();
   const styles = createStyles(theme);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  const [darkModeEnabled, setDarkModeEnabled] = useState(isDark);
   const [autoTweetEnabled, setAutoTweetEnabled] = useState(false);
 
   const handleSetupComplete = () => {
@@ -32,7 +48,7 @@ export default function SettingsScreen() {
     await logout();
   };
 
-  const settingsSections = [
+  const settings: SettingsSection[] = [
     {
       title: "Account",
       items: [
@@ -69,8 +85,11 @@ export default function SettingsScreen() {
           title: "Dark Mode",
           icon: <Shield size={20} color={theme.colors.primary} />,
           action: "toggle",
-          value: darkModeEnabled,
-          onToggle: setDarkModeEnabled,
+          value: isDark,
+          onToggle: (value: boolean) => {
+            setDarkModeEnabled(value);
+            setTheme(value);
+          },
           requiresAuth: false,
         },
         {
@@ -108,127 +127,127 @@ export default function SettingsScreen() {
 
   // Get the appropriate logo based on theme
   const getLogoSource = () => {
-    return isDark 
-      ? require("../../assets/images/small_logo_white.svg")
-      : require("../../assets/images/small_logo_black.svg");
+    return isDark
+      ? require("@/assets/images/logo.png")
+      : require("@/assets/images/logo.png");
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar 
-        style={isDark ? "light" : "dark"} 
-        backgroundColor={theme.colors.background} 
+      <StatusBar
+        style={isDark ? "light" : "dark"}
+        backgroundColor={theme.colors.background}
       />
 
-      <ResponsiveLayout>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Settings</Text>
+
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Settings</Text>
+      </View>
+
+      {/* Authentication Banner */}
+      {!isAuthenticated && (
+        <TouchableOpacity
+          style={styles.authBanner}
+          onPress={() => setShowSetupModal(true)}
+        >
+          <User size={20} color={theme.colors.primary} />
+          <Text style={styles.authBannerText}>
+            Connect your account to access all settings and features
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* User Profile Section */}
+      {isAuthenticated && user && (
+        <View style={styles.userSection}>
+          <Image
+            source={{ uri: user.avatar || "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2" }}
+            style={styles.userAvatar}
+          />
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{user.username}</Text>
+            <Text style={styles.userEmail}>{user.email}</Text>
+          </View>
         </View>
+      )}
 
-        {/* Authentication Banner */}
-        {!isAuthenticated && (
-          <TouchableOpacity 
-            style={styles.authBanner}
-            onPress={() => setShowSetupModal(true)}
-          >
-            <User size={20} color={theme.colors.primary} />
-            <Text style={styles.authBannerText}>
-              Connect your account to access all settings and features
+      {/* Settings List */}
+      <ScrollView style={styles.scrollView}>
+        {settings.map((section: SettingsSection) => (
+          <View key={section.title} style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {section.title}
             </Text>
-          </TouchableOpacity>
-        )}
+            <View style={styles.sectionContent}>
+              {section.items.map((item: SettingsItem, index: number) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[
+                    styles.settingItem,
+                    index < section.items.length - 1 && styles.settingItemBorder,
+                    (item.requiresAuth && !isAuthenticated) && styles.settingItemDisabled
+                  ]}
+                  onPress={() => {
+                    if (item.requiresAuth && !isAuthenticated) {
+                      setShowSetupModal(true);
+                      return;
+                    }
 
-        {/* User Profile Section */}
-        {isAuthenticated && user && (
-          <View style={styles.userSection}>
-            <Image
-              source={{ uri: user.avatar || "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&dpr=2" }}
-              style={styles.userAvatar}
-            />
-            <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user.username}</Text>
-              <Text style={styles.userEmail}>{user.email}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Settings List */}
-        <ScrollView style={styles.scrollView}>
-          {settingsSections.map((section) => (
-            <View key={section.title} style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {section.title}
-              </Text>
-              <View style={styles.sectionContent}>
-                {section.items.map((item, index) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={[
-                      styles.settingItem,
-                      index < section.items.length - 1 && styles.settingItemBorder,
-                      (item.requiresAuth && !isAuthenticated) && styles.settingItemDisabled
-                    ]}
-                    onPress={() => {
-                      if (item.requiresAuth && !isAuthenticated) {
-                        setShowSetupModal(true);
-                        return;
-                      }
-
-                      if (item.id === "logout") {
-                        handleLogout();
-                      } else if (item.action === "navigate" || item.action === "button") {
-                        console.log(`Pressed ${item.title}`);
-                      }
-                    }}
-                  >
-                    <View style={styles.settingItemLeft}>
-                      <View style={styles.iconContainer}>
-                        {item.icon}
-                      </View>
-                      <Text
-                        style={[
-                          styles.settingItemText,
-                          item.danger && styles.dangerText,
-                          (item.requiresAuth && !isAuthenticated) && styles.disabledText
-                        ]}
-                      >
-                        {item.title}
-                      </Text>
+                    if (item.id === "logout") {
+                      handleLogout();
+                    } else if (item.action === "navigate" || item.action === "button") {
+                      console.log(`Pressed ${item.title}`);
+                    }
+                  }}
+                >
+                  <View style={styles.settingItemLeft}>
+                    <View style={styles.iconContainer}>
+                      {item.icon}
                     </View>
+                    <Text
+                      style={[
+                        styles.settingItemText,
+                        item.danger && styles.dangerText,
+                        (item.requiresAuth && !isAuthenticated) && styles.disabledText
+                      ]}
+                    >
+                      {item.title}
+                    </Text>
+                  </View>
 
-                    {item.action === "toggle" && (
-                      <Switch
-                        trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                        thumbColor={item.value ? "#ffffff" : theme.colors.surface}
-                        onValueChange={item.onToggle}
-                        value={item.value}
-                        disabled={item.requiresAuth && !isAuthenticated}
-                      />
-                    )}
+                  {item.action === "toggle" && (
+                    <Switch
+                      trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                      thumbColor={item.value ? "#ffffff" : theme.colors.surface}
+                      onValueChange={item.onToggle}
+                      value={item.value}
+                      disabled={item.requiresAuth && !isAuthenticated}
+                    />
+                  )}
 
-                    {item.action === "navigate" && (
-                      <ChevronRight 
-                        size={20} 
-                        color={(item.requiresAuth && !isAuthenticated) ? theme.colors.textTertiary : theme.colors.textSecondary} 
-                      />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
+                  {item.action === "navigate" && (
+                    <ChevronRight
+                      size={20}
+                      color={(item.requiresAuth && !isAuthenticated) ? theme.colors.textTertiary : theme.colors.textSecondary}
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
             </View>
-          ))}
-
-          <View style={styles.footer}>
-            <Image
-              source={getLogoSource()}
-              style={styles.footerLogo}
-              contentFit="contain"
-            />
-            <Text style={styles.footerText}>XQuests v1.0.0</Text>
           </View>
-        </ScrollView>
-      </ResponsiveLayout>
+        ))}
+
+        <View style={styles.footer}>
+          <Image
+            source={getLogoSource()}
+            style={styles.footerLogo}
+            contentFit="contain"
+          />
+          <Text style={styles.footerText}>v1.0.0</Text>
+        </View>
+      </ScrollView>
+
 
       {/* Account Setup Modal */}
       {showSetupModal && (
@@ -375,6 +394,6 @@ const createStyles = (theme: any) => StyleSheet.create({
   footerText: {
     textAlign: 'center',
     color: theme.colors.textSecondary,
-    marginTop: 8,
+    marginTop: 0,
   },
 });

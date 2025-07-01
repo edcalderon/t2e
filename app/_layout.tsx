@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, usePathname } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { enableScreens } from 'react-native-screens';
 import { Platform, View, ActivityIndicator, Text } from 'react-native';
 import { ThemeProvider } from '../contexts/ThemeContext';
@@ -10,59 +9,61 @@ import { registerSW } from '../hooks/usePWA';
 import PWAInstallPrompt from '../components/PWAInstallPrompt';
 import PWAUpdatePrompt from '../components/PWAUpdatePrompt';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Enable screens before any navigation components are rendered
 enableScreens();
 
 function AppContent() {
+  const { isDark } = useTheme();
   const [isReady, setIsReady] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { initialized: authInitialized } = useAuth();
+  const { initialized: authInitialized, isAuthenticated } = useAuth();
   
-  // Initialize app immediately
+  // Initialize app and handle routing
   useEffect(() => {
     let mounted = true;
+    let redirectTimeout: ReturnType<typeof setTimeout>;
 
     const initializeApp = async () => {
       try {
-        console.log('🚀 Initializing XQuests app...');
-        
         if (Platform.OS === 'web') {
-          // Register service worker in the background
+          // Register service worker in the background without awaiting
           registerSW().catch(() => {});
-
-          // Handle initial navigation - ensure we're on tabs route
-          const currentPath = window.location.pathname;
-          console.log('Current path:', currentPath);
-          
-          // If we're not on a valid route, redirect to tabs
-          if (currentPath === '/' || currentPath === '' || !currentPath.startsWith('/(tabs)')) {
-            console.log('🔄 Redirecting to tabs from:', currentPath);
-            router.replace('/(tabs)');
-          }
         }
-        
-        // Mark as ready immediately
-        if (mounted) {
-          setIsReady(true);
-          console.log('✅ App initialization complete');
+
+        // Handle initial routing
+        if (pathname === '/') {
+          // Use a small timeout to ensure router is ready
+          redirectTimeout = setTimeout(() => {
+            if (mounted) {
+              router.replace('/(tabs)');
+              // Small delay before marking as ready to ensure navigation completes
+              setTimeout(() => {
+                if (mounted) setIsReady(true);
+              }, 50);
+            }
+          }, 10);
+        } else {
+          if (mounted) setIsReady(true);
         }
       } catch (error) {
-        console.error('❌ Initialization error:', error);
-        if (mounted) {
-          setIsReady(true); // Still mark as ready to prevent infinite loading
-        }
+        console.error('Initialization error:', error);
+        if (mounted) setIsReady(true);
       }
     };
-
-    // Initialize immediately without delay
+    
     initializeApp();
-
+    
     return () => {
       mounted = false;
+      if (redirectTimeout) clearTimeout(redirectTimeout);
     };
-  }, [router]);
+  }, [pathname]);
+
+  // Show loading state only if we're not in the middle of a redirect
+  const shouldShowLoading = !isReady && pathname !== '/' || !authInitialized;
 
   // Signal app ready to any external loading screens
   useEffect(() => {
@@ -85,24 +86,16 @@ function AppContent() {
     }
   }, [isReady, authInitialized]);
 
-  // Show minimal loading only if absolutely necessary
-  if (!isReady || !authInitialized) {
+  // Show loading state only when needed
+  if (shouldShowLoading) {
     return (
       <View style={{
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#000000'
+        backgroundColor: isDark ? '#121212' : '#ffffff'
       }}>
-        <ActivityIndicator size="large" color="#1D9BF0" />
-        <Text style={{ 
-          marginTop: 10, 
-          color: '#ffffff',
-          fontSize: 16,
-          fontWeight: '500'
-        }}>
-          Loading XQuests...
-        </Text>
+        <ActivityIndicator size="large" color={isDark ? '#ffffff' : '#000000'} />
       </View>
     );
   }
@@ -110,13 +103,30 @@ function AppContent() {
   // Main app content
   return (
     <View style={{ flex: 1 }}>
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
-        <Stack.Screen name="privacy" options={{ headerShown: false }} />
-        <Stack.Screen name="terms" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
+      <Stack 
+        screenOptions={{ headerShown: false }}
+        initialRouteName="(tabs)"
+      >
+        <Stack.Screen 
+          name="(tabs)" 
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen 
+          name="auth/callback" 
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen 
+          name="privacy" 
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen 
+          name="terms" 
+          options={{ headerShown: false }} 
+        />
+        <Stack.Screen 
+          name="+not-found" 
+          options={{ headerShown: false }}
+        />
       </Stack>
       
       {Platform.OS === 'web' && (
@@ -129,14 +139,16 @@ function AppContent() {
   );
 }
 
-export default function RootLayout() {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   useFrameworkReady();
+  
+  const content = children || <AppContent />;
   
   return (
     <ThemeProvider>
       <AuthProvider>
         <SidebarProvider>
-          <AppContent />
+          {content}
         </SidebarProvider>
       </AuthProvider>
     </ThemeProvider>

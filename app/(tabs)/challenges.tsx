@@ -11,10 +11,10 @@ import { StatusBar } from "expo-status-bar";
 import { Image } from "expo-image";
 import { Filter, Search } from "lucide-react-native";
 import ChallengeCard from "../../src/components/ChallengeCard";
-import ResponsiveLayout from "../../components/ResponsiveLayout";
 import AccountSetupModal from "../../src/components/AccountSetupModal";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useAuth } from "../../contexts/AuthContext";
+import SharedSidebar from "../../components/SharedSidebar";
 
 interface Challenge {
   id: string;
@@ -140,7 +140,6 @@ export default function ChallengesScreen() {
         backgroundColor={theme.colors.background} 
       />
 
-      <ResponsiveLayout>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Challenges</Text>
@@ -258,7 +257,7 @@ export default function ChallengesScreen() {
             </View>
           )}
         </ScrollView>
-      </ResponsiveLayout>
+
 
       {/* Account Setup Modal */}
       {showSetupModal && (
