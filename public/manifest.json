@@ -2,7 +2,7 @@
   "name": "XQuests - Tweet. Engage. Earn.",
   "short_name": "XQuests",
   "description": "Social media engagement platform that allows users to participate in challenges, earn cryptocurrency rewards, and connect their social media accounts.",
-  "start_url": "/",
+  "start_url": "/?utm_source=homescreen",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#1D9BF0",
