@@ -314,13 +314,13 @@
         let appLoaded = false;
         let swRegistered = false;
         
-        // Set a timeout to show error if app doesn't load
+        // Set a timeout to show error if app doesn't load - reduced timeout
         loadingTimeout = setTimeout(() => {
             if (!appLoaded) {
                 document.getElementById('errorContainer').style.display = 'block';
                 console.error('App loading timeout - check network connection');
             }
-        }, 10000); // 10 second timeout
+        }, 8000); // Reduced from 10 to 8 seconds
         
         // Function to hide loading screen when app is ready
         window.hideLoadingScreen = function() {
@@ -356,21 +356,21 @@
             // Check immediately
             if (checkAppReady()) return;
             
-            // Check periodically
+            // Check periodically with faster intervals
             const checkInterval = setInterval(() => {
                 if (checkAppReady()) {
                     clearInterval(checkInterval);
                 }
-            }, 100);
+            }, 50); // Reduced from 100ms to 50ms
             
-            // Fallback timeout - reduced to 2 seconds for faster loading
+            // Fallback timeout - reduced for faster loading
             setTimeout(() => {
                 clearInterval(checkInterval);
                 if (!appLoaded) {
                     console.log('Fallback: hiding loading screen after timeout');
                     window.hideLoadingScreen();
                 }
-            }, 2000);
+            }, 1500); // Reduced from 2000ms to 1500ms
         });
         
         // Service Worker Registration for PWA (with error handling)
@@ -408,12 +408,12 @@
             }
         });
         
-        // Framework ready hook integration
+        // Framework ready hook integration - faster response
         window.frameworkReady = function() {
             console.log('🚀 Framework ready signal received');
             setTimeout(() => {
                 window.hideLoadingScreen();
-            }, 50);
+            }, 100); // Reduced from 500ms to 100ms
         };
         
         // Error handling for uncaught errors

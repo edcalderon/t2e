@@ -18,6 +18,8 @@ export default function RootLayout() {
   useFrameworkReady();
 
   useEffect(() => {
+    console.log('🚀 RootLayout mounted');
+    
     // Register service worker for PWA functionality
     if (Platform.OS === 'web') {
       registerSW();

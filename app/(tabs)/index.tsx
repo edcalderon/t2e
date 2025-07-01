@@ -35,6 +35,7 @@ export default function ExploreScreen() {
   
   // Component state
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [challenges, setChallenges] = useState([
     {
       id: "1",
@@ -70,17 +71,33 @@ export default function ExploreScreen() {
   // Animation for theme toggle
   const [themeAnimation] = useState(new Animated.Value(isDark ? 1 : 0));
 
-  // Initialize component
+  // Initialize component with proper error handling
   useEffect(() => {
     console.log('🎯 ExploreScreen mounted');
     
-    // Simulate initial loading
-    const loadTimer = setTimeout(() => {
-      setIsLoading(false);
-      console.log('✅ ExploreScreen loaded');
-    }, 500);
+    const initializeScreen = async () => {
+      try {
+        // Simulate initialization time
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        console.log('✅ ExploreScreen initialized');
+        setIsInitialized(true);
+        
+        // Small delay before hiding loading
+        setTimeout(() => {
+          setIsLoading(false);
+          console.log('✅ ExploreScreen loading complete');
+        }, 200);
+        
+      } catch (error) {
+        console.error('❌ ExploreScreen initialization error:', error);
+        // Still show the screen even if there's an error
+        setIsInitialized(true);
+        setIsLoading(false);
+      }
+    };
 
-    return () => clearTimeout(loadTimer);
+    initializeScreen();
   }, []);
 
   useEffect(() => {
@@ -154,8 +171,8 @@ export default function ExploreScreen() {
       : require("../../assets/images/small_logo_black.svg");
   };
 
-  // Show loading state
-  if (isLoading) {
+  // Show loading state with better UX
+  if (isLoading || !isInitialized) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar 
@@ -170,7 +187,22 @@ export default function ExploreScreen() {
               contentFit="contain"
             />
             <Text style={styles.loadingTitle}>XQuests</Text>
-            <Text style={styles.loadingSubtitle}>Loading your experience...</Text>
+            <Text style={styles.loadingSubtitle}>
+              {!isInitialized ? 'Initializing...' : 'Loading your experience...'}
+            </Text>
+            <View style={styles.loadingIndicator}>
+              <Animated.View
+                style={[
+                  styles.loadingDot,
+                  {
+                    opacity: themeAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 1],
+                    }),
+                  },
+                ]}
+              />
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -390,6 +422,15 @@ const createStyles = (theme: any) => StyleSheet.create({
   loadingSubtitle: {
     fontSize: 16,
     color: theme.colors.textSecondary,
+  },
+  loadingIndicator: {
+    marginTop: 8,
+  },
+  loadingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.primary,
   },
   header: {
     backgroundColor: theme.colors.background,

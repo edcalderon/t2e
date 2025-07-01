@@ -7,6 +7,7 @@ export default function RootIndex() {
   useFrameworkReady();
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [redirectAttempts, setRedirectAttempts] = useState(0);
 
   useEffect(() => {
     console.log('🚀 Root index mounted, preparing redirect...');
@@ -14,25 +15,36 @@ export default function RootIndex() {
     // Set redirecting state
     setIsRedirecting(true);
     
-    // Add a small delay to ensure the router and contexts are ready
-    const timer = setTimeout(() => {
-      console.log('🔄 Redirecting to explore tab...');
+    const performRedirect = () => {
+      console.log(`🔄 Redirecting to explore tab... (attempt ${redirectAttempts + 1})`);
       try {
         router.replace('/(tabs)/');
+        console.log('✅ Redirect initiated successfully');
       } catch (error) {
         console.error('❌ Redirect error:', error);
-        // Fallback: try again after a longer delay
-        setTimeout(() => {
-          router.replace('/(tabs)/');
-        }, 500);
+        
+        // Retry logic
+        if (redirectAttempts < 3) {
+          setRedirectAttempts(prev => prev + 1);
+          setTimeout(performRedirect, 500 * (redirectAttempts + 1));
+        } else {
+          console.error('❌ Max redirect attempts reached');
+          // Force navigation as last resort
+          if (typeof window !== 'undefined') {
+            window.location.href = '/(tabs)/';
+          }
+        }
       }
-    }, 200);
+    };
+    
+    // Initial redirect with minimal delay
+    const timer = setTimeout(performRedirect, 100);
 
     return () => {
       clearTimeout(timer);
       setIsRedirecting(false);
     };
-  }, [router]);
+  }, [router, redirectAttempts]);
 
   // Show a loading indicator while redirecting
   return (
@@ -42,6 +54,11 @@ export default function RootIndex() {
         <Text style={styles.loadingText}>
           {isRedirecting ? 'Loading XQuests...' : 'Initializing...'}
         </Text>
+        {redirectAttempts > 0 && (
+          <Text style={styles.retryText}>
+            Retry attempt {redirectAttempts}/3
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -62,5 +79,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '500',
+  },
+  retryText: {
+    color: '#94a3b8',
+    fontSize: 12,
   },
 });
