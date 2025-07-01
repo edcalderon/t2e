@@ -4,18 +4,15 @@
     "slug": "xquestssite",
     "version": "1.0.0",
     "orientation": "portrait",
+    "platforms": ["ios", "android", "web"],
+    "jsEngine": "hermes",
     "icon": "./assets/images/icon.png",
     "scheme": "xquests",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
+    "packagerOpts": {
+      "config": "metro.config.js",
+      "sourceExts": ["js", "jsx", "ts", "tsx", "cjs", "mjs"]
     },
     "web": {
       "bundler": "metro",
@@ -23,7 +20,7 @@
       "favicon": "./assets/images/favicon.png",
       "themeColor": "#1D9BF0",
       "backgroundColor": "#000000",
-      "startUrl": "/",
+      "startUrl": "/?utm_source=web_app_manifest",
       "shortName": "XQuests",
       "lang": "en",
       "scope": "/",
@@ -31,6 +28,10 @@
       "orientation": "portrait-primary",
       "preferRelatedApplications": false,
       "dangerouslyAllowInsecureHttpRequests": false,
+      "serviceWorker": {
+        "source": "/sw.js",
+        "scope": "/"
+      },
       "meta": {
         "apple-mobile-web-app-capable": "yes",
         "apple-mobile-web-app-status-bar-style": "default",
@@ -38,6 +39,14 @@
         "mobile-web-app-capable": "yes",
         "msapplication-TileColor": "#1D9BF0",
         "msapplication-tap-highlight": "no"
+      },
+      "build": {
+        "babel": {
+          "include": [
+            "@babel/plugin-proposal-export-namespace-from",
+            "react-native-reanimated/plugin"
+          ]
+        }
       }
     },
     "plugins": [

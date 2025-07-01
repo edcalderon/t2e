@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="theme-color" content="#000000">
+  <title>XQuests</title>
+  <link rel="manifest" href="/manifest.json">
+  <script>
+    // This script ensures the user is redirected to the correct path
+    // if they land on the root path
+    if (window.location.pathname === '/') {
+      window.location.href = '/index.html';
+    }
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="/index.js"></script>
+</body>
+</html>
