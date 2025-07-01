@@ -9,7 +9,7 @@
     "web": "expo start --web",
     "build": "npx expo export -p web",
     "dev": "npx expo start --web",
-    "build:web": "expo export -p web && workbox generateSW workbox-config.js",
+    "build:web": "expo export -p web --output-dir dist && workbox generateSW workbox-config.js",
     "test": "jest --watchAll",
     "lint": "expo lint",
     "deploy": "expo export -p web && netlify deploy --prod --dir=dist"
