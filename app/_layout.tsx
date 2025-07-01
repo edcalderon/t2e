@@ -9,25 +9,27 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { registerSW } from '../hooks/usePWA';
 import PWAInstallPrompt from '../components/PWAInstallPrompt';
 import PWAUpdatePrompt from '../components/PWAUpdatePrompt';
+import SplashScreen from '../components/SplashScreen';
 
 // Enable screens before any navigation components are rendered
 enableScreens();
 
 function AppContent() {
   const [appReady, setAppReady] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   
-  // Handle app loading state
+  const handleSplashComplete = () => {
+    setShowSplash(false);
+  };
+
   useEffect(() => {
     const handleLoad = () => {
-      // Only hide loading screen if we're in a browser environment
       if (typeof window !== 'undefined') {
         try {
-          // @ts-ignore - hideLoadingScreen is defined in the web/index.html
           if (window.hideLoadingScreen) {
-            // @ts-ignore
             window.hideLoadingScreen();
           }
         } catch (error) {
@@ -37,17 +39,14 @@ function AppContent() {
       }
     };
 
-    // If the app is already loaded, hide the loading screen immediately
     if (typeof document !== 'undefined' && document.readyState === 'complete') {
       handleLoad();
     } else if (typeof window !== 'undefined') {
-      // Otherwise, wait for the load event
       window.addEventListener('load', handleLoad);
       return () => window.removeEventListener('load', handleLoad);
     }
   }, []);
   
-  // Handle back button/gesture on Android
   useEffect(() => {
     if (Platform.OS === 'android') {
       const backAction = () => {
@@ -67,7 +66,6 @@ function AppContent() {
     }
   }, [pathname, router]);
   
-  // Handle client-side navigation and app initialization
   useEffect(() => {
     if (initialized) return;
     
@@ -85,14 +83,12 @@ function AppContent() {
           const currentPath = window.location.pathname;
           const targetPath = '/(tabs)';
           
-          // Register service worker
           try {
             await registerSW();
           } catch (error) {
             console.warn('Service worker registration failed:', error);
           }
           
-          // Handle browser back/forward navigation
           const handleRouteChange = () => {
             const path = window.location.pathname;
             if (path === '/' || path === '' || path === '/(tabs)' || !path.startsWith('/(tabs)')) {
@@ -103,7 +99,6 @@ function AppContent() {
           
           window.addEventListener('popstate', handleRouteChange);
           
-          // Only redirect if not already on a tabs route
           if (currentPath === '/' || currentPath === '' || !currentPath.startsWith('/(tabs)')) {
             console.log('🔄 Navigating to initial route:', targetPath);
             await router.replace(targetPath);
@@ -116,7 +111,6 @@ function AppContent() {
             window.removeEventListener('popstate', handleRouteChange);
           };
         } else if (pathname === '/' || pathname === '') {
-          // For native platforms
           await router.replace('/(tabs)');
         }
       } catch (error) {
@@ -126,7 +120,6 @@ function AppContent() {
       }
     };
     
-    // Ensure the layout is mounted before attempting navigation
     const timer = setTimeout(() => {
       console.log('🔄 Starting navigation after ensuring layout is mounted');
       handleNavigation();
@@ -135,7 +128,15 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, [initialized, pathname, router]);
 
-  // Show loading indicator while app is initializing
+  if (showSplash) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000000' }}>
+        <StatusBar style="light" />
+        <SplashScreen onAnimationComplete={handleSplashComplete} />
+      </View>
+    );
+  }
+
   if (!appReady) {
     return (
       <View style={{
@@ -149,26 +150,30 @@ function AppContent() {
       </View>
     );
   }
-  
+
   return (
-    <>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
-        <Stack.Screen name="privacy" options={{ headerShown: false }} />
-        <Stack.Screen name="terms" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-      
-      {/* PWA Components - only render on web */}
-      {Platform.OS === 'web' && (
-        <>
-          <PWAInstallPrompt />
-          <PWAUpdatePrompt />
-        </>
-      )}
-    </>
+    <View style={{ flex: 1 }}>
+      <StatusBar style="light" />
+      <ThemeProvider>
+        <AuthProvider>
+          <SidebarProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+              <Stack.Screen name="privacy" options={{ headerShown: false }} />
+              <Stack.Screen name="terms" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            {Platform.OS === 'web' && (
+              <>
+                <PWAInstallPrompt />
+                <PWAUpdatePrompt />
+              </>
+            )}
+          </SidebarProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </View>
   );
 }
 
