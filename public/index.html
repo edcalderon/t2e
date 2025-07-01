@@ -62,6 +62,8 @@
             text-align: center;
             max-width: 400px;
             padding: 40px 20px;
+            z-index: 9999;
+            position: relative;
         }
         
         .logo-container {
@@ -225,6 +227,22 @@
             font-size: 12px;
         }
         
+        /* App container styling */
+        #root {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            z-index: 1;
+        }
+        
+        /* Hide loading screen when app is ready */
+        .app-ready .loading-container {
+            display: none;
+        }
+        
         @media (max-width: 480px) {
             .loading-container {
                 padding: 20px;
@@ -247,7 +265,7 @@
     </style>
 </head>
 <body>
-    <div class="loading-container">
+    <div class="loading-container" id="loadingContainer">
         <div class="logo-container">
             <div class="logo">
                 <span class="logo-text">X</span>
@@ -294,6 +312,7 @@
         // Loading timeout and error handling
         let loadingTimeout;
         let appLoaded = false;
+        let swRegistered = false;
         
         // Set a timeout to show error if app doesn't load
         loadingTimeout = setTimeout(() => {
@@ -308,46 +327,76 @@
             appLoaded = true;
             clearTimeout(loadingTimeout);
             
-            const loadingContainer = document.querySelector('.loading-container');
+            const loadingContainer = document.getElementById('loadingContainer');
             if (loadingContainer) {
                 loadingContainer.style.transition = 'opacity 0.5s ease-out';
                 loadingContainer.style.opacity = '0';
                 setTimeout(() => {
                     loadingContainer.style.display = 'none';
+                    document.body.classList.add('app-ready');
                 }, 500);
             }
         };
         
-        // Auto-hide loading screen when DOM is ready (fallback)
+        // Enhanced app ready detection
+        function checkAppReady() {
+            const rootElement = document.getElementById('root');
+            if (rootElement && rootElement.children.length > 0) {
+                console.log('App content detected, hiding loading screen');
+                window.hideLoadingScreen();
+                return true;
+            }
+            return false;
+        }
+        
+        // Multiple detection methods for app readiness
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM Content Loaded');
+            
+            // Check immediately
+            if (checkAppReady()) return;
+            
+            // Check periodically
+            const checkInterval = setInterval(() => {
+                if (checkAppReady()) {
+                    clearInterval(checkInterval);
+                }
+            }, 100);
+            
+            // Fallback timeout
             setTimeout(() => {
+                clearInterval(checkInterval);
                 if (!appLoaded) {
+                    console.log('Fallback: hiding loading screen after timeout');
                     window.hideLoadingScreen();
                 }
-            }, 3000);
+            }, 5000);
         });
         
-        // Service Worker Registration for PWA
+        // Service Worker Registration for PWA (with error handling)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
                     .then((registration) => {
-                        console.log('SW registered: ', registration);
+                        console.log('✅ SW registered successfully:', registration);
+                        swRegistered = true;
                     })
                     .catch((registrationError) => {
-                        console.log('SW registration failed: ', registrationError);
+                        console.log('⚠️ SW registration failed (this is OK):', registrationError);
+                        // Don't treat SW registration failure as a critical error
+                        swRegistered = false;
                     });
             });
         }
         
         // Handle online/offline status
         window.addEventListener('online', () => {
-            console.log('App is online');
+            console.log('📶 App is online');
             document.body.style.filter = 'none';
         });
         
         window.addEventListener('offline', () => {
-            console.log('App is offline');
+            console.log('📵 App is offline');
             document.body.style.filter = 'grayscale(50%)';
         });
         
@@ -355,8 +404,29 @@
         window.addEventListener('load', () => {
             if (window.performance) {
                 const loadTime = window.performance.timing.loadEventEnd - window.performance.timing.navigationStart;
-                console.log('Page load time:', loadTime + 'ms');
+                console.log('⏱️ Page load time:', loadTime + 'ms');
             }
+        });
+        
+        // Framework ready hook integration
+        window.frameworkReady = function() {
+            console.log('🚀 Framework ready signal received');
+            setTimeout(() => {
+                window.hideLoadingScreen();
+            }, 500);
+        };
+        
+        // Error handling for uncaught errors
+        window.addEventListener('error', (event) => {
+            console.error('❌ Uncaught error:', event.error);
+            if (!appLoaded) {
+                document.getElementById('errorContainer').style.display = 'block';
+            }
+        });
+        
+        // Handle unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('❌ Unhandled promise rejection:', event.reason);
         });
     </script>
 </body>
