@@ -9,11 +9,14 @@
     "web": "expo start --web",
     "build": "expo export -p web",
     "dev": "expo start --web",
-    "build:web": "npm run prebuild && expo start --web",
-    "prebuild": "rm -rf dist && expo export -p web --output-dir dist",
+    "build:web": "npm run prebuild && expo export -p web --output-dir dist",
+    "prebuild": "rm -rf dist ",
     "test": "jest --watchAll",
     "lint": "expo lint",
     "deploy": "npm run build:web && netlify deploy --prod --dir=dist"
+  },
+  "jest": {
+    "preset": "jest-expo"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
@@ -49,7 +52,7 @@
     "react-native-reanimated": "~3.10.0",
     "react-native-safe-area-context": "4.10.5",
     "react-native-screens": "3.31.1",
-    "react-native-svg": "^15.12.0",
+    "react-native-svg": "15.2.0",
     "react-native-svg-transformer": "^1.5.1",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "0.19.10",
@@ -66,6 +69,7 @@
     "@types/react": "~18.2.79",
     "@types/react-test-renderer": "^18.3.0",
     "expo-module-scripts": "^4.1.8",
+    "jest-expo": "~51.0.1",
     "react-test-renderer": "18.2.0",
     "typescript": "~5.3.3"
   },
