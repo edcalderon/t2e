@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Easing } from "react-native";
 import {
   View,
   Text,
@@ -29,6 +30,8 @@ const AccountSetupModal = ({
   onClose = () => {},
   onComplete = () => {},
 }: AccountSetupModalProps) => {
+  // Internal state for controlling Modal visibility
+  const [internalVisible, setInternalVisible] = useState(isVisible);
   const { theme } = useTheme();
   const { updateUser, twitterUser, isSupabaseAuthenticated } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
@@ -56,27 +59,48 @@ const AccountSetupModal = ({
     },
   ];
 
+  // Sync internalVisible with isVisible for opening
   useEffect(() => {
     if (isVisible) {
-      // Animate modal in
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
+      setInternalVisible(true);
+      // Animate modal in with smoother, more fluent effect
+      slideAnim.setValue(height);
+      fadeAnim.setValue(0);
+      scaleAnim.setValue(0.9);
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 500,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 400,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1.05,
+            duration: 350,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]),
         Animated.timing(scaleAnim, {
           toValue: 1,
-          duration: 400,
+          duration: 180,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
-        }),
+        })
       ]).start();
     }
+    // If isVisible becomes false, trigger handleClose (but not immediately hide Modal)
+    else if (!isVisible && internalVisible) {
+      handleClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVisible]);
 
   // Update Twitter connection status when Supabase auth changes
@@ -86,22 +110,37 @@ const AccountSetupModal = ({
     }
   }, [isSupabaseAuthenticated, twitterUser]);
 
+  // Only call this to trigger the animation, not to hide the modal immediately
+  // IMPORTANT: Parent should not remove/unmount the modal until onClose is called!
   const handleClose = () => {
     Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: height,
-        duration: 300,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 200,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
+      Animated.timing(scaleAnim, {
+        toValue: 0.98,
+        duration: 180,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      })
     ]).start(() => {
-      onClose();
+      setInternalVisible(false); // Actually hide the modal
+      onClose(); // Notify parent
     });
   };
+
+
+
+
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -218,7 +257,7 @@ const AccountSetupModal = ({
   const styles = createStyles(theme, isMobile);
 
   return (
-    <Modal visible={isVisible} animationType="none" transparent={true}>
+    <Modal visible={internalVisible} animationType="none" transparent={true}>
       <Animated.View 
         style={[
           styles.overlay,
