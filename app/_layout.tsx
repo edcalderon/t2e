@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import { SidebarProvider } from '../contexts/SidebarContext';
 import { AuthProvider } from '../contexts/AuthContext';
+import { AdminProvider } from '../contexts/AdminContext';
 import { registerSW } from '../hooks/usePWA';
 import PWAInstallPrompt from '../components/PWAInstallPrompt';
 import PWAUpdatePrompt from '../components/PWAUpdatePrompt';
@@ -98,9 +99,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <ThemeProvider>
       <AuthProvider>
-        <SidebarProvider>
-          {content}
-        </SidebarProvider>
+        <AdminProvider>
+          <SidebarProvider>
+            {content}
+          </SidebarProvider>
+        </AdminProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -15,6 +15,8 @@ import { NAV_ITEMS, getActiveRoute } from '../config/navigation';
 import { useRouter, usePathname } from 'expo-router';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useAdmin } from '../contexts/AdminContext';
+import { useNotifications } from '../hooks/useNotifications';
 
 const { width } = Dimensions.get('window');
 const isMobile = width < 768;
@@ -35,6 +37,8 @@ export default function SharedSidebar({
   const setSidebarCollapsed = propSetSidebarCollapsed || setInternalSidebarCollapsed;
   const { theme, isDark } = useTheme();
   const { user, isAuthenticated, setShowSetupModal, twitterUser, isSupabaseAuthenticated } = useAuth();
+  const { isAdmin } = useAdmin();
+  const { unreadCount } = useNotifications();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarAnimation] = useState(new Animated.Value(sidebarCollapsed ? 0 : 1));
@@ -63,8 +67,18 @@ export default function SharedSidebar({
   // Use shared navigation items and add authentication-specific badges
   const sidebarItems = NAV_ITEMS.map(item => ({
     ...item,
-    badge: item.id === 'notifications' && isAuthenticated ? 3 : undefined
+    badge: item.id === 'notifications' && isAuthenticated ? unreadCount : undefined
   }));
+
+  // Add admin tab if user is admin
+  if (isAdmin) {
+    sidebarItems.push({
+      id: 'admin',
+      icon: require('lucide-react-native').Shield,
+      label: 'Admin',
+      route: { pathname: '/(tabs)/admin' },
+    });
+  }
 
   const activeRoute = getActiveRoute(pathname);
 
@@ -170,11 +184,20 @@ export default function SharedSidebar({
                 ]}
                 onPress={() => router.push(item.route)}
               >
-                <IconComponent
-                  size={24}
-                  color={isActive ? theme.colors.primary : theme.colors.textSecondary}
-                  strokeWidth={isActive ? 2.5 : 2}
-                />
+                <View style={{ position: 'relative' }}>
+                  <IconComponent
+                    size={24}
+                    color={isActive ? theme.colors.primary : theme.colors.textSecondary}
+                    strokeWidth={isActive ? 2.5 : 2}
+                  />
+                  {item.badge && item.badge > 0 && (
+                    <View style={styles.bottomNavBadge}>
+                      <Text style={styles.bottomNavBadgeText}>
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <Text
                   style={[
                     styles.bottomNavText,
@@ -253,7 +276,9 @@ export default function SharedSidebar({
                     />
                     {item.badge && item.badge > 0 && (
                       <View style={styles.badgeCollapsed}>
-                        <Text style={styles.badgeText}>{item.badge}</Text>
+                        <Text style={styles.badgeText}>
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </Text>
                       </View>
                     )}
                   </View>
@@ -268,7 +293,9 @@ export default function SharedSidebar({
                       />
                       {item.badge && item.badge > 0 && (
                         <View style={styles.badge}>
-                          <Text style={styles.badgeText}>{item.badge}</Text>
+                          <Text style={styles.badgeText}>
+                            {item.badge > 99 ? '99+' : item.badge}
+                          </Text>
                         </View>
                       )}
                     </View>
@@ -342,6 +369,12 @@ export default function SharedSidebar({
               <View style={styles.connectedIndicator}>
                 <View style={styles.connectedDot} />
                 <Text style={styles.connectedText}>Connected</Text>
+              </View>
+            )}
+            {isAdmin && (
+              <View style={styles.adminIndicator}>
+                <View style={styles.adminDot} />
+                <Text style={styles.adminText}>Admin</Text>
               </View>
             )}
           </Animated.View>
@@ -420,6 +453,23 @@ const bottomNavStyles = (theme: any) => StyleSheet.create({
   bottomNavText: {
     fontSize: 10,
     marginTop: 4,
+  },
+  bottomNavBadge: {
+    position: 'absolute' as const,
+    top: -8,
+    right: -8,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingHorizontal: 4,
+  },
+  bottomNavBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700' as const,
   },
 });
 
@@ -619,6 +669,23 @@ const createStyles = (theme: any) => StyleSheet.create({
   connectedText: {
     fontSize: 11,
     color: theme.colors.success,
+    fontWeight: '500',
+  },
+  adminIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  adminDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.warning,
+    marginRight: 4,
+  },
+  adminText: {
+    fontSize: 11,
+    color: theme.colors.warning,
     fontWeight: '500',
   },
   collapseButton: {
