@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { Plus, Menu, MoveHorizontal as MoreHorizontal } from "lucide-react-native";
-import Svg, { SvgProps } from 'react-native-svg';
 import SmallLogoBlack from '../assets/images/small_logo_black.svg';
 import SmallLogoWhite from '../assets/images/small_logo_white.svg';
 import { NAV_ITEMS, getActiveRoute } from '../config/navigation';
@@ -26,10 +25,10 @@ interface SharedSidebarProps {
   setSidebarCollapsed?: (collapsed: boolean) => void;
 }
 
-export default function SharedSidebar({ 
-  children, 
-  sidebarCollapsed: propSidebarCollapsed = false, 
-  setSidebarCollapsed: propSetSidebarCollapsed 
+export default function SharedSidebar({
+  children,
+  sidebarCollapsed: propSidebarCollapsed = false,
+  setSidebarCollapsed: propSetSidebarCollapsed
 }: SharedSidebarProps) {
   const [internalSidebarCollapsed, setInternalSidebarCollapsed] = useState(propSidebarCollapsed);
   const sidebarCollapsed = propSetSidebarCollapsed ? propSidebarCollapsed : internalSidebarCollapsed;
@@ -161,7 +160,7 @@ export default function SharedSidebar({
           {sidebarItems.map((item) => {
             const IconComponent = item.icon;
             const isActive = activeRoute === item.id;
-            
+
             return (
               <TouchableOpacity
                 key={item.id}
@@ -171,12 +170,12 @@ export default function SharedSidebar({
                 ]}
                 onPress={() => router.push(item.route)}
               >
-                <IconComponent 
-                  size={24} 
+                <IconComponent
+                  size={24}
                   color={isActive ? theme.colors.primary : theme.colors.textSecondary}
                   strokeWidth={isActive ? 2.5 : 2}
                 />
-                <Text 
+                <Text
                   style={[
                     styles.bottomNavText,
                     { color: isActive ? theme.colors.primary : theme.colors.textSecondary }
@@ -196,24 +195,24 @@ export default function SharedSidebar({
   return (
     <View style={styles.layout}>
       <Animated.View style={[styles.sidebar, { width: sidebarWidth }]}>
-      {/* Custom App Logo */}
-      <View style={[
-        styles.logoContainer,
-        { flexDirection: 'row', alignItems: 'center' }
-      ]}>
+        {/* Custom App Logo */}
         <View style={[
-          styles.appLogo,
-          sidebarCollapsed && styles.appLogoCollapsed,
-         
+          styles.logoContainer,
+          { flexDirection: 'row', alignItems: 'center' }
         ]}>
-          <Logo 
-            width="40" 
-            height="40"
-            preserveAspectRatio="xMidYMid meet"
-          />
-          
-        </View>
-        {!sidebarCollapsed && (
+          <View style={[
+            styles.appLogo,
+            sidebarCollapsed && styles.appLogoCollapsed,
+
+          ]}>
+            <Logo
+              width="40"
+              height="40"
+              preserveAspectRatio="xMidYMid meet"
+            />
+
+          </View>
+          {!sidebarCollapsed && (
             <Animated.Text
               style={[
                 styles.logoText,
@@ -226,132 +225,140 @@ export default function SharedSidebar({
               XQuests
             </Animated.Text>
           )}
-      </View>
+        </View>
 
-      {/* Navigation Items */}
-      <View style={styles.navItems}>
-        {sidebarItems.map((item) => {
-          const IconComponent = item.icon;
-          const isActive = activeRoute === item.id;
-          
-          return (
-            <TouchableOpacity
-              key={item.id}
-              style={[
-                styles.navItem,
-                isActive && styles.navItemActive,
-                sidebarCollapsed && styles.navItemCollapsed
-              ]}
-              onPress={() => router.push(item.route)}
-            >
-              {sidebarCollapsed ? (
-                // Collapsed mode - center icon directly
-                <View style={styles.collapsedIconContainer}>
-                  <IconComponent 
-                    size={28} 
-                    color={isActive ? theme.colors.text : theme.colors.textSecondary}
-                    strokeWidth={isActive ? 2.5 : 2}
-                  />
-                  {item.badge && item.badge > 0 && (
-                    <View style={styles.badgeCollapsed}>
-                      <Text style={styles.badgeText}>{item.badge}</Text>
-                    </View>
-                  )}
-                </View>
-              ) : (
-                // Expanded mode - normal layout
-                <View style={styles.navItemContent}>
-                  <View style={styles.iconWrapper}>
-                    <IconComponent 
-                      size={26} 
+        {/* Navigation Items */}
+        <View style={styles.navItems}>
+          {sidebarItems.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = activeRoute === item.id;
+
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.navItem,
+                  isActive && styles.navItemActive,
+                  sidebarCollapsed && styles.navItemCollapsed
+                ]}
+                onPress={() => router.push(item.route)}
+              >
+                {sidebarCollapsed ? (
+                  // Collapsed mode - center icon directly
+                  <View style={styles.collapsedIconContainer}>
+                    <IconComponent
+                      size={28}
                       color={isActive ? theme.colors.text : theme.colors.textSecondary}
                       strokeWidth={isActive ? 2.5 : 2}
                     />
                     {item.badge && item.badge > 0 && (
-                      <View style={styles.badge}>
+                      <View style={styles.badgeCollapsed}>
                         <Text style={styles.badgeText}>{item.badge}</Text>
                       </View>
                     )}
                   </View>
-                  <Animated.Text 
-                    style={[
-                      styles.navItemText,
-                      isActive && styles.navItemTextActive,
-                      { opacity: textOpacity, marginLeft: textMarginLeft }
-                    ]}
-                  >
-                    {item.label}
-                  </Animated.Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+                ) : (
+                  // Expanded mode - normal layout
+                  <View style={styles.navItemContent}>
+                    <View style={styles.iconWrapper}>
+                      <IconComponent
+                        size={26}
+                        color={isActive ? theme.colors.text : theme.colors.textSecondary}
+                        strokeWidth={isActive ? 2.5 : 2}
+                      />
+                      {item.badge && item.badge > 0 && (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>{item.badge}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Animated.Text
+                      style={[
+                        styles.navItemText,
+                        isActive && styles.navItemTextActive,
+                        { opacity: textOpacity, marginLeft: textMarginLeft }
+                      ]}
+                    >
+                      {item.label}
+                    </Animated.Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-      {/* Post Button */}
-      <Animated.View style={[styles.postButtonContainer, { width: postButtonWidth }]}>
-        <TouchableOpacity 
-          style={[
-            styles.postButton,
-            sidebarCollapsed && styles.postButtonCollapsed
-          ]}
-          onPress={handleNewPost}
-        >
-          <Plus size={sidebarCollapsed ? 28 : 24} color="#FFFFFF" strokeWidth={2.5} />
-          <Animated.Text style={[styles.postButtonText, { opacity: textOpacity, marginLeft: postButtonTextMarginLeft }]}>
-            Post
-          </Animated.Text>
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* User Profile */}
-      <TouchableOpacity 
-        style={[
-          styles.userProfile,
-          sidebarCollapsed && styles.userProfileCollapsed
-        ]}
-        onPress={() => userDisplayData.isGuest && setShowSetupModal(true)}
-      >
-        <Image
-          source={{ uri: userDisplayData.avatar }}
-          style={[
-            styles.userAvatar,
-            sidebarCollapsed && styles.userAvatarCollapsed,
-            userDisplayData.isGuest && styles.userAvatarDisabled
-          ]}
-        />
-        <Animated.View style={[styles.userInfo, { opacity: textOpacity }]}>
-          <Text style={styles.userName}>
-            {userDisplayData.displayName}
-          </Text>
-          <Text style={styles.userHandle}>
-            {userDisplayData.isGuest 
-              ? "Not connected" 
-              : `@${userDisplayData.username.toLowerCase()}`
-            }
-          </Text>
-          {isAuthenticated && !userDisplayData.isGuest && (
-            <View style={styles.connectedIndicator}>
-              <View style={styles.connectedDot} />
-              <Text style={styles.connectedText}>Connected</Text>
-            </View>
-          )}
+        {/* Post Button */}
+        <Animated.View style={[styles.postButtonContainer, { width: postButtonWidth }]}>
+          <TouchableOpacity
+            style={[
+              styles.postButton,
+              sidebarCollapsed && styles.postButtonCollapsed
+            ]}
+            onPress={handleNewPost}
+          >
+            {sidebarCollapsed ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style={{ color: '#fff', display: 'block' }}><g><path d="M23 3c-6.62-.1-10.38 2.421-13.05 6.03C7.29 12.61 6 17.331 6 22h2c0-1.007.07-2.012.19-3H12c4.1 0 7.48-3.082 7.94-7.054C22.79 10.147 23.17 6.359 23 3zm-7 8h-1.5v2H16c.63-.016 1.2-.08 1.72-.188C16.95 15.24 14.68 17 12 17H8.55c.57-2.512 1.57-4.851 3-6.78 2.16-2.912 5.29-4.911 9.45-5.187C20.95 8.079 19.9 11 16 11zM4 9V6H1V4h3V1h2v3h3v2H6v3H4z" fill="#fff"></path></g></svg>
+              </View>
+            ) : (
+              <>
+                <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
+                <Animated.Text style={[styles.postButtonText, { opacity: textOpacity, marginLeft: postButtonTextMarginLeft }]}>
+                  Post
+                </Animated.Text>
+              </>
+            )}
+          </TouchableOpacity>
         </Animated.View>
-        <TouchableOpacity 
+
+        {/* User Profile */}
+        <TouchableOpacity
           style={[
-            styles.collapseButton,
-            sidebarCollapsed && styles.collapseButtonCollapsed
+            styles.userProfile,
+            sidebarCollapsed && styles.userProfileCollapsed
           ]}
-          onPress={toggleSidebar}
+          onPress={() => userDisplayData.isGuest && setShowSetupModal(true)}
         >
-          {sidebarCollapsed ? (
-            <Menu size={24} color={theme.colors.textSecondary} />
-          ) : (
-            <MoreHorizontal size={20} color={theme.colors.textSecondary} />
-          )}
+          <Image
+            source={{ uri: userDisplayData.avatar }}
+            style={[
+              styles.userAvatar,
+              sidebarCollapsed && styles.userAvatarCollapsed,
+              userDisplayData.isGuest && styles.userAvatarDisabled
+            ]}
+          />
+          <Animated.View style={[styles.userInfo, { opacity: textOpacity }]}>
+            <Text style={styles.userName}>
+              {userDisplayData.displayName}
+            </Text>
+            <Text style={styles.userHandle}>
+              {userDisplayData.isGuest
+                ? "Not connected"
+                : `@${userDisplayData.username.toLowerCase()}`
+              }
+            </Text>
+            {isAuthenticated && !userDisplayData.isGuest && (
+              <View style={styles.connectedIndicator}>
+                <View style={styles.connectedDot} />
+                <Text style={styles.connectedText}>Connected</Text>
+              </View>
+            )}
+          </Animated.View>
+          <TouchableOpacity
+            style={[
+              styles.collapseButton,
+              sidebarCollapsed && styles.collapseButtonCollapsed
+            ]}
+            onPress={toggleSidebar}
+          >
+            {sidebarCollapsed ? (
+              <Menu size={24} color={theme.colors.textSecondary} />
+            ) : (
+              <MoreHorizontal size={20} color={theme.colors.textSecondary} />
+            )}
+          </TouchableOpacity>
         </TouchableOpacity>
-      </TouchableOpacity>
       </Animated.View>
       <View style={styles.mainContent}>
         {children}
@@ -371,7 +378,7 @@ const baseStyles = StyleSheet.create({
     flex: 1,
     paddingBottom: 60, // Space for bottom navigation
   },
-  
+
   // Desktop/Tablet layout
   layout: {
     flex: 1,
@@ -380,7 +387,7 @@ const baseStyles = StyleSheet.create({
   mainContent: {
     flex: 1,
   },
-  
+
   // Theme-specific styles are defined in createStyles
 });
 
@@ -543,10 +550,14 @@ const createStyles = (theme: any) => StyleSheet.create({
     width: '100%',
   },
   postButtonCollapsed: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     paddingHorizontal: 0,
+    paddingVertical: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginStart: -12,
   },
   postButtonText: {
     color: '#FFFFFF',
