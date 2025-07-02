@@ -19,7 +19,7 @@ export const fetchTweets = async (nextToken?: string, customQuery?: string): Pro
 
   try {
     const response = await client.tweets.tweetsRecentSearch({
-      query,
+      query: `${query} -is:retweet -is:reply`,
       max_results: 10,
       'tweet.fields': ['author_id', 'created_at', 'public_metrics', 'text'],
       'user.fields': ['name', 'username', 'profile_image_url', 'verified'],
@@ -35,18 +35,37 @@ export const fetchTweets = async (nextToken?: string, customQuery?: string): Pro
 
     const tweets = response.data.map(tweet => {
       const user = response.includes?.users?.find(u => u.id === tweet.author_id);
+      const createdAt = tweet.created_at ? new Date(tweet.created_at) : new Date();
+      const timeDiff = Math.floor((Date.now() - createdAt.getTime()) / 1000);
+      
+      // Format timestamp to be more readable (e.g., "2h ago", "1d ago")
+      let formattedTimestamp = '';
+      if (timeDiff < 60) {
+        formattedTimestamp = 'Just now';
+      } else if (timeDiff < 3600) {
+        formattedTimestamp = `${Math.floor(timeDiff / 60)}m ago`;
+      } else if (timeDiff < 86400) {
+        formattedTimestamp = `${Math.floor(timeDiff / 3600)}h ago`;
+      } else {
+        formattedTimestamp = `${Math.floor(timeDiff / 86400)}d ago`;
+      }
+
+      // Extract hashtags from tweet text
+      const hashtags = tweet.text.match(/#\w+/g) || [];
+      const challengeTag = hashtags.find(tag => tag.toLowerCase() !== '#xquests')?.replace('#', '') || 'General';
+      
       return {
         id: tweet.id,
-        username: user?.username || 'unknown',
+        username: user?.username?.toLowerCase() || 'unknown',
         displayName: user?.name || 'Unknown User',
-        avatar: user?.profile_image_url?.replace('_normal', '') || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png',
+        avatar: user?.profile_image_url?.replace('_normal', '_bigger') || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png',
         content: tweet.text,
-        timestamp: tweet.created_at || new Date().toISOString(),
+        timestamp: formattedTimestamp,
         likes: tweet.public_metrics?.like_count || 0,
         retweets: tweet.public_metrics?.retweet_count || 0,
         replies: tweet.public_metrics?.reply_count || 0,
         verified: user?.verified || false,
-        challengeTag: 'General',
+        challengeTag,
         followerCount: user?.public_metrics?.followers_count || 0,
       };
     });
