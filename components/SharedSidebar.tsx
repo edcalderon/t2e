@@ -197,17 +197,35 @@ export default function SharedSidebar({
     <View style={styles.layout}>
       <Animated.View style={[styles.sidebar, { width: sidebarWidth }]}>
       {/* Custom App Logo */}
-      <View style={styles.logoContainer}>
+      <View style={[
+        styles.logoContainer,
+        { flexDirection: 'row', alignItems: 'center' }
+      ]}>
         <View style={[
           styles.appLogo,
-          sidebarCollapsed && styles.appLogoCollapsed
+          sidebarCollapsed && styles.appLogoCollapsed,
+         
         ]}>
           <Logo 
-            width="100%" 
-            height="100%"
+            width="40" 
+            height="40"
             preserveAspectRatio="xMidYMid meet"
           />
+          
         </View>
+        {!sidebarCollapsed && (
+            <Animated.Text
+              style={[
+                styles.logoText,
+                {
+                  opacity: textOpacity,
+                  marginLeft: textMarginLeft,
+                },
+              ]}
+            >
+              XQuests
+            </Animated.Text>
+          )}
       </View>
 
       {/* Navigation Items */}
@@ -417,15 +435,18 @@ const createStyles = (theme: any) => StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 6,
+  },
+  logoText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.primary,
     marginLeft: 8,
-    borderRadius: 24,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    letterSpacing: 1.2,
   },
   appLogoCollapsed: {
     alignSelf: 'center',
-    marginLeft: 0,
+    marginLeft: 8,
   },
   appLogoImage: {
     width: 28,

@@ -173,7 +173,7 @@ export default function ExploreScreen() {
       <View style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.headerLeft}>
-              <Text style={styles.headerTitle}>XQuests</Text>
+              <Text style={styles.headerTitle}>Explore</Text>
             </View>
 
             <View style={styles.headerActions}>
