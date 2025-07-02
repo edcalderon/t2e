@@ -2,40 +2,33 @@ import { fetchTweets } from '@/lib/twitterClient';
 import { DEMO_TWEETS as FALLBACK_TWEETS } from '@/lib/fallbackTweets';
 import { TweetResponse } from '@/lib/twitterInterfaces';
 
-export default async function handler(req: Request) {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    });
-  }
+// Handle CORS preflight requests
+export async function OPTIONS(req: Request) {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
 
-  // Only allow GET requests
-  if (req.method !== 'GET') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Allow': 'GET, OPTIONS',
-      },
-    });
-  }
-
+// Main GET handler for fetching tweets
+export async function GET(req: Request) {
+  console.log('🔍 API Route: GET /api/tweets called');
+  
   try {
-    const url = new URL(req.url || '', `http://${req.headers.get('host')}`);
-    const searchParams = new URLSearchParams(url.search);
+    const url = new URL(req.url);
+    const searchParams = url.searchParams;
     const next_token = searchParams.get('next_token') || undefined;
     const query = searchParams.get('query') || '#xquests';
 
+    console.log('📋 Request params:', { next_token, query });
+
     try {
       const result = await fetchTweets(next_token, query);
-      console.log('Tweets fetched successfully:', {
+      console.log('✅ Tweets fetched successfully:', {
         count: result.tweets?.length,
         hasNextToken: !!result.nextToken
       });
@@ -66,8 +59,10 @@ export default async function handler(req: Request) {
         }
       });
     } catch (error) {
-      console.error('Error fetching tweets from Twitter API:', error);
+      console.error('❌ Error fetching tweets from Twitter API:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      
+      // Return fallback tweets when API fails
       const fallbackResponse: TweetResponse = {
         tweets: FALLBACK_TWEETS,
         success: false,
@@ -95,7 +90,7 @@ export default async function handler(req: Request) {
       });
     }
   } catch (error) {
-    console.error('Error in API route:', error);
+    console.error('❌ Error in API route:', error);
     return new Response(JSON.stringify({
       success: false,
       error: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -118,6 +113,6 @@ export default async function handler(req: Request) {
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       }
-    })
+    });
   }
 }

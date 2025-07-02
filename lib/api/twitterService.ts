@@ -1,9 +1,7 @@
 import { TweetLoadResult } from "../twitterInterfaces";
 
 // Use the correct API endpoint for the server
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://xquests.site/api/tweets' 
-  : '/api/tweets';
+const API_BASE_URL = '/api/tweets';
 
 export const fetchTweets = async (nextToken?: string, query: string = '#xquests'): Promise<TweetLoadResult> => {
   try {
@@ -12,32 +10,31 @@ export const fetchTweets = async (nextToken?: string, query: string = '#xquests'
     if (query) params.append('query', query);
 
     const url = `${API_BASE_URL}?${params.toString()}`;
-    console.log('Fetching tweets from:', url);
+    console.log('🔍 Fetching tweets from:', url);
     
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
-      credentials: process.env.NODE_ENV === 'production' ? 'same-origin' : 'include',
-      mode: process.env.NODE_ENV === 'production' ? 'same-origin' : 'cors',
       cache: 'no-cache',
     });
-    console.log('Response:', response);
+    
+    console.log('📡 Response status:', response.status, response.statusText);
     
     // Check if response is HTML (indicates error page)
     const contentType = response.headers.get('content-type');
 
     if (contentType && contentType.includes('text/html')) {
       const html = await response.text();
-      console.error('Received HTML instead of JSON. This might be a 404 or 500 page.');
+      console.error('❌ Received HTML instead of JSON. This might be a 404 or 500 page.');
       if (html.length < 1000) console.error('HTML Response:', html);
       throw new Error('Received HTML response instead of JSON. Check server logs.');
     }
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Error response:', {
+      console.error('❌ Error response:', {
         status: response.status,
         statusText: response.statusText,
         url: response.url,
@@ -48,13 +45,19 @@ export const fetchTweets = async (nextToken?: string, query: string = '#xquests'
 
     const responseText = await response.text();
     try {
-      return JSON.parse(responseText);
+      const data = JSON.parse(responseText);
+      console.log('✅ Successfully parsed response:', {
+        tweetsCount: data.tweets?.length,
+        success: data.success,
+        isUsingFallback: data.isUsingFallback
+      });
+      return data;
     } catch (parseError) {
-      console.error('Failed to parse JSON response:', responseText);
+      console.error('❌ Failed to parse JSON response:', responseText);
       throw new Error('Invalid JSON response from server');
     }
   } catch (error) {
-    console.error('Error in fetchTweets:', error);
+    console.error('❌ Error in fetchTweets:', error);
     return {
       tweets: [],
       success: false,
