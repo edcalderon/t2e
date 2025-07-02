@@ -5,9 +5,8 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
 import { WebBrowserAuthSessionResult } from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 
-// Environment variables validation
+// Get environment variables from Expo config
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -304,15 +303,6 @@ export const getTwitterUserData = (user: any) => {
     return null;
   }
 
-  console.log('🔍 Processing user data:', {
-    id: user.id,
-    email: user.email || 'No email (NORMAL for Twitter)',
-    hasMetadata: !!user.user_metadata,
-    metadataKeys: user.user_metadata ? Object.keys(user.user_metadata) : [],
-    hasIdentities: !!user.identities,
-    identitiesCount: user.identities?.length || 0,
-  });
-
   const twitterData = user.user_metadata || {};
   const twitterIdentity = user.identities?.find((identity: any) => identity.provider === 'twitter');
   const identityData = twitterIdentity?.identity_data || {};
@@ -374,11 +364,6 @@ export const getTwitterUserData = (user: any) => {
                    identityData.username,
   };
 
-  console.log('✅ Extracted Twitter user data:', {
-    ...extractedData,
-    email: extractedData.email ? '***@***.***' : '❌ No email (NORMAL for Twitter)',
-  });
-  
   return extractedData;
 };
 

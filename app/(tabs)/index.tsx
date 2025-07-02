@@ -66,6 +66,7 @@ export default function ExploreScreen() {
 
   // Simplified initialization
   const [isMounted, setIsMounted] = useState(false);
+  const toggleAnim = React.useRef(new Animated.Value(isDark ? 1 : 0)).current;
   
   useEffect(() => {
     // Set mounted state after a small delay to ensure proper rendering
@@ -75,6 +76,16 @@ export default function ExploreScreen() {
     
     return () => clearTimeout(timer);
   }, []);
+  
+  // Animate toggle when theme changes
+  useEffect(() => {
+    Animated.spring(toggleAnim, {
+      toValue: isDark ? 1 : 0,
+      useNativeDriver: true,
+      bounciness: 20,
+      speed: 20
+    }).start();
+  }, [isDark]);
 
   const handleSetupComplete = () => {
     setShowSetupModal(false);
@@ -185,17 +196,32 @@ export default function ExploreScreen() {
                   style={[
                     styles.themeToggleTrack,
                     {
-                      backgroundColor: isDark ? theme.colors.primary : '#E5E7EB',
+                      backgroundColor: isDark ? theme.colors.primary + '80' : '#E5E7EB',
                     },
                   ]}
                 >
-                  <View style={styles.themeToggleThumb}>
-                  {isDark ? (
-                    <Text style={styles.themeIcon}>🌙</Text>
-                  ) : (
-                    <Text style={styles.themeIcon}>☀️</Text>
-                  )}
-                </View>
+                  <Animated.View 
+                    style={[
+                      styles.themeToggleThumb,
+                      {
+                        transform: [
+                          {
+                            translateX: toggleAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [2, 22]
+                            })
+                          }
+                        ],
+                        backgroundColor: isDark ? theme.colors.primary : '#ffffff',
+                      }
+                    ]}
+                  >
+                    {isDark ? (
+                      <Text style={styles.themeIcon}>🌙</Text>
+                    ) : (
+                      <Text style={styles.themeIcon}>☀️</Text>
+                    )}
+                  </Animated.View>
                 </View>
               </TouchableOpacity>
             </View>
