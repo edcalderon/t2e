@@ -4,9 +4,11 @@
 
 # Handle client-side routing - all routes should be rewritten to index.html
 [[redirects]]
+  # Handle all routes - first try static files, then try the SPA fallback
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false  # Don't force the redirect, only use as fallback
 
 # CORS headers for API
 [[headers]]

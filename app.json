@@ -65,8 +65,6 @@
       "typedRoutes": true
     },
     "extra": {
-      "supabaseUrl": "${EXPO_PUBLIC_SUPABASE_URL}",
-      "supabaseAnonKey": "${EXPO_PUBLIC_SUPABASE_ANON_KEY}",
       "router": {
         "origin": false
       },
