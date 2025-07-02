@@ -2,7 +2,7 @@ import { TweetLoadResult } from "../twitterInterfaces";
 
 // Use the correct API endpoint for the server
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://xquest.site/api/tweets' 
+  ? 'https://xquests.site/api/tweets' 
   : '/api/tweets';
 
 export const fetchTweets = async (nextToken?: string, query: string = '#xquests'): Promise<TweetLoadResult> => {
