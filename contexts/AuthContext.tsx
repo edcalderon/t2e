@@ -78,23 +78,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (isSupabaseAuthenticated && twitterUser) {
         // We have full Twitter user data
         console.log('✅ Syncing full Twitter user data');
-<<<<<<< HEAD
-        syncTwitterUser(twitterUser).then(() => {
-          // After syncing, check if setup is needed
-          if (user && !user.setupCompleted) {
-            setShowSetupModal(true);
-          }
-        });
-      } else if (session?.user) {
-        // We have a session but no extracted Twitter data - create basic user
-        console.log('✅ Creating basic user from session data');
-        createBasicUserFromSession(session.user).then(() => {
-          // After creating user, check if setup is needed
-          if (user && !user.setupCompleted) {
-            setShowSetupModal(true);
-          }
-        });
-=======
         syncTwitterUser(twitterUser);
       } else if (isSupabaseAuthenticated && session?.user) {
         // We have a session but no extracted Twitter data - create basic user
@@ -104,14 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // If Supabase auth is lost but local user thinks they're connected, update local state
         console.log('ℹ️ Supabase auth lost, updating local user state');
         updateLocalUser({ twitterConnected: false });
->>>>>>> 3172a6d155479900f6514e511f4389a1fbacb0ce
       }
     }
-<<<<<<< HEAD
-  }, [twitterUser, isSupabaseAuthenticated, session, user]);
-=======
   }, [twitterUser, isSupabaseAuthenticated, session, supabaseInitialized]);
->>>>>>> 3172a6d155479900f6514e511f4389a1fbacb0ce
 
   const loadUserData = async () => {
     try {
