@@ -11,7 +11,7 @@ import {
   Alert,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { Bell, Award, Star, Trash2, CheckCircle, CheckCheck, Settings } from "lucide-react-native";
+import { Bell, Award, Star, Trash2, CheckCircle, CheckCheck, Settings, Wifi, WifiOff } from "lucide-react-native";
 import { Image } from "expo-image";
 import AccountSetupModal from "../../src/components/AccountSetupModal";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -27,6 +27,7 @@ export default function NotificationsScreen() {
     stats,
     isLoading,
     unreadCount,
+    connectionStatus,
     markAsRead,
     markAllAsRead,
     deleteNotification,
@@ -46,6 +47,8 @@ export default function NotificationsScreen() {
     setRefreshing(true);
     try {
       await refreshNotifications();
+    } catch (error) {
+      console.error('Error refreshing notifications:', error);
     } finally {
       setRefreshing(false);
     }
@@ -56,6 +59,7 @@ export default function NotificationsScreen() {
       await markAsRead(notificationId);
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      Alert.alert('Error', 'Failed to mark notification as read. Please try again.');
     }
   };
 
@@ -64,6 +68,7 @@ export default function NotificationsScreen() {
       await markAllAsRead();
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+      Alert.alert('Error', 'Failed to mark all notifications as read. Please try again.');
     }
   };
 
@@ -81,6 +86,7 @@ export default function NotificationsScreen() {
               await deleteNotification(notificationId);
             } catch (error) {
               console.error('Error deleting notification:', error);
+              Alert.alert('Error', 'Failed to delete notification. Please try again.');
             }
           },
         },
@@ -146,6 +152,15 @@ export default function NotificationsScreen() {
           )}
         </View>
         <View style={styles.headerActions}>
+          {/* Connection Status */}
+          <View style={styles.connectionStatus}>
+            {connectionStatus ? (
+              <Wifi size={16} color={theme.colors.success} />
+            ) : (
+              <WifiOff size={16} color={theme.colors.error} />
+            )}
+          </View>
+          
           {unreadCount > 0 && (
             <TouchableOpacity 
               style={styles.markAllButton}
@@ -187,6 +202,18 @@ export default function NotificationsScreen() {
           <View style={styles.statItem}>
             <Text style={[styles.statValue, { color: theme.colors.success }]}>{stats.total - stats.unread}</Text>
             <Text style={styles.statLabel}>Read</Text>
+          </View>
+          <View style={styles.statItem}>
+            <View style={styles.connectionIndicator}>
+              {connectionStatus ? (
+                <Wifi size={16} color={theme.colors.success} />
+              ) : (
+                <WifiOff size={16} color={theme.colors.error} />
+              )}
+            </View>
+            <Text style={styles.statLabel}>
+              {connectionStatus ? 'Connected' : 'Offline'}
+            </Text>
           </View>
         </View>
       )}
@@ -238,6 +265,16 @@ export default function NotificationsScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+        </View>
+      )}
+
+      {/* Connection Status Banner */}
+      {isAuthenticated && !connectionStatus && (
+        <View style={styles.offlineBanner}>
+          <WifiOff size={16} color={theme.colors.warning} />
+          <Text style={styles.offlineBannerText}>
+            Offline - Notifications will sync when connection is restored
+          </Text>
         </View>
       )}
 
@@ -426,6 +463,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  connectionStatus: {
+    padding: 4,
+  },
   markAllButton: {
     padding: 8,
     borderRadius: 8,
@@ -454,6 +494,24 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     flex: 1,
   },
+  offlineBanner: {
+    backgroundColor: theme.colors.warning + '10',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.warning + '30',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  offlineBannerText: {
+    color: theme.colors.warning,
+    fontWeight: '500',
+    fontSize: 12,
+    flex: 1,
+  },
   statsContainer: {
     flexDirection: 'row',
     backgroundColor: theme.colors.surface,
@@ -477,6 +535,9 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textSecondary,
     marginTop: 4,
+  },
+  connectionIndicator: {
+    marginBottom: 4,
   },
   filtersContainer: {
     paddingHorizontal: 16,
