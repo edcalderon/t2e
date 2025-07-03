@@ -45,6 +45,7 @@ const AccountSetupModal = ({
   const [walletConnected, setWalletConnected] = useState(false);
   const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const { user } = useAuth();
 
   // Animation values
   const [slideAnim] = useState(new Animated.Value(height));
@@ -135,47 +136,83 @@ const AccountSetupModal = ({
   // Handle modal visibility and initial auth state
   useEffect(() => {
     if (isVisible) {
-      // If already authenticated, skip to next step
+      console.log('🔍 Modal became visible, checking auth state...');
+      console.log('🔍 Auth state:', { isSupabaseAuthenticated, hasTwitterUser: !!twitterUser });
+      
+      // If already authenticated, update the state
       if (isSupabaseAuthenticated && twitterUser) {
+        console.log('✅ User is already authenticated with X, updating state');
         setTwitterConnected(true);
+        
+        // Only auto-advance if we're on the first step
         if (currentStep === 0) {
-          setCurrentStep(1);
+          console.log('⏳ Preparing to advance to next step...');
+          const timer = setTimeout(() => {
+            console.log('➡️ Advancing to next step from initial check');
+            setCurrentStep(1);
+          }, 800);
+          
+          return () => clearTimeout(timer);
         }
+      } else {
+        console.log('ℹ️ User is not authenticated with X yet or missing Twitter user data');
+        setTwitterConnected(false);
       }
     }
-  }, [isVisible, isSupabaseAuthenticated, currentStep, twitterUser]);
+  }, [isVisible, isSupabaseAuthenticated, twitterUser, currentStep]);
 
   // Handle Twitter connection state changes
   const handleTwitterConnect = useCallback((connected: boolean) => {
+    console.log('🔄 handleTwitterConnect called with:', connected);
     setTwitterConnected(connected);
-    if (connected && currentStep === 0) {
-      setCurrentStep(1);
+    
+    if (connected) {
+      console.log('✅ Twitter connected, moving to next step');
+      // Small delay to allow the UI to update before moving to next step
+      setTimeout(() => {
+        if (currentStep === 0) {
+          setCurrentStep(1);
+        }
+      }, 300);
     }
   }, [currentStep]);
 
   // Update Twitter connection status when Supabase auth changes
   useEffect(() => {
     const connected = !!(isSupabaseAuthenticated && twitterUser);
-    setTwitterConnected(connected);
+    console.log('🔄 Auth state changed:', { isSupabaseAuthenticated, hasTwitterUser: !!twitterUser, connected });
+    
+    // Only update if the state actually changed
+    if (connected !== twitterConnected) {
+      console.log('🔀 Twitter connection state changed to:', connected);
+      setTwitterConnected(connected);
+    }
     
     // If we're on the Twitter step and user just connected, automatically advance
     if (connected && currentStep === 0) {
-      // Small delay for better UX
+      console.log('⏱️ User connected, preparing to advance to next step...');
+      
+      // Clear any existing timeouts to prevent multiple advances
       const timer = setTimeout(() => {
-        handleNext();
+        console.log('➡️ Advancing to next step after successful connection');
+        setCurrentStep(1);
       }, 500);
+      
       return () => clearTimeout(timer);
     }
     
     // Set auth check as complete after initial check
     if (isCheckingAuth) {
+      console.log('✅ Initial auth check complete');
       setIsCheckingAuth(false);
-      // If user is already authenticated, we don't need to show the modal
-      if (connected) {
+      
+      // If user is already authenticated and setup is complete, close the modal
+      if (connected && user?.setupCompleted) {
+        console.log('🔒 User already authenticated and setup complete, closing modal');
         handleClose();
       }
     }
-  }, [isSupabaseAuthenticated, twitterUser, currentStep]);
+  }, [isSupabaseAuthenticated, twitterUser, currentStep, isCheckingAuth, twitterConnected, user?.setupCompleted]);
 
   // Only call this to trigger the animation, not to hide the modal immediately
   const handleClose = () => {
@@ -213,20 +250,30 @@ const AccountSetupModal = ({
   };
 
   const handleComplete = async () => {
+    console.log('🎯 Starting setup completion...');
+    
     // If X user is authenticated, just update the existing user with additional setup data
     if (isSupabaseAuthenticated && twitterUser) {
-      console.log('Completing setup for existing X user:', twitterUser);
+      console.log('✅ Completing setup for X user:', twitterUser.username);
       
       try {
-        // Update the existing user with setup completion data
-        await updateUser({
+        // First, update the user with all the setup data
+        const updateData = {
           walletAddress: walletConnected ? `ALGO${twitterUser.twitterId || "385"}WALLET` : undefined,
           walletConnected,
           selectedThemes,
           setupCompleted: true, // Mark setup as completed
-        });
+        };
 
-        console.log('Setup completed for X user:', {
+        console.log('🔄 Updating user with:', updateData);
+        
+        // Wait for the update to complete
+        await updateUser(updateData);
+        
+        // Force a small delay to ensure state updates propagate
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        console.log('✅ Setup completed for X user:', {
           userId: twitterUser.id,
           username: twitterUser.username,
           walletConnected,
@@ -234,28 +281,47 @@ const AccountSetupModal = ({
         });
 
         // Animate completion
-        Animated.timing(scaleAnim, {
-          toValue: 1.1,
-          duration: 200,
-          useNativeDriver: true,
-        }).start(() => {
+        Animated.parallel([
           Animated.timing(scaleAnim, {
-            toValue: 1,
+            toValue: 1.1,
             duration: 200,
             useNativeDriver: true,
-          }).start(() => {
-            onComplete();
+          }),
+          Animated.timing(fadeAnim, {
+            toValue: 0.9,
+            duration: 200,
+            useNativeDriver: true,
+          })
+        ]).start(async () => {
+          await new Promise(resolve => setTimeout(resolve, 200));
+          
+          Animated.parallel([
+            Animated.timing(scaleAnim, {
+              toValue: 1,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(fadeAnim, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            })
+          ]).start(() => {
+            console.log('🏁 Setup flow completed successfully');
+            // Ensure we call onComplete after all animations and state updates
+            setTimeout(() => {
+              onComplete();
+            }, 100);
           });
         });
       } catch (error) {
-        console.error('Error completing setup for X user:', error);
+        console.error('❌ Error completing setup for X user:', error);
+        // Still call onComplete to ensure the modal closes
         onComplete();
       }
     } else {
-      // Only create a guest user if no X user is authenticated
-      console.log('No X user authenticated, creating guest user');
-      
-      // This should rarely happen since we require X authentication first
+      console.log('⚠️ No X user authenticated during setup completion');
+      // Still call onComplete to ensure the modal closes
       onComplete();
     }
   };
@@ -328,13 +394,27 @@ const AccountSetupModal = ({
 
   const styles = createStyles(theme, isMobile);
 
+  const handleOverlayPress = (e: any) => {
+    // Only close if the overlay itself is clicked, not its children
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
   return (
-    <Modal visible={internalVisible} animationType="none" transparent={true}>
+    <Modal 
+      visible={internalVisible} 
+      animationType="none" 
+      transparent={true}
+      onRequestClose={handleClose}
+    >
       <Animated.View 
         style={[
           styles.overlay,
           { opacity: fadeAnim }
         ]}
+        onStartShouldSetResponder={() => true}
+        onResponderGrant={handleOverlayPress}
       >
         <Animated.View
           style={[

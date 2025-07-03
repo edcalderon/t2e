@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Animated,
   ActivityIndicator,
   Dimensions,
   Platform,
-  Linking
+  TouchableOpacity
 } from "react-native";
 import { Image } from "expo-image";
 import { Svg, Path } from 'react-native-svg';
@@ -40,25 +40,28 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     retryCount 
   } = useSupabaseAuth();
   
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const [scaleAnim] = useState(new Animated.Value(0.95));
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStage, setConnectionStage] = useState<'idle' | 'initiating' | 'redirecting' | 'processing' | 'completing'>('idle');
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
+    // Create animations with proper configuration
+    const fadeIn = Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    });
+
+    const scaleIn = Animated.timing(scaleAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    });
+
+    // Start animations in parallel
+    Animated.parallel([fadeIn, scaleIn]).start();
+  }, [fadeAnim, scaleAnim]);
 
   // Helper function to check session on mobile
   const checkMobileSession = async (attempts = 0): Promise<boolean> => {
@@ -79,32 +82,59 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     const handleOAuthRedirect = async () => {
       if (Platform.OS !== 'web') return;
       
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setConnectionStage('processing');
-        onConnect(true);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          return;
+        }
+        
+        if (session) {
+          console.log('🔑 Session found after OAuth redirect');
+          setConnectionStage('processing');
+          // The parent effect will handle the onConnect call when isAuthenticated becomes true
+        }
+      } catch (err) {
+        console.error('Error handling OAuth redirect:', err);
       }
     };
     
-    handleOAuthRedirect();
+    // Add a small delay to ensure the session is properly set
+    const timer = setTimeout(handleOAuthRedirect, 500);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // Update parent component when authentication state changes
   useEffect(() => {
-    if (isAuthenticated && !isConnecting) {
+    if (isAuthenticated) {
       console.log('✅ Authentication detected, completing setup...');
       setConnectionStage('completing');
       
-      setTimeout(() => {
+      // Small delay to show completion state before updating parent
+      const timer = setTimeout(() => {
+        console.log('✅ Notifying parent of successful connection');
         onConnect(true);
         setIsConnecting(false);
         setConnectionStage('idle');
-      }, 1000);
+      }, 800);
+
+      return () => clearTimeout(timer);
+    } else if (isConnecting && connectionStage === 'initiating') {
+      // If we're in the process of connecting but not yet authenticated
+      // and we're in the initiating stage, update to processing
+      setConnectionStage('processing');
     }
-  }, [isAuthenticated, onConnect, isConnecting]);
+  }, [isAuthenticated, onConnect, isConnecting, connectionStage]);
 
   const handleConnect = async () => {
-    if (isAuthenticated || isConnecting) return;
+    if (isAuthenticated || isConnecting) {
+      console.log('⏳ Already connected or connecting, ignoring...');
+      return;
+    }
+    
+    console.log('🔗 Starting Twitter connection process...');
     
     // Reset states
     setIsConnecting(true);
@@ -116,8 +146,14 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       
       // For web, we'll let the OAuth flow handle the redirect
       if (Platform.OS === 'web' || Platform.OS === undefined) {
-        await signInWithTwitter();
-        return; // Let the OAuth redirect handle the rest
+        console.log('🌐 Web platform detected, starting OAuth flow...');
+        const result = await signInWithTwitter();
+        if (result?.error && !result.success) {
+          console.error('❌ OAuth error:', result.error);
+          throw result.error;
+        }
+        console.log('🔄 OAuth flow initiated, waiting for redirect...');
+        return;
       }
       
       // For mobile, handle the OAuth flow manually
@@ -141,14 +177,20 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
           setConnectionStage('idle');
         }, 1000);
       } else {
-        console.error('❌ Twitter connection failed:', result.error);
-        setIsConnecting(false);
-        setConnectionStage('idle');
+        throw result.error || new Error('Twitter connection failed');
       }
     } catch (err) {
       console.error('❌ Connection error:', err);
+      // Always reset connecting state on error
       setIsConnecting(false);
       setConnectionStage('idle');
+      
+      // If we have an error object with a type, set it as the auth error
+      if (err && typeof err === 'object' && 'type' in err) {
+        clearError(); // Clear any previous errors first
+        // @ts-ignore - We've already checked that err is an object with a type
+        setAuthError(err);
+      }
     }
   };
 
@@ -373,22 +415,27 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
             {getErrorSolution(authError)}
           </Text>
 
-          <TouchableOpacity
-            style={[styles.retryButton, isConnecting && styles.retryButtonDisabled]}
+          <Pressable
+            style={({ pressed }) => [
+              styles.retryButton, 
+              (isConnecting || pressed) && styles.retryButtonDisabled
+            ]}
             onPress={handleRetry}
             disabled={isConnecting}
           >
-            {isConnecting ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <RefreshCw size={isMobile ? 14 : 16} color="#FFFFFF" />
-                <Text style={styles.retryButtonText}>
-                  Try Again {retryCount > 0 && `(${retryCount + 1})`}
-                </Text>
-              </>
+            {({ pressed }) => (
+              isConnecting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <RefreshCw size={isMobile ? 14 : 16} color="#FFFFFF" />
+                  <Text style={styles.retryButtonText}>
+                    Try Again {retryCount > 0 && `(${retryCount + 1})`}
+                  </Text>
+                </>
+              )
             )}
-          </TouchableOpacity>
+          </Pressable>
 
           {retryCount > 2 && (
             <Text style={styles.persistentErrorHint}>
@@ -418,8 +465,11 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
             {getErrorSolution(authError)}
           </Text>
 
-          <TouchableOpacity
-            style={styles.continueButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.continueButton,
+              pressed && { opacity: 0.8 }
+            ]}
             onPress={() => {
               clearError();
               onConnect(true);
@@ -427,7 +477,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
           >
             <Check size={isMobile ? 14 : 16} color="#FFFFFF" />
             <Text style={styles.continueButtonText}>Continue</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </Animated.View>
     );
@@ -565,10 +615,10 @@ const createStyles = (theme: any, isMobile: boolean) => StyleSheet.create({
     backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: theme.colors.text,
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 4,
   },
   title: {
@@ -621,10 +671,10 @@ const createStyles = (theme: any, isMobile: boolean) => StyleSheet.create({
     marginTop: 8,
     width: '100%',
     maxWidth: isMobile ? 260 : 280,
-    shadowColor: '#1DA1F2',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 4,
     minHeight: isMobile ? 48 : 56,
     marginHorizontal: isMobile ? 16 : 0,

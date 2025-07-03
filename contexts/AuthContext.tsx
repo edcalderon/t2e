@@ -332,10 +332,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check if setup is needed when user data changes
   useEffect(() => {
-    if (user && !user.setupCompleted && !showSetupModal) {
+    // Only show setup modal if we have a user, setup is not completed,
+    // and we're not already showing the modal
+    if (user && !user.setupCompleted && !showSetupModal && isSupabaseAuthenticated) {
+      console.log('🔄 Setup required, showing setup modal');
       setShowSetupModal(true);
     }
-  }, [user, showSetupModal]);
+  }, [user, showSetupModal, isSupabaseAuthenticated]);
 
   return (
     <AuthContext.Provider

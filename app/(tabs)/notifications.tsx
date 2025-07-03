@@ -11,7 +11,7 @@ import {
   Alert,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { Bell, Award, Star, Trash2, CheckCircle, MarkAsRead as CheckCheck, Settings, Filter } from "lucide-react-native";
+import { Bell, Award, Star, Trash2, CheckCircle, CheckCheck, Settings } from "lucide-react-native";
 import { Image } from "expo-image";
 import AccountSetupModal from "../../src/components/AccountSetupModal";
 import { useTheme } from "../../contexts/ThemeContext";

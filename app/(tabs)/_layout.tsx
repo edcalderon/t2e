@@ -136,18 +136,19 @@ export default function TabLayout() {
             }}
           />
 
-          {/* Admin Tab - Only visible to admins */}
-          {isAdmin && (
-            <Tabs.Screen
-              name="admin"
-              options={{
-                title: 'Admin',
-                tabBarIcon: ({ size, color }) => (
-                  <Shield size={24} color={color} strokeWidth={2.5} />
-                ),
-              }}
-            />
-          )}
+          <Tabs.Screen
+            name="admin"
+            options={{
+              title: 'Admin',
+              tabBarIcon: ({ size, color }) => (
+                <Shield size={24} color={color} strokeWidth={2.5} />
+              ),
+              // Hide the tab if not admin
+              tabBarStyle: { display: isAdmin ? 'flex' : 'none' },
+              // Or redirect if not admin
+              // href: isAdmin ? null : '/',
+            }}
+          />
         </Tabs>
       </View>
     </SharedSidebar>
