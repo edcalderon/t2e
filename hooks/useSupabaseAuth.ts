@@ -5,7 +5,6 @@ import {
   validateTwitterOAuthConfig,
   performOAuth,
   getCurrentSession,
-  refreshSession
 } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 
@@ -46,10 +45,9 @@ export const useSupabaseAuth = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Initialize auth state with enhanced error handling
+  // Initialize auth state
   useEffect(() => {
     let mounted = true;
-    let timeoutId: NodeJS.Timeout;
 
     const initializeAuth = async () => {
       try {
@@ -61,47 +59,9 @@ export const useSupabaseAuth = () => {
           throw new Error(`Configuration issues: ${configValidation.issues.join(', ')}`);
         }
         
-        // Set a timeout to prevent infinite loading
-        timeoutId = setTimeout(() => {
-          if (mounted && !isInitialized) {
-            console.log('⏰ Auth initialization timeout, setting as not authenticated');
-            setAuthState({
-              user: null,
-              session: null,
-              isLoading: false,
-              isAuthenticated: false,
-            });
-            setIsInitialized(true);
-          }
-        }, 15000); // 15 second timeout
-
-        // Get initial session with retry logic
-        let session = null;
-        let sessionError = null;
+        // Get initial session
+        const session = await getCurrentSession();
         
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const sessionResult = await getCurrentSession();
-            session = sessionResult;
-            sessionError = null;
-            break;
-          } catch (err) {
-            sessionError = err;
-            console.log(`Session attempt ${attempt + 1} failed, retrying...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-        
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-
-        if (sessionError && !session) {
-          console.error('❌ Session error after retries:', sessionError);
-          // Don't treat session errors as fatal - user might just not be logged in
-          console.log('ℹ️ Session error treated as not authenticated');
-        }
-
         if (mounted) {
           if (session?.user) {
             console.log('✅ Found existing session for user:', session.user.id);
@@ -127,9 +87,6 @@ export const useSupabaseAuth = () => {
         }
       } catch (err: any) {
         console.error('❌ Auth initialization error:', err);
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
         if (mounted) {
           setError({ 
             message: err.message || 'Failed to initialize authentication',
@@ -149,7 +106,7 @@ export const useSupabaseAuth = () => {
 
     initializeAuth();
 
-    // Listen for auth changes with enhanced handling
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Auth state changed:', event, session?.user?.id || 'No user');
@@ -181,14 +138,11 @@ export const useSupabaseAuth = () => {
 
     return () => {
       mounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
       subscription.unsubscribe();
     };
   }, []);
 
-  // Enhanced sign in with Twitter
+  // Sign in with Twitter
   const signInWithTwitter = async (): Promise<{ success: boolean; error?: AuthError }> => {
     try {
       setError(null);
@@ -200,34 +154,12 @@ export const useSupabaseAuth = () => {
         throw new Error(`Configuration issues: ${configValidation.issues.join(', ')}`);
       }
 
-      // Perform OAuth with enhanced error handling
+      // Perform OAuth
       const result = await performOAuth();
       
       if (result.success) {
         console.log('✅ Twitter OAuth completed successfully');
-        
-        // Wait for the auth state to update
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Verify session was created
-        const currentSession = await getCurrentSession();
-        if (currentSession) {
-          console.log('✅ Session confirmed after OAuth');
-          return { success: true };
-        } else {
-          console.log('⚠️ OAuth succeeded but no session found - checking again...');
-          
-          // Try refreshing session
-          const refreshedSession = await refreshSession();
-          if (refreshedSession) {
-            console.log('✅ Session found after refresh');
-            return { success: true };
-          }
-          
-          // Still no session, but OAuth succeeded - this might still work
-          console.log('ℹ️ OAuth completed but session verification failed');
-          return { success: true };
-        }
+        return { success: true };
       } else {
         throw new Error(result.error || 'OAuth failed');
       }
@@ -284,7 +216,7 @@ export const useSupabaseAuth = () => {
     }
   };
 
-  // Enhanced sign out
+  // Sign out
   const signOut = async (): Promise<{ success: boolean; error?: AuthError }> => {
     try {
       setError(null);
@@ -313,7 +245,7 @@ export const useSupabaseAuth = () => {
     }
   };
 
-  // Enhanced retry with exponential backoff
+  // Retry with exponential backoff
   const retry = useCallback(async () => {
     const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Max 10 seconds
     console.log(`🔄 Retrying authentication in ${delay}ms (attempt ${retryCount + 1})`);

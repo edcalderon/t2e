@@ -111,7 +111,6 @@ const AccountSetupModal = ({
   }, [isSupabaseAuthenticated, twitterUser]);
 
   // Only call this to trigger the animation, not to hide the modal immediately
-  // IMPORTANT: Parent should not remove/unmount the modal until onClose is called!
   const handleClose = () => {
     Animated.parallel([
       Animated.timing(slideAnim, {
@@ -137,10 +136,6 @@ const AccountSetupModal = ({
       onClose(); // Notify parent
     });
   };
-
-
-
-
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {

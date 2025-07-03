@@ -52,7 +52,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // Start as false for faster loading
+  const [isLoading, setIsLoading] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
@@ -62,7 +62,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: isSupabaseAuthenticated, 
     isLoading: isSupabaseLoading,
     signOut: supabaseSignOut,
-    session
+    session,
+    isInitialized: supabaseInitialized
   } = useSupabaseAuth();
 
   useEffect(() => {
@@ -71,22 +72,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Sync Supabase user with local user data
   useEffect(() => {
-    if (isSupabaseAuthenticated) {
-      if (twitterUser) {
+    if (supabaseInitialized) {
+      if (isSupabaseAuthenticated && twitterUser) {
         // We have full Twitter user data
         console.log('✅ Syncing full Twitter user data');
         syncTwitterUser(twitterUser);
-      } else if (session?.user) {
+      } else if (isSupabaseAuthenticated && session?.user) {
         // We have a session but no extracted Twitter data - create basic user
         console.log('✅ Creating basic user from session data');
         createBasicUserFromSession(session.user);
+      } else if (!isSupabaseAuthenticated && user?.twitterConnected) {
+        // If Supabase auth is lost but local user thinks they're connected, update local state
+        console.log('ℹ️ Supabase auth lost, updating local user state');
+        updateLocalUser({ twitterConnected: false });
       }
-    } else if (!isSupabaseAuthenticated && user?.twitterConnected) {
-      // If Supabase auth is lost but local user thinks they're connected, update local state
-      console.log('ℹ️ Supabase auth lost, updating local user state');
-      updateLocalUser({ twitterConnected: false });
     }
-  }, [twitterUser, isSupabaseAuthenticated, session]);
+  }, [twitterUser, isSupabaseAuthenticated, session, supabaseInitialized]);
 
   const loadUserData = async () => {
     try {
@@ -278,7 +279,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         user,
         isAuthenticated: !!user,
         isLoading: finalIsLoading,
-        initialized,
+        initialized: initialized && supabaseInitialized,
         login,
         logout,
         updateUser,

@@ -44,8 +44,6 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   const [scaleAnim] = useState(new Animated.Value(0.95));
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStage, setConnectionStage] = useState<'idle' | 'initiating' | 'redirecting' | 'processing' | 'completing'>('idle');
-  const [hasTriggeredSuccess, setHasTriggeredSuccess] = useState(false);
-  const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     Animated.parallel([
@@ -64,16 +62,9 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
 
   // Update parent component when authentication state changes
   useEffect(() => {
-    if (isAuthenticated && !hasTriggeredSuccess) {
+    if (isAuthenticated && !isConnecting) {
       console.log('✅ Authentication detected, completing setup...');
-      setHasTriggeredSuccess(true);
       setConnectionStage('completing');
-      
-      // Clear any existing timeout
-      if (connectionTimeout) {
-        clearTimeout(connectionTimeout);
-        setConnectionTimeout(null);
-      }
       
       setTimeout(() => {
         onConnect(true);
@@ -81,51 +72,14 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
         setConnectionStage('idle');
       }, 1500);
     }
-  }, [isAuthenticated, onConnect, hasTriggeredSuccess, connectionTimeout]);
-
-  const handleMobileTwitterAuth = async () => {
-    if (Platform.OS === 'web') {
-      // On web, use the normal flow
-      return handleConnect();
-    }
-
-    // Try to open Twitter app first, then fallback to web
-    try {
-      const twitterAppUrl = 'twitter://';
-      const canOpenTwitterApp = await Linking.canOpenURL(twitterAppUrl);
-      
-      if (canOpenTwitterApp) {
-        // If Twitter app is available, we still need to use web flow for OAuth
-        // but we can inform the user about the process
-        console.log('📱 Twitter app detected, using web OAuth flow');
-      }
-      
-      // For now, always use web flow as Twitter's deep linking for OAuth is complex
-      return handleConnect();
-    } catch (error) {
-      console.log('📱 Mobile Twitter auth fallback to web flow');
-      return handleConnect();
-    }
-  };
+  }, [isAuthenticated, onConnect, isConnecting]);
 
   const handleConnect = async () => {
     if (isAuthenticated || isConnecting) return;
     
     setIsConnecting(true);
     setConnectionStage('initiating');
-    setHasTriggeredSuccess(false);
     clearError();
-    
-    // Set a timeout for the connection process
-    const timeout = setTimeout(() => {
-      if (isConnecting && !isAuthenticated) {
-        console.log('⏰ Connection timeout reached');
-        setIsConnecting(false);
-        setConnectionStage('idle');
-      }
-    }, 60000); // 60 second timeout
-    
-    setConnectionTimeout(timeout);
     
     try {
       setConnectionStage('redirecting');
@@ -135,13 +89,10 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       if (result.success) {
         setConnectionStage('processing');
         console.log('🔄 OAuth completed, waiting for session...');
-        
         // The useEffect above will handle the success case
       } else if (result.error?.type === 'email') {
         console.log('ℹ️ Twitter connection succeeded with email warning');
         setConnectionStage('completing');
-        
-        if (timeout) clearTimeout(timeout);
         
         setTimeout(() => {
           onConnect(true);
@@ -152,15 +103,11 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
         console.error('❌ Twitter connection failed:', result.error);
         setIsConnecting(false);
         setConnectionStage('idle');
-        
-        if (timeout) clearTimeout(timeout);
       }
     } catch (err) {
       console.error('❌ Connection error:', err);
       setIsConnecting(false);
       setConnectionStage('idle');
-      
-      if (timeout) clearTimeout(timeout);
     }
   };
 
@@ -169,7 +116,6 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     
     setIsConnecting(true);
     setConnectionStage('initiating');
-    setHasTriggeredSuccess(false);
     clearError();
     
     try {
@@ -241,8 +187,8 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
 
   const styles = createStyles(theme, isMobile);
 
-  // Show loading only if not initialized or actively connecting
-  if (!isInitialized || (isLoading && !isConnecting)) {
+  // Show loading only if not initialized
+  if (!isInitialized) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.loadingContainer}>
@@ -491,7 +437,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
           styles.connectButton, 
           isConnecting && styles.connectButtonDisabled
         ]}
-        onPress={isMobile ? handleMobileTwitterAuth : handleConnect}
+        onPress={handleConnect}
         disabled={isConnecting}
         activeOpacity={isConnecting ? 1 : 0.7}
       >
