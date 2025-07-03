@@ -321,7 +321,6 @@ export const performOAuth = async (): Promise<{
       type: result.type,
       // @ts-ignore - The URL might be available in the result
       url: result.url || 'No URL in result',
-      message: 'Check the URL for authentication result'
     });
 
     // @ts-ignore - The URL might be available in the result
@@ -457,18 +456,6 @@ export const getTwitterUserData = (user: any) => {
   };
 
   return extractedData;
-};
-
-// Helper to check if an error is email-related (and therefore safe to ignore)
-export const isEmailRelatedError = (error: any): boolean => {
-  if (!error) return false;
-  
-  const errorMessage = (error.message || error.error_description || error.error || '').toLowerCase();
-  
-  return errorMessage.includes('email') || 
-         errorMessage.includes('user email') ||
-         errorMessage.includes('external provider') ||
-         errorMessage.includes('server_error');
 };
 
 // Helper to validate Twitter OAuth configuration

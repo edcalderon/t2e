@@ -44,13 +44,6 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   const [scaleAnim] = useState(new Animated.Value(0.95));
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStage, setConnectionStage] = useState<'idle' | 'initiating' | 'redirecting' | 'processing' | 'completing'>('idle');
-  const [hasTriggeredSuccess, setHasTriggeredSuccess] = useState(false);
-  const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [localError, setLocalError] = useState<{type: string; message: string; details?: string} | null>(null);
-  const [retry, setRetry] = useState(0);
-  
-  // Combine auth error and local error for display
-  const error = localError || authError;
 
   useEffect(() => {
     Animated.parallel([
@@ -98,55 +91,17 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
 
   // Update parent component when authentication state changes
   useEffect(() => {
-    if (isAuthenticated && !hasTriggeredSuccess) {
+    if (isAuthenticated && !isConnecting) {
       console.log('✅ Authentication detected, completing setup...');
-      setHasTriggeredSuccess(true);
       setConnectionStage('completing');
       
-      // Clear any existing timeout
-      if (connectionTimeout) {
-        clearTimeout(connectionTimeout);
-        setConnectionTimeout(null);
-      }
-      
-      const timer = setTimeout(() => {
+      setTimeout(() => {
         onConnect(true);
         setIsConnecting(false);
         setConnectionStage('idle');
       }, 1000);
-      
-      return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, onConnect, hasTriggeredSuccess, connectionTimeout]);
-
-  const handleMobileTwitterAuth = async () => {
-    // Use web flow for non-mobile platforms
-    if (Platform.select({
-      ios: false,
-      android: false,
-      default: true // This will be true for web and any other platform
-    })) {
-      return handleConnect();
-    }
-
-    // Mobile-specific Twitter app handling
-    try {
-      const twitterAppUrl = 'twitter://';
-      const canOpenTwitterApp = await Linking.canOpenURL(twitterAppUrl);
-      
-      if (canOpenTwitterApp) {
-        // If Twitter app is available, we still need to use web flow for OAuth
-        // but we can inform the user about the process
-        console.log('📱 Twitter app detected, using web OAuth flow');
-      }
-      
-      // For now, always use web flow as Twitter's deep linking for OAuth is complex
-      return handleConnect();
-    } catch (error) {
-      console.log('📱 Mobile Twitter auth fallback to web flow');
-      return handleConnect();
-    }
-  };
+  }, [isAuthenticated, onConnect, isConnecting]);
 
   const handleConnect = async () => {
     if (isAuthenticated || isConnecting) return;
@@ -154,31 +109,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     // Reset states
     setIsConnecting(true);
     setConnectionStage('initiating');
-    setHasTriggeredSuccess(false);
-    setLocalError(null);
     clearError();
-    
-    // Clear any existing timeout
-    if (connectionTimeout) {
-      clearTimeout(connectionTimeout);
-      setConnectionTimeout(null);
-    }
-    
-    // Set a new timeout for the connection process
-    const timeout = setTimeout(() => {
-      if (isConnecting && !isAuthenticated) {
-        console.log('⏰ Connection timeout reached');
-        setLocalError({
-          type: 'network',
-          message: 'Connection timed out',
-          details: 'Please check your internet connection and try again.',
-        });
-        setIsConnecting(false);
-        setConnectionStage('idle');
-      }
-    }, 60000); // 60 second timeout
-    
-    setConnectionTimeout(timeout);
     
     try {
       setConnectionStage('redirecting');
@@ -199,34 +130,25 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
       if (result.success) {
         setConnectionStage('processing');
         console.log('🔄 OAuth completed, waiting for session...');
+        // The useEffect above will handle the success case
+      } else if (result.error?.type === 'email') {
+        console.log('ℹ️ Twitter connection succeeded with email warning');
+        setConnectionStage('completing');
         
-        // Only check session on mobile
-        const isMobile = Platform.select({
-          ios: true,
-          android: true,
-          default: false
-        });
-        if (isMobile) {
-          const sessionFound = await checkMobileSession();
-          if (!sessionFound) {
-            throw new Error('Failed to establish session after OAuth');
-          }
-        }
-        
-        // The useEffect will handle the success case via the isAuthenticated check
+        setTimeout(() => {
+          onConnect(true);
+          setIsConnecting(false);
+          setConnectionStage('idle');
+        }, 1000);
       } else {
         console.error('❌ Twitter connection failed:', result.error);
         setIsConnecting(false);
         setConnectionStage('idle');
-        clearTimeout(timeout);
-        setConnectionTimeout(null);
       }
     } catch (err) {
       console.error('❌ Connection error:', err);
       setIsConnecting(false);
       setConnectionStage('idle');
-      
-      if (timeout) clearTimeout(timeout);
     }
   };
 
@@ -235,13 +157,11 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     
     setIsConnecting(true);
     setConnectionStage('initiating');
-    setHasTriggeredSuccess(false);
     clearError();
     
     try {
-      // Use the retryCount from useSupabaseAuth to track retries
-      setRetry(prev => prev + 1);
-      // Call the connect function again
+      // The retry count is already managed by useSupabaseAuth
+      // Just call the connect function again
       await handleConnect();
       setConnectionStage('processing');
     } catch (err) {
@@ -304,14 +224,14 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     }
   };
 
-  const isEmailWarning = error?.type === 'email';
-  const isNetworkError = error?.type === 'network';
-  const isConfigError = error?.type === 'config';
+  const isEmailWarning = authError?.type === 'email';
+  const isNetworkError = authError?.type === 'network';
+  const isConfigError = authError?.type === 'config';
 
   const styles = createStyles(theme, isMobile);
 
-  // Show loading only if not initialized or actively connecting
-  if (!isInitialized || (isLoading && !isConnecting)) {
+  // Show loading only if not initialized
+  if (!isInitialized) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.loadingContainer}>
@@ -412,7 +332,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   }
 
   // Error state with enhanced error handling
-  if (error && !isEmailWarning && !isConnecting) {
+  if (authError && !isEmailWarning && !isConnecting) {
     return (
       <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
         <View style={styles.errorContainer}>
@@ -428,7 +348,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
           
           <Text style={styles.errorTitle}>Connection Failed</Text>
           <Text style={styles.errorMessage}>
-            {getErrorMessage(error)}
+            {getErrorMessage(authError)}
           </Text>
 
           {isConfigError && (
@@ -450,7 +370,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
           )}
 
           <Text style={styles.errorSolution}>
-            {getErrorSolution(error)}
+            {getErrorSolution(authError)}
           </Text>
 
           <TouchableOpacity
@@ -491,11 +411,11 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
           
           <Text style={styles.warningTitle}>Almost There!</Text>
           <Text style={styles.warningMessage}>
-            {getErrorMessage(error)}
+            {getErrorMessage(authError)}
           </Text>
 
           <Text style={styles.warningSolution}>
-            {getErrorSolution(error)}
+            {getErrorSolution(authError)}
           </Text>
 
           <TouchableOpacity
@@ -560,7 +480,7 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
           styles.connectButton, 
           isConnecting && styles.connectButtonDisabled
         ]}
-        onPress={isMobile ? handleMobileTwitterAuth : handleConnect}
+        onPress={handleConnect}
         disabled={isConnecting}
         activeOpacity={isConnecting ? 1 : 0.7}
       >
