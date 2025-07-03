@@ -1,5 +1,5 @@
 import { Href } from 'expo-router';
-import { Search, Bell, Award, Settings } from 'lucide-react-native';
+import { Search, Bell, Award, Settings, Shield } from 'lucide-react-native';
 
 export interface NavItem {
   id: string;
@@ -7,6 +7,7 @@ export interface NavItem {
   label: string;
   route: Href<object>;
   badge?: number;
+  permissions?: string[];
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -20,8 +21,7 @@ export const NAV_ITEMS: NavItem[] = [
     id: 'notifications', 
     icon: Bell, 
     label: 'Notifications', 
-    route: { pathname: '/(tabs)/notifications' }, 
-    badge: 3 
+    route: { pathname: '/(tabs)/notifications' }
   },
   { 
     id: 'challenges', 
@@ -30,10 +30,17 @@ export const NAV_ITEMS: NavItem[] = [
     route: { pathname: '/(tabs)/challenges' } 
   },
   { 
+    id: 'admin', 
+    icon: Shield, 
+    label: 'Admin', 
+    route: { pathname: '/(tabs)/admin' },
+    permissions: ['admin']
+  },
+  { 
     id: 'settings', 
     icon: Settings, 
     label: 'Settings', 
-    route: { pathname: '/(tabs)/settings' } 
+    route: { pathname: '/(tabs)/settings' },
   },
 ];
 
@@ -41,6 +48,7 @@ export const getActiveRoute = (pathname: string): string => {
   if (pathname === '/(tabs)/' || pathname === '/') return 'explore';
   if (pathname.includes('notifications')) return 'notifications';
   if (pathname.includes('challenges')) return 'challenges';
+  if (pathname.includes('admin')) return 'admin';
   if (pathname.includes('settings')) return 'settings';
   return 'explore';
 };

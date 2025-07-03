@@ -7,7 +7,6 @@ import {
   TextInput,
   StyleSheet,
   SafeAreaView,
-  Alert,
   Modal,
   ActivityIndicator,
   Switch,
@@ -16,7 +15,6 @@ import { StatusBar } from 'expo-status-bar';
 import { 
   Shield, 
   Send, 
-  Users, 
   BarChart3, 
   Bell, 
   Plus, 
@@ -24,14 +22,11 @@ import {
   Filter,
   Eye,
   Trash2,
-  AlertCircle,
   CheckCircle,
   Clock,
-  Target,
   Globe,
   User,
   X,
-  Calendar,
   TrendingUp,
   MessageSquare,
   Settings
@@ -40,6 +35,12 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAdmin } from '../../contexts/AdminContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdminNotifications } from '../../hooks/useNotifications';
+
+interface NotificationResponse {
+  success: boolean;
+  message: string;
+  notification?: any;
+}
 
 export default function AdminScreen() {
   const { theme, isDark } = useTheme();
@@ -120,11 +121,24 @@ export default function AdminScreen() {
     ]);
   };
 
+  const [isSending, setIsSending] = useState(false);
+  const [feedback, setFeedback] = useState<{type: 'success' | 'error' | null, message: string}>({type: null, message: ''});
+
+  const resetFeedback = () => {
+    setTimeout(() => {
+      setFeedback({type: null, message: ''});
+    }, 3000);
+  };
+
   const handleSendNotification = async () => {
     if (!notificationForm.title.trim() || !notificationForm.message.trim()) {
-      Alert.alert('Error', 'Please fill in title and message');
+      setFeedback({type: 'error', message: 'Please fill in title and message'});
+      resetFeedback();
       return;
     }
+
+    setIsSending(true);
+    setFeedback({type: null, message: ''});
 
     try {
       const notificationData = {
@@ -137,35 +151,62 @@ export default function AdminScreen() {
         expiresAt: notificationForm.expiresAt || undefined,
       };
 
+      let response: Response;
+      let result: any;
+      
       if (notificationForm.isGlobal) {
-        await sendGlobalNotification(notificationData);
-        Alert.alert('Success', 'Global notification sent successfully!');
+        result = await sendGlobalNotification(notificationData);
       } else {
         if (!notificationForm.targetUserId) {
-          Alert.alert('Error', 'Please select a target user');
+          setFeedback({type: 'error', message: 'Please select a target user'});
+          resetFeedback();
+          setIsSending(false);
           return;
         }
-        await sendUserNotification(notificationForm.targetUserId, notificationData);
-        Alert.alert('Success', 'User notification sent successfully!');
+        result = await sendUserNotification(notificationForm.targetUserId, notificationData);
       }
 
-      // Reset form
-      setNotificationForm({
-        title: '',
-        message: '',
-        type: 'admin',
-        priority: 'medium',
-        isGlobal: true,
-        targetUserId: '',
-        actionUrl: '',
-        imageUrl: '',
-        expiresAt: '',
-      });
-      setShowSendModal(false);
-      await loadNotifications();
+      // Check if the response is in the expected format
+      const notificationResponse: NotificationResponse = result && 
+        (result.success || result.message) ? result : {
+          success: false,
+          message: 'Invalid response from server'
+        };
+
+      if (notificationResponse.success) {
+        setFeedback({
+          type: 'success',
+          message: `Notification sent successfully${notificationForm.isGlobal ? ' to all users' : ''}!`
+        });
+        
+        // Reset form and close modal after a short delay
+        setTimeout(() => {
+          setNotificationForm({
+            title: '',
+            message: '',
+            type: 'admin',
+            priority: 'medium',
+            isGlobal: true,
+            targetUserId: '',
+            actionUrl: '',
+            imageUrl: '',
+            expiresAt: '',
+          });
+          setShowSendModal(false);
+          loadNotifications();
+        }, 1000);
+      } else {
+        throw new Error(notificationResponse.message || 'Failed to send notification');
+      }
     } catch (error) {
       console.error('Error sending notification:', error);
-      Alert.alert('Error', 'Failed to send notification');
+      setFeedback({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to send notification'
+      });
+      resetFeedback();
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -517,7 +558,7 @@ export default function AdminScreen() {
                   ]} 
                 />
               </View>
-              <Text style={styles.chartValue}>{count}</Text>
+              <Text style={styles.chartValue}>{String(count ?? 0)}</Text>
             </View>
           ))}
         </View>
@@ -539,11 +580,11 @@ export default function AdminScreen() {
                   ]} 
                 />
               </View>
-              <Text style={styles.chartValue}>{count}</Text>
+              <Text style={styles.chartValue}>{String(count ?? 0)}</Text>
             </View>
           ))}
         </View>
-      </div>
+      </View>
     </ScrollView>
   );
 
@@ -627,18 +668,34 @@ export default function AdminScreen() {
       <Modal
         visible={showSendModal}
         animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowSendModal(false)}
+        transparent={false}
+        onRequestClose={() => !isSending && setShowSendModal(false)}
       >
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Send Notification</Text>
-            <TouchableOpacity onPress={() => setShowSendModal(false)}>
-              <X size={24} color={theme.colors.textSecondary} />
+            <TouchableOpacity 
+              onPress={() => !isSending && setShowSendModal(false)}
+              disabled={isSending}
+            >
+              <X size={24} color={isSending ? theme.colors.textSecondary : theme.colors.text} />
             </TouchableOpacity>
           </View>
-          
           <ScrollView style={styles.modalContent}>
+            {/* Feedback Message */}
+            {feedback.type && (
+              <View style={[
+                styles.feedbackContainer,
+                feedback.type === 'success' 
+                  ? styles.feedbackSuccess 
+                  : styles.feedbackError
+              ]}>
+                <Text style={styles.feedbackText}>
+                  {feedback.type === 'success' ? '✓ ' : '⚠ '}
+                  {feedback.message}
+                </Text>
+              </View>
+            )}
             {/* Notification Type */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Notification Type</Text>
@@ -652,7 +709,6 @@ export default function AdminScreen() {
                 />
               </View>
             </View>
-
             {/* Target User (if not global) */}
             {!notificationForm.isGlobal && (
               <View style={styles.formGroup}>
@@ -666,7 +722,6 @@ export default function AdminScreen() {
                 />
               </View>
             )}
-
             {/* Title */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Title *</Text>
@@ -678,7 +733,6 @@ export default function AdminScreen() {
                 onChangeText={(text) => setNotificationForm(prev => ({ ...prev, title: text }))}
               />
             </View>
-
             {/* Message */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Message *</Text>
@@ -692,7 +746,6 @@ export default function AdminScreen() {
                 numberOfLines={4}
               />
             </View>
-
             {/* Priority */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Priority</Text>
@@ -718,7 +771,6 @@ export default function AdminScreen() {
                 ))}
               </View>
             </View>
-
             {/* Action URL (Optional) */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Action URL (Optional)</Text>
@@ -730,7 +782,6 @@ export default function AdminScreen() {
                 onChangeText={(text) => setNotificationForm(prev => ({ ...prev, actionUrl: text }))}
               />
             </View>
-
             {/* Image URL (Optional) */}
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Image URL (Optional)</Text>
@@ -746,23 +797,37 @@ export default function AdminScreen() {
 
           <View style={styles.modalFooter}>
             <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setShowSendModal(false)}
+              style={[
+                styles.cancelButton,
+                isSending && { opacity: 0.6 }
+              ]}
+              onPress={() => !isSending && setShowSendModal(false)}
+              disabled={isSending}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={[
+                styles.cancelButtonText,
+                isSending && { color: theme.colors.textTertiary }
+              ]}>
+                Cancel
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.sendModalButton, isLoading && styles.sendModalButtonDisabled]}
+              style={[
+                styles.sendModalButton, 
+                (isLoading || isSending) && styles.sendModalButtonDisabled
+              ]}
               onPress={handleSendNotification}
-              disabled={isLoading}
+              disabled={isLoading || isSending}
             >
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+              {isLoading || isSending ? (
+                <ActivityIndicator color={theme.colors.background} size="small" />
               ) : (
-                <>
-                  <Send size={16} color="#FFFFFF" />
-                  <Text style={styles.sendModalButtonText}>Send</Text>
-                </>
+                <View style={styles.sendButtonContent}>
+                  <Send size={16} color={theme.colors.background} />
+                  <Text style={styles.sendModalButtonText}>
+                    {isSending ? 'Sending...' : 'Send'}
+                  </Text>
+                </View>
               )}
             </TouchableOpacity>
           </View>
@@ -824,6 +889,30 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  feedbackContainer: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    color: theme.dark ? 'black' : theme.colors.text,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  feedbackSuccess: {
+    backgroundColor: '#e6f7ee',
+    borderLeftWidth: 4,
+    borderLeftColor: '#34c759',
+  },
+  feedbackError: {
+    backgroundColor: '#ffebee',
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff3b30',
+  },
+  feedbackText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: theme.dark ? 'black' : theme.colors.text,
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -841,7 +930,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: theme.colors.text,
+    color: theme.dark ? 'black' : theme.colors.text,
   },
   headerRight: {
     flexDirection: 'row',
@@ -1014,7 +1103,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   notificationTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.text,
+    color: theme.dark ? '#FFFFFF' : '#1A1A1A',
     flex: 1,
   },
   priorityBadge: {
@@ -1029,7 +1118,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   notificationMessage: {
     fontSize: 14,
-    color: theme.colors.textSecondary,
+    color: theme.dark ? '#F0F0F0' : '#333333',
     lineHeight: 20,
     marginBottom: 8,
   },
@@ -1040,12 +1129,17 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   notificationTime: {
     fontSize: 12,
-    color: theme.colors.textTertiary,
+    color: theme.dark ? '#C0C0C0' : '#666666',
+    fontWeight: '500',
   },
   notificationType: {
     fontSize: 12,
-    color: theme.colors.primary,
-    fontWeight: '500',
+    color: theme.dark ? '#4D9CFF' : theme.colors.primary,
+    fontWeight: '600',
+    backgroundColor: theme.dark ? 'rgba(127, 179, 255, 0.1)' : 'rgba(0, 122, 255, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   sendSection: {
     padding: 16,
@@ -1064,6 +1158,17 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  cancelButtonText: {
+    color: theme.colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  disabledButtonText: {
+    color: theme.colors.textTertiary,
   },
   subsectionTitle: {
     fontSize: 16,
@@ -1088,7 +1193,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   sentNotificationTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.text,
+    color: theme.dark ? '#FFFFFF' : '#1A1A1A',
     flex: 1,
   },
   sentNotificationMeta: {
@@ -1098,11 +1203,12 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   sentNotificationTime: {
     fontSize: 12,
-    color: theme.colors.textTertiary,
+    color: theme.dark ? '#C0C0C0' : '#666666',
+    fontWeight: '500',
   },
   sentNotificationMessage: {
     fontSize: 14,
-    color: theme.colors.textSecondary,
+    color: theme.dark ? '#F0F0F0' : '#333333',
     lineHeight: 20,
   },
   manageSection: {
@@ -1182,7 +1288,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   manageNotificationTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: theme.colors.text,
+    color: theme.dark ? '#FFFFFF' : '#1A1A1A',
     flex: 1,
   },
   manageNotificationBadges: {
@@ -1192,11 +1298,12 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   manageNotificationTime: {
     fontSize: 12,
-    color: theme.colors.textTertiary,
+    color: theme.dark ? '#C0C0C0' : '#666666',
+    fontWeight: '500',
   },
   manageNotificationMessage: {
     fontSize: 14,
-    color: theme.colors.textSecondary,
+    color: theme.dark ? '#F0F0F0' : '#333333',
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -1405,11 +1512,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-  },
   sendModalButton: {
     flex: 1,
     flexDirection: 'row',
@@ -1422,6 +1524,12 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   sendModalButtonDisabled: {
     opacity: 0.6,
+  },
+  sendButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   sendModalButtonText: {
     fontSize: 16,

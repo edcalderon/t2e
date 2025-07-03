@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Platform,
-  Linking,
+  Linking
 } from "react-native";
 import { Image } from "expo-image";
 import { Svg, Path } from 'react-native-svg';
@@ -16,6 +16,7 @@ import { Check, AlertCircle, RefreshCw, Shield, Clock, Settings, Info, Wifi, Wif
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useSupabaseAuth } from '../../../hooks/useSupabaseAuth';
+import { supabase } from '../../../lib/supabase';
 
 const { width, height } = Dimensions.get('window');
 const isMobile = width < 768;
@@ -32,9 +33,8 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     session,
     isLoading, 
     isAuthenticated, 
-    error, 
+    error: authError, 
     signInWithTwitter, 
-    retry, 
     clearError,
     isInitialized,
     retryCount 
@@ -46,6 +46,11 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   const [connectionStage, setConnectionStage] = useState<'idle' | 'initiating' | 'redirecting' | 'processing' | 'completing'>('idle');
   const [hasTriggeredSuccess, setHasTriggeredSuccess] = useState(false);
   const [connectionTimeout, setConnectionTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [localError, setLocalError] = useState<{type: string; message: string; details?: string} | null>(null);
+  const [retry, setRetry] = useState(0);
+  
+  // Combine auth error and local error for display
+  const error = localError || authError;
 
   useEffect(() => {
     Animated.parallel([
@@ -62,6 +67,35 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     ]).start();
   }, []);
 
+  // Helper function to check session on mobile
+  const checkMobileSession = async (attempts = 0): Promise<boolean> => {
+    if (attempts >= 10) return false;
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      console.log('✅ Session found after OAuth');
+      return true;
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return checkMobileSession(attempts + 1);
+  };
+
+  // Handle OAuth redirect on web
+  useEffect(() => {
+    const handleOAuthRedirect = async () => {
+      if (Platform.OS !== 'web') return;
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setConnectionStage('processing');
+        onConnect(true);
+      }
+    };
+    
+    handleOAuthRedirect();
+  }, []);
+
   // Update parent component when authentication state changes
   useEffect(() => {
     if (isAuthenticated && !hasTriggeredSuccess) {
@@ -75,21 +109,27 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
         setConnectionTimeout(null);
       }
       
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         onConnect(true);
         setIsConnecting(false);
         setConnectionStage('idle');
-      }, 1500);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated, onConnect, hasTriggeredSuccess, connectionTimeout]);
 
   const handleMobileTwitterAuth = async () => {
-    if (Platform.OS === 'web') {
-      // On web, use the normal flow
+    // Use web flow for non-mobile platforms
+    if (Platform.select({
+      ios: false,
+      android: false,
+      default: true // This will be true for web and any other platform
+    })) {
       return handleConnect();
     }
 
-    // Try to open Twitter app first, then fallback to web
+    // Mobile-specific Twitter app handling
     try {
       const twitterAppUrl = 'twitter://';
       const canOpenTwitterApp = await Linking.canOpenURL(twitterAppUrl);
@@ -111,15 +151,28 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
   const handleConnect = async () => {
     if (isAuthenticated || isConnecting) return;
     
+    // Reset states
     setIsConnecting(true);
     setConnectionStage('initiating');
     setHasTriggeredSuccess(false);
+    setLocalError(null);
     clearError();
     
-    // Set a timeout for the connection process
+    // Clear any existing timeout
+    if (connectionTimeout) {
+      clearTimeout(connectionTimeout);
+      setConnectionTimeout(null);
+    }
+    
+    // Set a new timeout for the connection process
     const timeout = setTimeout(() => {
       if (isConnecting && !isAuthenticated) {
         console.log('⏰ Connection timeout reached');
+        setLocalError({
+          type: 'network',
+          message: 'Connection timed out',
+          details: 'Please check your internet connection and try again.',
+        });
         setIsConnecting(false);
         setConnectionStage('idle');
       }
@@ -130,30 +183,43 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     try {
       setConnectionStage('redirecting');
       
+      // For web, we'll let the OAuth flow handle the redirect
+      if (Platform.OS === 'web' || Platform.OS === undefined) {
+        await signInWithTwitter();
+        return; // Let the OAuth redirect handle the rest
+      }
+      
+      // For mobile, handle the OAuth flow manually
       const result = await signInWithTwitter();
+      
+      if (!result) {
+        throw new Error('No response from Twitter authentication');
+      }
       
       if (result.success) {
         setConnectionStage('processing');
         console.log('🔄 OAuth completed, waiting for session...');
         
-        // The useEffect above will handle the success case
-      } else if (result.error?.type === 'email') {
-        console.log('ℹ️ Twitter connection succeeded with email warning');
-        setConnectionStage('completing');
+        // Only check session on mobile
+        const isMobile = Platform.select({
+          ios: true,
+          android: true,
+          default: false
+        });
+        if (isMobile) {
+          const sessionFound = await checkMobileSession();
+          if (!sessionFound) {
+            throw new Error('Failed to establish session after OAuth');
+          }
+        }
         
-        if (timeout) clearTimeout(timeout);
-        
-        setTimeout(() => {
-          onConnect(true);
-          setIsConnecting(false);
-          setConnectionStage('idle');
-        }, 1000);
+        // The useEffect will handle the success case via the isAuthenticated check
       } else {
         console.error('❌ Twitter connection failed:', result.error);
         setIsConnecting(false);
         setConnectionStage('idle');
-        
-        if (timeout) clearTimeout(timeout);
+        clearTimeout(timeout);
+        setConnectionTimeout(null);
       }
     } catch (err) {
       console.error('❌ Connection error:', err);
@@ -173,7 +239,10 @@ export default function TwitterConnectStep({ onConnect }: TwitterConnectStepProp
     clearError();
     
     try {
-      await retry();
+      // Use the retryCount from useSupabaseAuth to track retries
+      setRetry(prev => prev + 1);
+      // Call the connect function again
+      await handleConnect();
       setConnectionStage('processing');
     } catch (err) {
       console.error('❌ Retry error:', err);

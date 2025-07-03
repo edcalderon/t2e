@@ -1,9 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
+import { webSocketService } from './websocketService';
+
+export type NotificationType = 'system' | 'reward' | 'challenge' | 'achievement' | 'admin' | 'personal';
 
 export interface Notification {
   id: string;
-  type: 'system' | 'reward' | 'challenge' | 'achievement' | 'admin' | 'personal';
+  type: NotificationType;
   title: string;
   message: string;
   data?: any;
@@ -70,8 +73,11 @@ class NotificationService {
         .or(`user_id.eq.${user.id},user_id.is.null`)
         .order('created_at', { ascending: false })
         .limit(100);
-
-      if (error) throw error;
+        
+      if (error) {
+        console.error('Error fetching notifications:', error);
+        throw error;
+      }
 
       if (notifications) {
         this.notifications = notifications.map(this.transformNotification);
@@ -88,9 +94,56 @@ class NotificationService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Subscribe to new notifications
-      supabase
-        .channel('notifications')
+      // Set auth token for WebSocket
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        webSocketService.setAuthToken(session.access_token);
+      }
+
+      // Connect to WebSocket
+      await webSocketService.connect();
+
+      // Define the expected WebSocket message type
+      interface WebSocketMessage {
+        type: string;
+        data: any; // You might want to replace 'any' with a more specific type
+      }
+
+      // Type guard to check if the message is a WebSocketMessage
+      const isWebSocketMessage = (message: unknown): message is WebSocketMessage => {
+        return (
+          typeof message === 'object' &&
+          message !== null &&
+          'type' in message &&
+          typeof (message as WebSocketMessage).type === 'string' &&
+          'data' in message
+        );
+      };
+
+      // Subscribe to WebSocket messages
+      const unsubscribe = webSocketService.addMessageHandler((message: unknown) => {
+        try {
+          if (!isWebSocketMessage(message)) {
+            console.warn('Received invalid WebSocket message format:', message);
+            return;
+          }
+          
+          if (message.type === 'notification' || message.type === 'user_notification') {
+            console.log('Processing notification:', message.type, message.data);
+            const notification = this.transformNotification(message.data);
+            this.addNotification(notification);
+            this.showPushNotification(notification);
+          } else {
+            console.log('Unhandled WebSocket message type:', message.type);
+          }
+        } catch (error) {
+          console.error('Error processing WebSocket message:', error);
+        }
+      });
+
+      // Also keep Supabase realtime as fallback
+      const channel = supabase
+        .channel('notifications-fallback')
         .on(
           'postgres_changes',
           {
@@ -120,20 +173,32 @@ class NotificationService {
           }
         )
         .subscribe();
+
+      // Return cleanup function
+      return () => {
+        unsubscribe();
+        channel.unsubscribe();
+      };
     } catch (error) {
       console.error('Error setting up realtime subscription:', error);
     }
   }
 
   private transformNotification(dbNotification: any): Notification {
+    // Ensure the type is one of the allowed values, default to 'system' if invalid
+    const validTypes: NotificationType[] = ['system', 'reward', 'challenge', 'achievement', 'admin', 'personal'];
+    const notificationType: NotificationType = validTypes.includes(dbNotification.type as NotificationType)
+      ? dbNotification.type as NotificationType
+      : 'system';
+
     return {
       id: dbNotification.id,
-      type: dbNotification.type,
+      type: notificationType,
       title: dbNotification.title,
       message: dbNotification.message,
       data: dbNotification.data,
       read: dbNotification.read || false,
-      createdAt: dbNotification.created_at,
+      createdAt: dbNotification.created_at || new Date().toISOString(),
       userId: dbNotification.user_id,
       adminId: dbNotification.admin_id,
       priority: dbNotification.priority || 'medium',
@@ -162,18 +227,41 @@ class NotificationService {
     this.listeners.forEach(listener => listener(this.notifications));
   }
 
-  private showPushNotification(notification: Notification) {
-    // For web, show browser notification if permission granted
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'granted') {
-        new Notification(notification.title, {
-          body: notification.message,
-          icon: '/assets/images/icon.png',
-          badge: '/assets/images/favicon.png',
-          tag: notification.id,
-          data: notification.data,
-        });
+  private async showPushNotification(notification: Notification) {
+    try {
+      // For web, show browser notification if permission granted
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          const registration = await navigator.serviceWorker?.ready;
+          const notificationOptions: NotificationOptions = {
+            body: notification.message,
+            icon: '/assets/images/icon.png',
+            badge: '/assets/images/favicon.png',
+            data: notification.data,
+          };
+
+          // Add vibration if supported
+          if ('vibrate' in Notification.prototype) {
+            (notificationOptions as any).vibrate = [200, 100, 200];
+          }
+
+          if (registration?.showNotification) {
+            // Use service worker for notifications if available
+            await registration.showNotification(notification.title, notificationOptions);
+          } else {
+            // Fallback to regular notifications
+            new Notification(notification.title, notificationOptions);
+          }
+        } else if (Notification.permission !== 'denied') {
+          // Request permission if not already denied
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            this.showPushNotification(notification);
+          }
+        }
       }
+    } catch (error) {
+      console.error('Error showing notification:', error);
     }
   }
 
@@ -270,18 +358,24 @@ class NotificationService {
     }
   }
 
-  async createNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'read'>) {
+  private async createNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'read'> & { id?: string }) {
+    // Ensure type is valid
+    const validTypes: NotificationType[] = ['system', 'reward', 'challenge', 'achievement', 'admin', 'personal'];
+    const notificationType: NotificationType = validTypes.includes(notification.type as NotificationType)
+      ? notification.type as NotificationType
+      : 'system';
+
     try {
       const { data, error } = await supabase
         .from('notifications')
         .insert({
-          type: notification.type,
+          type: notificationType,
           title: notification.title,
           message: notification.message,
           data: notification.data,
           user_id: notification.userId,
           admin_id: notification.adminId,
-          priority: notification.priority,
+          priority: notification.priority || 'medium',
           expires_at: notification.expiresAt,
           action_url: notification.actionUrl,
           image_url: notification.imageUrl,
@@ -301,72 +395,201 @@ class NotificationService {
   async sendGlobalNotification(notification: {
     title: string;
     message: string;
-    type?: string;
+    type?: NotificationType;
     priority?: 'low' | 'medium' | 'high' | 'urgent';
     actionUrl?: string;
     imageUrl?: string;
     expiresAt?: string;
-  }) {
+  }): Promise<{ success: boolean; message: string; notification?: Notification }> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        return { success: false, message: 'Authentication required' };
+      }
 
-      return await this.createNotification({
+      const result = await this.createNotification({
         ...notification,
         type: notification.type || 'admin',
         priority: notification.priority || 'medium',
         userId: undefined, // Global notification
         adminId: user.id,
       });
+
+      // Notify all connected clients via WebSocket
+      try {
+        if (webSocketService.getConnectionStatus()) {
+          console.log('Sending WebSocket notification:', result);
+          await webSocketService.sendMessage({
+            type: 'notification',
+            payload: result
+          });
+          console.log('WebSocket notification sent successfully');
+        } else {
+          console.warn('WebSocket not connected, skipping real-time notification');
+        }
+      } catch (wsError) {
+        console.warn('WebSocket notification failed, falling back to polling', wsError);
+        // The notification is still saved, clients will sync on next poll
+      }
+
+      return {
+        success: true,
+        message: 'Notification sent successfully',
+        notification: result
+      };
     } catch (error) {
       console.error('Error sending global notification:', error);
-      throw error;
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to send notification'
+      };
     }
   }
 
   async sendUserNotification(userId: string, notification: {
     title: string;
     message: string;
-    type?: string;
+    type?: NotificationType;
     priority?: 'low' | 'medium' | 'high' | 'urgent';
     actionUrl?: string;
     imageUrl?: string;
     expiresAt?: string;
-  }) {
+  }): Promise<{ success: boolean; message: string; notification?: Notification }> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        return { success: false, message: 'Authentication required' };
+      }
 
-      return await this.createNotification({
+      if (!userId) {
+        return { success: false, message: 'User ID is required' };
+      }
+
+      const result = await this.createNotification({
         ...notification,
         type: notification.type || 'personal',
         priority: notification.priority || 'medium',
         userId,
         adminId: user.id,
       });
+
+      // Notify the specific user via WebSocket if they're connected
+      try {
+        if (webSocketService.getConnectionStatus()) {
+          console.log('Sending user WebSocket notification:', { userId, notification: result });
+          await webSocketService.sendMessage({
+            type: 'user_notification',
+            userId,
+            payload: result
+          });
+          console.log('User WebSocket notification sent successfully');
+        } else {
+          console.warn('WebSocket not connected, skipping real-time user notification');
+        }
+      } catch (wsError) {
+        console.warn('WebSocket user notification failed, falling back to polling', wsError);
+        // The notification is still saved, client will sync on next poll
+      }
+
+      return {
+        success: true,
+        message: 'Notification sent successfully',
+        notification: result
+      };
     } catch (error) {
       console.error('Error sending user notification:', error);
-      throw error;
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to send notification'
+      };
     }
   }
 
   async getAllNotifications(limit = 100, offset = 0) {
     try {
-      const { data, error } = await supabase
+      // First, get the basic notification data
+      const { data: notifications, error } = await supabase
         .from('notifications')
-        .select(`
-          *,
-          user:user_id(username, email),
-          admin:admin_id(username, email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
-      if (error) throw error;
-      return data?.map(this.transformNotification) || [];
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      if (!notifications) return [];
+
+      // Transform notifications and fetch user data if needed
+      const transformed = await Promise.all(notifications.map(async (notification) => {
+        const transformed = this.transformNotification(notification);
+        
+        // If you need user/admin data, fetch it separately
+        if (notification.user_id || notification.admin_id) {
+          const userId = notification.user_id;
+          const adminId = notification.admin_id;
+          const userData = userId ? await this.getUserData(userId) : null;
+          const adminData = adminId ? await this.getUserData(adminId) : null;
+          
+          return {
+            ...transformed,
+            user: userData,
+            admin: adminData
+          };
+        }
+        
+        return transformed;
+      }));
+
+      return transformed;
     } catch (error) {
-      console.error('Error fetching all notifications:', error);
-      throw error;
+      console.error('Error in getAllNotifications:', error);
+      // Return empty array instead of throwing to prevent UI crashes
+      return [];
+    }
+  }
+
+  // Helper method to get user data
+  private async getUserData(userId: string) {
+    try {
+      // First, get the user's auth data which includes email
+      const { data: authData, error: authError } = await supabase.auth.admin.getUserById(userId);
+      
+      if (authError) {
+        console.error('Error fetching auth data:', authError);
+        return null;
+      }
+      
+      // Then get the profile data excluding email since it's in auth
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url') // Removed email as it's in auth
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching profile data:', profileError);
+        // Return just the auth data if we can't get profile
+        return { 
+          id: userId,
+          email: authData.user?.email,
+          username: authData.user?.email?.split('@')[0] || 'User'
+        };
+      }
+      
+      // Combine auth and profile data
+      return {
+        ...profileData,
+        email: authData.user?.email
+      };
+    } catch (error) {
+      console.error('Error in getUserData:', error);
+      return {
+        id: userId,
+        username: 'User',
+        email: null
+      };
     }
   }
 

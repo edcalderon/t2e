@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Easing } from "react-native";
 import {
   View,
@@ -26,18 +26,25 @@ const { width, height } = Dimensions.get('window');
 const isMobile = width < 768;
 
 const AccountSetupModal = ({
-  isVisible = true,
+  isVisible = false,
   onClose = () => {},
   onComplete = () => {},
 }: AccountSetupModalProps) => {
   // Internal state for controlling Modal visibility
-  const [internalVisible, setInternalVisible] = useState(isVisible);
+  const [internalVisible, setInternalVisible] = useState(false);
   const { theme } = useTheme();
-  const { updateUser, twitterUser, isSupabaseAuthenticated } = useAuth();
+  const { 
+    updateUser, 
+    twitterUser, 
+    isSupabaseAuthenticated, 
+    isLoading: isAuthLoading 
+  } = useAuth();
+  
   const [currentStep, setCurrentStep] = useState(0);
   const [twitterConnected, setTwitterConnected] = useState(false);
   const [walletConnected, setWalletConnected] = useState(false);
   const [selectedThemes, setSelectedThemes] = useState<string[]>([]);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // Animation values
   const [slideAnim] = useState(new Animated.Value(height));
@@ -59,56 +66,116 @@ const AccountSetupModal = ({
     },
   ];
 
-  // Sync internalVisible with isVisible for opening
+  // Check if all steps are completed
+  const isComplete = useMemo(() => {
+    return (
+      twitterConnected &&
+      walletConnected &&
+      selectedThemes.length > 0
+    );
+  }, [twitterConnected, walletConnected, selectedThemes.length]);
+
+  // Reset state when modal is opened
+  const resetModalState = () => {
+    setCurrentStep(0);
+    setTwitterConnected(false);
+    setWalletConnected(false);
+    setSelectedThemes([]);
+  };
+
+  // Sync internalVisible with isVisible for opening/closing
   useEffect(() => {
     if (isVisible) {
       setInternalVisible(true);
-      // Animate modal in with smoother, more fluent effect
-      slideAnim.setValue(height);
-      fadeAnim.setValue(0);
-      scaleAnim.setValue(0.9);
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 500,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }),
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 400,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }),
-          Animated.timing(scaleAnim, {
-            toValue: 1.05,
-            duration: 350,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 180,
-          easing: Easing.out(Easing.cubic),
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
           useNativeDriver: true,
-        })
+          easing: Easing.out(Easing.cubic),
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          speed: 20,
+          bounciness: 10,
+        }),
       ]).start();
-    }
-    // If isVisible becomes false, trigger handleClose (but not immediately hide Modal)
-    else if (!isVisible && internalVisible) {
-      handleClose();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: height,
+          duration: 250,
+          useNativeDriver: true,
+          easing: Easing.in(Easing.ease),
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 0.9,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setInternalVisible(false);
+        resetModalState();
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVisible]);
 
+  // Handle modal visibility and initial auth state
+  useEffect(() => {
+    if (isVisible) {
+      // If already authenticated, skip to next step
+      if (isSupabaseAuthenticated && twitterUser) {
+        setTwitterConnected(true);
+        if (currentStep === 0) {
+          setCurrentStep(1);
+        }
+      }
+    }
+  }, [isVisible, isSupabaseAuthenticated, currentStep, twitterUser]);
+
+  // Handle Twitter connection state changes
+  const handleTwitterConnect = useCallback((connected: boolean) => {
+    setTwitterConnected(connected);
+    if (connected && currentStep === 0) {
+      setCurrentStep(1);
+    }
+  }, [currentStep]);
+
   // Update Twitter connection status when Supabase auth changes
   useEffect(() => {
-    if (isSupabaseAuthenticated && twitterUser) {
-      setTwitterConnected(true);
+    const connected = !!(isSupabaseAuthenticated && twitterUser);
+    setTwitterConnected(connected);
+    
+    // If we're on the Twitter step and user just connected, automatically advance
+    if (connected && currentStep === 0) {
+      // Small delay for better UX
+      const timer = setTimeout(() => {
+        handleNext();
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [isSupabaseAuthenticated, twitterUser]);
+    
+    // Set auth check as complete after initial check
+    if (isCheckingAuth) {
+      setIsCheckingAuth(false);
+      // If user is already authenticated, we don't need to show the modal
+      if (connected) {
+        handleClose();
+      }
+    }
+  }, [isSupabaseAuthenticated, twitterUser, currentStep]);
 
   // Only call this to trigger the animation, not to hide the modal immediately
   // IMPORTANT: Parent should not remove/unmount the modal until onClose is called!
@@ -137,10 +204,6 @@ const AccountSetupModal = ({
       onClose(); // Notify parent
     });
   };
-
-
-
-
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -228,11 +291,21 @@ const AccountSetupModal = ({
   };
 
   const renderStepContent = () => {
+    if (isCheckingAuth) {
+      return (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Checking authentication status...</Text>
+          <Text style={styles.loadingSubtext}>This should only take a moment</Text>
+        </View>
+      );
+    }
+    
     switch (currentStep) {
       case 0:
         return (
-          <TwitterConnectStep
-            onConnect={setTwitterConnected}
+          <TwitterConnectStep 
+            onConnect={handleTwitterConnect} 
+            key="twitter-connect"
           />
         );
       case 1:
@@ -359,6 +432,24 @@ const AccountSetupModal = ({
 };
 
 const createStyles = (theme: any, isMobile: boolean) => StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    color: theme.colors.muted,
+    textAlign: 'center',
+  },
   overlay: {
     flex: 1,
     backgroundColor: theme.colors.overlay,

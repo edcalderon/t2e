@@ -1,10 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type Session, type User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import * as WebBrowser from 'expo-web-browser';
 import { WebBrowserAuthSessionResult } from 'expo-web-browser';
+import { UserProfile } from './userService';
 
 // Get environment variables from Expo config
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -20,22 +21,110 @@ if (typeof window !== 'undefined') {
   WebBrowser.maybeCompleteAuthSession();
 }
 
-// Create Supabase client with enhanced configuration
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
+// Create a custom storage adapter that works in all environments
+const isWeb = Platform.OS === 'web';
+
+const customStorage = {
+  getItem: async (key: string) => {
+    try {
+      if (isWeb) {
+        // For web, check if we're in a browser environment
+        if (typeof window !== 'undefined' && window.localStorage) {
+          return localStorage.getItem(key);
+        }
+        return null;
+      }
+      // For native platforms, use AsyncStorage
+      if (AsyncStorage) {
+        return await AsyncStorage.getItem(key);
+      }
+      return null;
+    } catch (error) {
+      console.warn('Error accessing storage:', error);
+      return null;
+    }
+  },
+  setItem: async (key: string, value: string) => {
+    try {
+      if (isWeb) {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem(key, value);
+        }
+      } else if (AsyncStorage) {
+        await AsyncStorage.setItem(key, value);
+      }
+    } catch (error) {
+      console.warn('Error setting storage item:', error);
+    }
+  },
+  removeItem: async (key: string) => {
+    try {
+      if (isWeb) {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.removeItem(key);
+        }
+      } else if (AsyncStorage) {
+        await AsyncStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.warn('Error removing storage item:', error);
+    }
+  },
+};
+
+// Initialize Supabase client
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: Platform.OS !== 'web' ? AsyncStorage : undefined,
+    storage: customStorage as any,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: Platform.OS === 'web' && typeof window !== 'undefined',
-    flowType: 'pkce',
-    debug: __DEV__,
+    detectSessionInUrl: Platform.OS !== 'web',
   },
-  global: {
-    headers: {
-      'X-Client-Info': `xquests-app/${Platform.OS}`,
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
     },
   },
 });
+
+// Type for realtime subscription callback payload
+export type ProfileSubscriptionCallbackPayload = {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new: UserProfile;
+  old?: UserProfile;
+};
+
+type ProfileSubscriptionCallback = (payload: ProfileSubscriptionCallbackPayload) => void;
+
+// Subscribe to profile changes
+export const subscribeToProfileChanges = (
+  userId: string,
+  callback: ProfileSubscriptionCallback
+) => {
+  const subscription = supabase
+    .channel('public:profiles')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${userId}`,
+      },
+      (payload) => {
+        callback({
+          eventType: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
+          new: payload.new as UserProfile,
+          old: payload.old as UserProfile | undefined,
+        });
+      }
+    )
+    .subscribe();
+
+  return () => {
+    subscription.unsubscribe();
+  };
+};
 
 // Get redirect URI with proper SSR handling
 const getRedirectUri = () => {
@@ -66,8 +155,16 @@ const getRedirectToUri = () => {
   return redirectTo;
 };
 
-// Enhanced session creation from URL
-export const createSessionFromUrl = async (url: string): Promise<any> => {
+/**
+ * Creates a session from a URL, typically after OAuth redirect
+ * @param url The URL containing the authentication data
+ * @returns The session data if successful
+ */
+export const createSessionFromUrl = async (url: string): Promise<{
+  session: Session | null;
+  user: User | null;
+  error: Error | null;
+}> => {
   console.log('🔍 Creating session from URL:', url.substring(0, 100) + '...');
   
   try {
@@ -92,7 +189,7 @@ export const createSessionFromUrl = async (url: string): Promise<any> => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           console.log('✅ Found existing session despite error');
-          return session;
+          return { session, user: null, error: null };
         }
       }
       
@@ -117,19 +214,18 @@ export const createSessionFromUrl = async (url: string): Promise<any> => {
         const { data: { session: fallbackSession } } = await supabase.auth.getSession();
         if (fallbackSession) {
           console.log('✅ Session exists despite setSession error');
-          return fallbackSession;
+          return { session: fallbackSession, user: null, error: null };
         }
         
         throw error;
       }
 
       console.log('✅ Session created successfully with tokens');
-      return data.session;
+      return { session: data.session, user: null, error: null };
     }
 
     // Method 2: Authorization code exchange
     if (code) {
-      console.log('🔄 Exchanging authorization code for session...');
       
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       
@@ -138,21 +234,16 @@ export const createSessionFromUrl = async (url: string): Promise<any> => {
         throw error;
       }
       
-      console.log('✅ Session created from authorization code');
-      return data.session;
+      return { session: data.session, user: null, error: null };
     }
 
-    // Method 3: Check for existing session
-    console.log('🔍 No tokens found, checking for existing session...');
     const { data: { session } } = await supabase.auth.getSession();
     
     if (session) {
-      console.log('✅ Found existing session');
-      return session;
+      return { session, user: null, error: null };
     }
 
-    console.log('⚠️ No session could be created from URL');
-    return null;
+    return { session: null, user: null, error: null };
 
   } catch (error: any) {
     console.error('❌ Error in createSessionFromUrl:', error);
@@ -161,8 +252,7 @@ export const createSessionFromUrl = async (url: string): Promise<any> => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        console.log('✅ Fallback: found existing session');
-        return session;
+        return { session, user: null, error: null };
       }
     } catch (fallbackError) {
       console.error('❌ Fallback session check failed:', fallbackError);
@@ -172,25 +262,29 @@ export const createSessionFromUrl = async (url: string): Promise<any> => {
   }
 };
 
-// Enhanced OAuth performance with SSR safety
-export const performOAuth = async (): Promise<{ success: boolean; error?: string; session?: any }> => {
+/**
+ * Performs OAuth authentication
+ * @returns Object containing success status, error (if any), and session data
+ */
+export const performOAuth = async (): Promise<{ 
+  success: boolean; 
+  error?: string; 
+  session?: Session;
+  user?: User;
+}> => {
   console.log('🐦 Starting Twitter OAuth...');
   
   try {
-    // Validate configuration first
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Missing Supabase configuration. Please check your environment variables.');
+    // Validate Twitter OAuth configuration
+    const configValidation = validateTwitterOAuthConfig();
+    if (!configValidation.valid) {
+      console.error('❌ Twitter OAuth configuration is invalid:', configValidation.issues);
+      throw new Error(`Twitter OAuth configuration error: ${configValidation.issues.join(', ')}`);
     }
-
-    // Ensure we're in a browser environment for OAuth
-    if (Platform.OS === 'web' && typeof window === 'undefined') {
-      throw new Error('OAuth requires a browser environment');
-    }
-
-    console.log('🔧 Initiating OAuth with Supabase...');
     
+    // Get redirect URI for debugging
     const redirectUri = getRedirectToUri();
-    
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'twitter',
       options: {
@@ -211,9 +305,6 @@ export const performOAuth = async (): Promise<{ success: boolean; error?: string
     if (!data.url) {
       throw new Error('No OAuth URL received from Supabase');
     }
-
-    console.log('🌐 Opening OAuth URL in browser...');
-    console.log('🔗 OAuth URL:', data.url.substring(0, 100) + '...');
     
     // Open OAuth URL in browser with enhanced options
     const result = await WebBrowser.openAuthSessionAsync(
@@ -226,7 +317,7 @@ export const performOAuth = async (): Promise<{ success: boolean; error?: string
       }
     ) as WebBrowserAuthSessionResult;
 
-    console.log('📱 OAuth browser result:', {
+      console.log('📱 OAuth browser result:', {
       type: result.type,
       // @ts-ignore - The URL might be available in the result
       url: result.url || 'No URL in result',
@@ -236,25 +327,26 @@ export const performOAuth = async (): Promise<{ success: boolean; error?: string
     // @ts-ignore - The URL might be available in the result
     const resultUrl = result.url || (result as any).params?.url;
     if (result.type === 'success' && resultUrl) {
-      console.log('✅ OAuth success, processing result...');
-      
+ 
       try {
-        const session = await createSessionFromUrl(resultUrl);
+        const { session, user, error } = await createSessionFromUrl(resultUrl);
         
         if (session) {
-          console.log('✅ Session created successfully');
-          return { success: true, session };
+          return { 
+            success: true, 
+            session,
+            user: user || undefined
+          };
         } else {
-          console.log('⚠️ No session created, checking current state...');
-          
-          // Wait a moment for session to be established
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
           if (currentSession) {
-            console.log('✅ Found session after delay');
-            return { success: true, session: currentSession };
+            return { 
+              success: true, 
+              session: currentSession,
+              user: currentSession.user
+            };
           } else {
+            console.error('❌ OAuth completed but no session was created', error);
             throw new Error('OAuth completed but no session was created');
           }
         }
@@ -264,7 +356,7 @@ export const performOAuth = async (): Promise<{ success: boolean; error?: string
         // Handle email-related errors (common with Twitter)
         if (sessionError.message?.toLowerCase().includes('email') || 
             sessionError.message?.includes('server_error')) {
-          console.log('ℹ️ Email-related error detected, checking for session anyway...');
+            console.log('ℹ️ Email-related error detected, checking for session anyway...');
           
           // Wait and check for session multiple times
           for (let i = 0; i < 3; i++) {
@@ -438,18 +530,103 @@ export const refreshSession = async () => {
   }
 };
 
+const clearAllStorage = async () => {
+  try {
+    const storage = customStorage;
+    
+    // Get all keys from storage
+    let allKeys: string[] = [];
+    if (isWeb && typeof window !== 'undefined' && window.localStorage) {
+      allKeys = Object.keys(localStorage);
+    } else if (AsyncStorage) {
+      const asyncStorageKeys = await AsyncStorage.getAllKeys();
+      allKeys = [...asyncStorageKeys]; // Convert readonly array to mutable array
+    }
+    
+    // Filter and remove all Supabase and auth related keys
+    const supabaseKeys = allKeys.filter(key => 
+      key.startsWith('sb-') || 
+      key.startsWith('expo-') ||
+      key.startsWith('auth.') ||
+      key.includes('supabase') ||
+      key.includes('session')
+    );
+
+    // Add common auth keys that might be missed
+    const commonAuthKeys = [
+      'sb:token',
+      'sb:state',
+      'sb:provider-token',
+      'sb:session',
+      'sb-auth-token',
+      'sb-refresh-token',
+      'supabase.auth.token',
+      'supabase.auth.token.iss',
+      `sb-${supabaseUrl?.replace(/^https?:\/\//, '').split('.')[0]}-auth-token`,
+      `sb-${supabaseUrl?.replace(/^https?:\/\//, '').split('.')[0]}-refresh-token`,
+    ];
+
+    // Combine and dedupe keys
+    const keysToRemove = [...new Set([...supabaseKeys, ...commonAuthKeys])];
+    
+    // Remove each key from storage
+    await Promise.all(keysToRemove.map(key => storage.removeItem(key)));
+    
+    // Clear all cookies if in web
+    if (isWeb && typeof document !== 'undefined') {
+      document.cookie.split(';').forEach(cookie => {
+        const [name] = cookie.split('=');
+        document.cookie = `${name}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+      });
+    }
+    
+    console.log('✅ Storage cleared successfully');
+    return true;
+  } catch (error) {
+    console.warn('⚠️ Error clearing storage:', error);
+    return false;
+  }
+};
+
 export const signOut = async () => {
   try {
     console.log('🚪 Signing out...');
+    
+    // Clear storage first
+    await clearAllStorage();
+    
+    // Sign out from Supabase
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('❌ Sign out error:', error);
       throw error;
     }
-    console.log('✅ Successfully signed out');
+    
+    // Clear storage again to catch any new tokens
+    await clearAllStorage();
+    
+    // Clear Expo auth session
+    if (WebBrowser.dismissAuthSession) {
+      await WebBrowser.dismissAuthSession();
+    }
+    
+    // Complete any pending auth sessions
+    if (WebBrowser.maybeCompleteAuthSession) {
+      WebBrowser.maybeCompleteAuthSession();
+    }
+    
+    // Force clear any remaining auth state
+    if (isWeb && typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    }
+    
+    console.log('✅ Successfully signed out and storage cleared');
     return { success: true };
   } catch (error) {
     console.error('❌ Error signing out:', error);
+    // Still try to clear storage even if sign out fails
+    await clearAllStorage();
     return { success: false, error };
   }
 };

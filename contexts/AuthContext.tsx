@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSupabaseAuth, TwitterUser } from '../hooks/useSupabaseAuth';
 
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+
 interface User {
   id: string;
   username: string;
@@ -69,24 +71,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loadUserData();
   }, []);
 
-  // Sync Supabase user with local user data
+  // Sync Supabase user with local user data and handle setup modal
   useEffect(() => {
     if (isSupabaseAuthenticated) {
       if (twitterUser) {
         // We have full Twitter user data
         console.log('✅ Syncing full Twitter user data');
-        syncTwitterUser(twitterUser);
+        syncTwitterUser(twitterUser).then(() => {
+          // After syncing, check if setup is needed
+          if (user && !user.setupCompleted) {
+            setShowSetupModal(true);
+          }
+        });
       } else if (session?.user) {
         // We have a session but no extracted Twitter data - create basic user
         console.log('✅ Creating basic user from session data');
-        createBasicUserFromSession(session.user);
+        createBasicUserFromSession(session.user).then(() => {
+          // After creating user, check if setup is needed
+          if (user && !user.setupCompleted) {
+            setShowSetupModal(true);
+          }
+        });
       }
     } else if (!isSupabaseAuthenticated && user?.twitterConnected) {
       // If Supabase auth is lost but local user thinks they're connected, update local state
       console.log('ℹ️ Supabase auth lost, updating local user state');
       updateLocalUser({ twitterConnected: false });
     }
-  }, [twitterUser, isSupabaseAuthenticated, session]);
+  }, [twitterUser, isSupabaseAuthenticated, session, user]);
 
   const loadUserData = async () => {
     try {
@@ -225,34 +237,89 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('user');
+      // Clear all storage first
+      await AsyncStorage.multiRemove([
+        'user',
+        'sb-auth-token',
+        'sb-refresh-token',
+        'sb:token',
+        'sb:state',
+        'sb:provider-token',
+        'sb:session',
+        'supabase.auth.token',
+        'supabase.auth.token.iss',
+        `sb-${supabaseUrl?.replace(/^https?:\/\//, '').split('.')[0]}-auth-token`,
+        `sb-${supabaseUrl?.replace(/^https?:\/\//, '').split('.')[0]}-refresh-token`,
+      ]);
+      
+      // Reset user state
       setUser(null);
       
-      // Also sign out from Supabase if authenticated
+      // Sign out from Supabase if authenticated
       if (isSupabaseAuthenticated) {
         await supabaseSignOut();
       }
+      
+      // Force a hard reset of the auth state
+      setShowSetupModal(false);
+      
+      console.log('✅ Successfully logged out and cleared all auth data');
     } catch (error) {
-      console.log('Error removing user data:', error);
+      console.error('❌ Error during logout:', error);
+      // Even if there's an error, ensure we clear the user state
+      setUser(null);
+      setShowSetupModal(false);
     }
   };
 
   const signOutFromTwitter = async () => {
     try {
+      // First, sign out from Supabase
       await supabaseSignOut();
+      
+      // Clear all auth-related storage
+      await AsyncStorage.multiRemove([
+        'sb-auth-token',
+        'sb-refresh-token',
+        'sb:token',
+        'sb:state',
+        'sb:provider-token',
+        'sb:session',
+        'supabase.auth.token',
+        'supabase.auth.token.iss',
+        `sb-${supabaseUrl?.replace(/^https?:\/\//, '').split('.')[0]}-auth-token`,
+        `sb-${supabaseUrl?.replace(/^https?:\/\//, '').split('.')[0]}-refresh-token`,
+      ]);
       
       // Update local user to reflect Twitter disconnection
       if (user) {
-        await updateLocalUser({ 
+        const updatedUser = {
+          ...user,
           twitterConnected: false,
           twitterId: undefined,
           twitterHandle: undefined,
           verified: false,
           followerCount: 0,
-        });
+        };
+        
+        // Only keep the user in storage if they have other data we want to preserve
+        if (user.walletConnected || (user.selectedThemes && user.selectedThemes.length > 0)) {
+          await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+          setUser(updatedUser);
+        } else {
+          // If no other important data, remove the user completely
+          await AsyncStorage.removeItem('user');
+          setUser(null);
+        }
       }
+      
+      console.log('✅ Successfully signed out from Twitter');
     } catch (error) {
-      console.log('Error signing out from Twitter:', error);
+      console.error('❌ Error signing out from Twitter:', error);
+      // Even if there's an error, ensure we clear the auth state
+      await AsyncStorage.removeItem('user');
+      setUser(null);
+      throw error; // Re-throw to allow error handling in components
     }
   };
 
@@ -272,11 +339,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isAuthenticated = !!user || isSupabaseAuthenticated;
   const finalIsLoading = isLoading || isSupabaseLoading;
 
+  // Check if setup is needed when user data changes
+  useEffect(() => {
+    if (user && !user.setupCompleted && !showSetupModal) {
+      setShowSetupModal(true);
+    }
+  }, [user, showSetupModal]);
+
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        isAuthenticated: isAuthenticated,
         isLoading: finalIsLoading,
         initialized,
         login,

@@ -77,6 +77,7 @@ export default function SharedSidebar({
       icon: require('lucide-react-native').Shield,
       label: 'Admin',
       route: { pathname: '/(tabs)/admin' },
+      badge: undefined
     });
   }
 
@@ -159,6 +160,12 @@ export default function SharedSidebar({
     mainContent: baseStyles.mainContent,
   };
 
+  // Filter navigation items based on permissions
+  const filteredNavItems = NAV_ITEMS.filter(item => {
+    if (!item.permissions) return true; // Show items without permissions
+    return item.permissions.includes('admin') && isAdmin; // Show admin items only if user is admin
+  });
+
   // Get the appropriate logo based on theme
   const Logo = isDark ? SmallLogoBlack : SmallLogoWhite;
 
@@ -171,7 +178,7 @@ export default function SharedSidebar({
         </View>
         {/* Bottom Navigation Bar */}
         <View style={styles.bottomNav}>
-          {sidebarItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const IconComponent = item.icon;
             const isActive = activeRoute === item.id;
 
@@ -252,7 +259,7 @@ export default function SharedSidebar({
 
         {/* Navigation Items */}
         <View style={styles.navItems}>
-          {sidebarItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const IconComponent = item.icon;
             const isActive = activeRoute === item.id;
 

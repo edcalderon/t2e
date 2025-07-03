@@ -1,13 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  supabase, 
-  getTwitterUserData, 
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  supabase,
   validateTwitterOAuthConfig,
   performOAuth,
   getCurrentSession,
-  refreshSession
+  refreshSession,
+  subscribeToProfileChanges,
+  type ProfileSubscriptionCallbackPayload
 } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
+import { userService, type UserProfile } from '../lib/userService';
 
 export interface TwitterUser {
   id: string;
@@ -19,21 +22,47 @@ export interface TwitterUser {
   verified: boolean;
   followerCount: number;
   twitterHandle?: string;
+  updated_at?: string;
+  created_at?: string;
 }
 
-export interface AuthState {
-  user: TwitterUser | null;
+type AuthState = {
+  user: UserProfile | null;
   session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-}
+};
 
-export interface AuthError {
+type AuthError = {
   message: string;
-  code?: string;
-  type?: 'config' | 'network' | 'auth' | 'token' | 'email' | 'unknown';
+  type: 'auth' | 'network' | 'validation' | 'unknown' | 'config' | 'token' | 'email';
   details?: string;
-}
+  code?: string;
+};
+
+// Helper function to extract Twitter user data from session
+const getTwitterUserData = (user: User | Session['user']): Partial<TwitterUser> => {
+  const { user_metadata, identities } = user;
+
+  if (!user_metadata || !identities?.[0]?.identity_data) {
+    return {};
+  }
+
+  const { identity_data } = identities[0];
+  const twitterHandle = identity_data.user_name || user_metadata.user_name || '';
+
+  return {
+    id: user.id,
+    username: twitterHandle,
+    displayName: identity_data.full_name || user_metadata.full_name || '',
+    email: user.email || null,
+    avatar: identity_data.avatar_url || user_metadata.avatar_url || '',
+    twitterId: twitterHandle,
+    verified: identity_data.verified || user_metadata.verified || false,
+    twitterHandle,
+    followerCount: 0, // Default value, can be updated later
+  };
+};
 
 export const useSupabaseAuth = () => {
   const [authState, setAuthState] = useState<AuthState>({
@@ -42,301 +71,426 @@ export const useSupabaseAuth = () => {
     isLoading: true,
     isAuthenticated: false,
   });
+  
+  const mounted = useRef(true);
+  const timeoutId = useRef<NodeJS.Timeout>();
+  const subscription = useRef<{ unsubscribe: () => void } | null>(null);
   const [error, setError] = useState<AuthError | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [retryCount, setRetryCount] = useState<number>(0);
 
-  // Initialize auth state with enhanced error handling
+  // Clear any existing error
+  const clearError = useCallback(() => {
+    if (!mounted.current) return;
+    setError(null);
+    setRetryCount(0);
+  }, []);
+
+  // Handle successful authentication
+  const handleAuthSuccess = useCallback(async (session: Session) => {
+    if (!mounted.current) return;
+
+    try {
+      const user = session?.user;
+      if (!user) {
+        throw new Error('No user in session');
+      }
+
+      // Get or create user profile - pass the session object which contains the user
+      const { data: profile, error: profileError } = await userService.handleUserProfile({ user: session.user });
+      if (profileError || !profile) {
+        throw profileError || new Error('Failed to process user profile');
+      }
+
+      // Set up realtime subscription for profile updates
+      const subscription = subscribeToProfileChanges(user.id, (payload: ProfileSubscriptionCallbackPayload) => {
+        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+          setAuthState(prev => ({
+            ...prev,
+            user: { ...prev.user, ...payload.new } as UserProfile,
+          }));
+        }
+      });
+
+      setAuthState({
+        user: profile,
+        session,
+        isLoading: false,
+        isAuthenticated: true,
+      });
+      setError(null);
+
+      // Cleanup subscription on unmount
+      return () => {
+        subscription();
+      };
+    } catch (err) {
+      console.error('Authentication error:', err);
+      setError({
+        message: 'Failed to process user data',
+        type: 'auth',
+        details: err instanceof Error ? err.message : 'Unknown error',
+      });
+      setAuthState(prev => ({
+        ...prev,
+        isLoading: false,
+        isAuthenticated: false,
+      }));
+    }
+  }, []);
+
+  // Initialize auth state with enhanced error handling and retry logic
   useEffect(() => {
-    let mounted = true;
-    let timeoutId: NodeJS.Timeout;
-
     const initializeAuth = async () => {
+      if (!mounted.current) return;
+      
       try {
-        console.log('🚀 Initializing Supabase auth...');
+        setAuthState(prev => ({ ...prev, isLoading: true }));
         
-        // Validate configuration first
-        const configValidation = validateTwitterOAuthConfig();
-        if (!configValidation.valid) {
-          throw new Error(`Configuration issues: ${configValidation.issues.join(', ')}`);
-        }
+        // Get the current session
+        const session = await getCurrentSession();
         
-        // Set a timeout to prevent infinite loading
-        timeoutId = setTimeout(() => {
-          if (mounted && !isInitialized) {
-            console.log('⏰ Auth initialization timeout, setting as not authenticated');
-            setAuthState({
-              user: null,
-              session: null,
-              isLoading: false,
-              isAuthenticated: false,
-            });
-            setIsInitialized(true);
-          }
-        }, 15000); // 15 second timeout
+        if (!mounted.current) return;
 
-        // Get initial session with retry logic
-        let session = null;
-        let sessionError = null;
-        
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const sessionResult = await getCurrentSession();
-            session = sessionResult;
-            sessionError = null;
-            break;
-          } catch (err) {
-            sessionError = err;
-            console.log(`Session attempt ${attempt + 1} failed, retrying...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        if (session?.user) {
+          console.log('Found existing session for user:', session.user.email);
+          
+          // Get or create user profile
+          const { data: profile, error: profileError } = await userService.handleUserProfile({ user: session.user });
+          
+          if (profileError) {
+            console.error('Profile error:', profileError);
+            throw profileError;
           }
-        }
-        
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
 
-        if (sessionError && !session) {
-          console.error('❌ Session error after retries:', sessionError);
-          // Don't treat session errors as fatal - user might just not be logged in
-          console.log('ℹ️ Session error treated as not authenticated');
-        }
+          if (!mounted.current) return;
 
-        if (mounted) {
-          if (session?.user) {
-            console.log('✅ Found existing session for user:', session.user.id);
-            const twitterUser = getTwitterUserData(session.user);
-            
-            setAuthState({
-              user: twitterUser,
-              session,
-              isLoading: false,
-              isAuthenticated: true,
-            });
-            setError(null);
-          } else {
-            console.log('ℹ️ No existing session found');
-            setAuthState({
-              user: null,
-              session: null,
-              isLoading: false,
-              isAuthenticated: false,
-            });
-          }
-          setIsInitialized(true);
-        }
-      } catch (err: any) {
-        console.error('❌ Auth initialization error:', err);
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        if (mounted) {
-          setError({ 
-            message: err.message || 'Failed to initialize authentication',
-            type: 'config',
-            details: 'Initialization failed'
-          });
+          // Update auth state with the new session and profile
           setAuthState({
-            user: null,
-            session: null,
+            user: profile || null,
+            session,
+            isLoading: false,
+            isAuthenticated: true,
+          });
+
+          // Set up realtime subscription if we have a user
+          if (profile) {
+            // Unsubscribe from any existing subscription
+            if (subscription.current) {
+              subscription.current.unsubscribe();
+              subscription.current = null;
+            }
+
+            const newSubscription = subscribeToProfileChanges(session.user.id, (payload: ProfileSubscriptionCallbackPayload) => {
+              if (!mounted.current) return;
+
+              if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+                setAuthState(prev => ({
+                  ...prev,
+                  user: { ...prev.user, ...payload.new } as UserProfile,
+                }));
+              }
+            });
+
+            if (mounted.current) {
+              subscription.current = { unsubscribe: newSubscription };
+            } else if (newSubscription) {
+              newSubscription();
+            }
+          }
+        } else if (mounted.current) {
+          console.log('No active session found');
+          setAuthState(prev => ({
+            ...prev,
             isLoading: false,
             isAuthenticated: false,
+            user: null,
+            session: null,
+          }));
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        if (mounted.current) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error during authentication';
+          console.error('Auth error details:', errorMessage);
+          
+          setError({
+            message: 'Failed to initialize authentication',
+            type: 'auth',
+            details: errorMessage,
+            code: error instanceof Error ? (error as any).code : undefined,
           });
+          
+          setAuthState(prev => ({
+            ...prev,
+            isLoading: false,
+            isAuthenticated: false,
+            user: null,
+            session: null,
+          }));
+          
+          // Auto-retry logic for transient errors
+          if (retryCount < 2) {
+            console.log(`Retrying auth initialization (attempt ${retryCount + 1})...`);
+            const timer = setTimeout(() => {
+              if (mounted.current) {
+                setRetryCount(prev => prev + 1);
+              }
+            }, 1000 * (retryCount + 1));
+            return () => clearTimeout(timer);
+          }
+        }
+      } finally {
+        if (mounted.current) {
+          console.log('Auth initialization complete');
           setIsInitialized(true);
         }
       }
     };
+    
+    initializeAuth();
 
     initializeAuth();
 
-    // Listen for auth changes with enhanced handling
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('🔄 Auth state changed:', event, session?.user?.id || 'No user');
+    // Set up auth state change listener
+    const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        if (!mounted.current) return;
         
-        if (mounted) {
-          if (session?.user) {
-            const twitterUser = getTwitterUserData(session.user);
+        console.log('Auth state changed:', event);
+        
+        switch (event) {
+          case 'SIGNED_IN':
+          case 'TOKEN_REFRESHED':
+            if (newSession) {
+              await handleAuthSuccess(newSession);
+            }
+            break;
             
-            setAuthState({
-              user: twitterUser,
-              session,
-              isLoading: false,
-              isAuthenticated: true,
-            });
-            setError(null);
-            setRetryCount(0);
-          } else {
+          case 'SIGNED_OUT':
+            console.log('User signed out, cleaning up...');
+            if (subscription.current) {
+              subscription.current.unsubscribe();
+              subscription.current = null;
+            }
             setAuthState({
               user: null,
               session: null,
               isLoading: false,
               isAuthenticated: false,
             });
-          }
-          setIsInitialized(true);
+            break;
+            
+          case 'USER_UPDATED':
+            if (newSession?.user) {
+              console.log('User updated, refreshing profile...');
+              const { data: profile, error } = await userService.getUserProfile(newSession.user.id);
+              if (!error && profile) {
+                setAuthState(prev => ({
+                  ...prev,
+                  user: profile,
+                  session: newSession,
+                }));
+              }
+            }
+            break;
+            
+          case 'PASSWORD_RECOVERY':
+            console.log('Password recovery flow initiated');
+            // Handle password recovery if needed
+            break;
+            
+          default:
+            console.log('Unhandled auth event:', event);
         }
       }
     );
 
     return () => {
-      mounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      console.log('Cleaning up auth hooks...');
+      mounted.current = false;
+      
+      if (subscription.current) {
+        subscription.current.unsubscribe();
+        subscription.current = null;
       }
-      subscription.unsubscribe();
+      
+      if (authListener) {
+        authListener.unsubscribe();
+      }
+      
+      if (timeoutId.current) {
+        clearTimeout(timeoutId.current);
+      }
     };
-  }, []);
+  }, [handleAuthSuccess, retryCount]);
 
-  // Enhanced sign in with Twitter
-  const signInWithTwitter = async (): Promise<{ success: boolean; error?: AuthError }> => {
-    try {
-      setError(null);
-      console.log('🐦 Starting Twitter sign-in...');
-
-      // Validate configuration
-      const configValidation = validateTwitterOAuthConfig();
-      if (!configValidation.valid) {
-        throw new Error(`Configuration issues: ${configValidation.issues.join(', ')}`);
-      }
-
-      // Perform OAuth with enhanced error handling
-      const result = await performOAuth();
-      
-      if (result.success) {
-        console.log('✅ Twitter OAuth completed successfully');
-        
-        // Wait for the auth state to update
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Verify session was created
-        const currentSession = await getCurrentSession();
-        if (currentSession) {
-          console.log('✅ Session confirmed after OAuth');
-          return { success: true };
-        } else {
-          console.log('⚠️ OAuth succeeded but no session found - checking again...');
-          
-          // Try refreshing session
-          const refreshedSession = await refreshSession();
-          if (refreshedSession) {
-            console.log('✅ Session found after refresh');
-            return { success: true };
-          }
-          
-          // Still no session, but OAuth succeeded - this might still work
-          console.log('ℹ️ OAuth completed but session verification failed');
-          return { success: true };
-        }
-      } else {
-        throw new Error(result.error || 'OAuth failed');
-      }
-    } catch (err: any) {
-      console.error('❌ Twitter sign-in error:', err);
-      
-      let errorType: AuthError['type'] = 'unknown';
-      let userFriendlyMessage = err.message;
-      
-      // Categorize errors
-      if (err.message?.includes('configuration') || err.message?.includes('environment')) {
-        errorType = 'config';
-        userFriendlyMessage = 'Configuration issue detected. Please check your setup.';
-      } else if (err.message?.includes('network') || err.message?.includes('fetch')) {
-        errorType = 'network';
-        userFriendlyMessage = 'Network connection issue. Please check your internet.';
-      } else if (err.message?.includes('token') || err.message?.includes('session')) {
-        errorType = 'token';
-        userFriendlyMessage = 'Authentication token issue. This usually resolves with a retry.';
-      } else if (err.message?.toLowerCase().includes('email') || err.message?.includes('server_error')) {
-        errorType = 'email';
-        userFriendlyMessage = 'Twitter authentication successful! (Email not provided by Twitter)';
-        
-        // For email issues, check if we actually have a session
-        try {
-          const currentSession = await getCurrentSession();
-          if (currentSession) {
-            console.log('✅ Session found despite email error - treating as success');
-            return { success: true };
-          }
-        } catch (sessionCheckError) {
-          console.log('ℹ️ No session found after email error');
-        }
-        
-        return { success: true }; // Treat email issues as success
-      } else if (err.message?.includes('auth') || err.message?.includes('oauth')) {
-        errorType = 'auth';
-        userFriendlyMessage = 'Authentication service issue. Please try again.';
-      } else if (err.message?.includes('cancelled') || err.message?.includes('cancel')) {
-        errorType = 'auth';
-        userFriendlyMessage = 'Authentication was cancelled';
-      }
-      
-      const authError: AuthError = {
-        message: userFriendlyMessage || 'Failed to sign in with Twitter',
-        code: err.code,
-        type: errorType,
-        details: err.message,
-      };
-      
-      setError(authError);
-      setRetryCount(prev => prev + 1);
-      return { success: false, error: authError };
-    }
-  };
-
-  // Enhanced sign out
-  const signOut = async (): Promise<{ success: boolean; error?: AuthError }> => {
-    try {
-      setError(null);
-      console.log('🚪 Signing out...');
-      
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('❌ Sign out error:', error);
-        throw error;
-      }
-
-      console.log('✅ Signed out successfully');
-      setRetryCount(0);
-      return { success: true };
-    } catch (err: any) {
-      console.error('❌ Sign out error:', err);
-      const authError: AuthError = {
-        message: err.message || 'Failed to sign out',
-        code: err.code,
-        type: 'auth',
-        details: 'Sign out failed'
-      };
-      setError(authError);
-      return { success: false, error: authError };
-    }
-  };
-
-  // Enhanced retry with exponential backoff
-  const retry = useCallback(async () => {
-    const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Max 10 seconds
-    console.log(`🔄 Retrying authentication in ${delay}ms (attempt ${retryCount + 1})`);
+  const signInWithTwitter = useCallback(async () => {
+    if (!mounted.current) return { success: false, error: 'Component unmounted' };
     
-    await new Promise(resolve => setTimeout(resolve, delay));
-    setError(null);
-    return signInWithTwitter();
-  }, [retryCount]);
+    try {
+      setAuthState(prev => ({ ...prev, isLoading: true }));
+      setError(null);
 
-  // Clear error
-  const clearError = useCallback(() => {
-    setError(null);
-    setRetryCount(0);
+      // Check if Twitter OAuth is configured
+      const configError = validateTwitterOAuthConfig();
+      if (!configError.valid) {
+        if (!mounted.current) return { success: false, error: 'Component unmounted' };
+        const errorMessage = 'Twitter OAuth is not properly configured';
+        const errorDetails = configError.issues.join(', ');
+        setError({
+          message: errorMessage,
+          type: 'config',
+          details: errorDetails
+        });
+        setAuthState(prev => ({
+          ...prev,
+          isLoading: false,
+          isAuthenticated: false,
+        }));
+        return { 
+          success: false, 
+          error: errorMessage,
+          details: errorDetails
+        };
+      }
+      // Perform OAuth flow
+      const { success, error, session } = await performOAuth();
+      
+      if (!success || !session) {
+        throw new Error(error || 'Failed to complete Twitter authentication');
+      }
+      
+      // Process the session and update auth state
+      if (mounted.current) {
+        const { data: profile, error: profileError } = await userService.handleUserProfile({ 
+          user: session.user 
+        });
+        
+        if (profileError || !profile) {
+          throw profileError || new Error('Failed to process user profile');
+        }
+        
+        setAuthState({
+          user: profile,
+          session,
+          isLoading: false,
+          isAuthenticated: true,
+        });
+      }
+      
+      return { success: true, session };
+    } catch (err: any) {
+      console.error('Twitter sign in error:', err);
+      const errorMessage = err.message || 'Failed to sign in with Twitter';
+      const errorDetails = err.details || 'Unknown error occurred';
+      
+      if (mounted.current) {
+        setError({
+          message: errorMessage,
+          type: 'auth',
+          details: errorDetails
+        });
+        setAuthState(prev => ({
+          ...prev,
+          isLoading: false,
+          isAuthenticated: false,
+        }));
+      }
+      
+      return { 
+        success: false, 
+        error: errorMessage,
+        details: errorDetails
+      };
+    } finally {
+      if (mounted.current) {
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+        setIsInitialized(true);
+      }
+    }
   }, []);
 
-  return {
+  const signOut = useCallback(async () => {
+    if (!mounted.current) return;
+    
+    try {
+      setAuthState(prev => ({ ...prev, isLoading: true }));
+      
+      // Clear all auth-related storage first
+      await AsyncStorage.multiRemove([
+        'sb-auth-token',
+        'sb-refresh-token',
+        'sb:token',
+        'sb:state',
+        'sb:provider-token',
+        'sb:session',
+        'supabase.auth.token',
+        'supabase.auth.token.iss',
+        `sb-${process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/^https?:\/\//, '').split('.')[0]}-auth-token`,
+        `sb-${process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/^https?:\/\//, '').split('.')[0]}-refresh-token`,
+      ]);
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
+      // Clean up subscriptions
+      if (subscription.current) {
+        subscription.current.unsubscribe();
+        subscription.current = null;
+      }
+      
+      if (!mounted.current) return;
+      
+      // Clear any existing timeouts
+      if (timeoutId.current) {
+        clearTimeout(timeoutId.current);
+        timeoutId.current = undefined;
+      }
+      
+      // Reset all auth state
+      setAuthState({
+        user: null,
+        session: null,
+        isLoading: false,
+        isAuthenticated: false,
+      });
+      
+      // Clear any errors
+      setError(null);
+      
+      console.log('✅ Successfully signed out from Supabase');
+    } catch (error) {
+      console.error('❌ Error signing out:', error);
+      if (mounted.current) {
+        setError({
+          message: 'Failed to sign out',
+          type: 'auth',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        });
+        // Still reset the auth state even if there was an error
+        setAuthState({
+          user: null,
+          session: null,
+          isLoading: false,
+          isAuthenticated: false,
+        });
+      }
+    } finally {
+      if (mounted.current) {
+        setIsInitialized(true);
+      }
+    }
+  }, []);
+
+  // Memoize the returned object to prevent unnecessary re-renders
+  return useMemo(() => ({
     ...authState,
     error,
+    isInitialized,
     signInWithTwitter,
     signOut,
-    retry,
     clearError,
-    isInitialized,
     retryCount,
-  };
+  }), [authState, error, isInitialized, signInWithTwitter, signOut, clearError, retryCount]);
 };

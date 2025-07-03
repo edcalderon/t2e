@@ -45,7 +45,32 @@ CREATE TABLE IF NOT EXISTS notifications (
   updated_at timestamptz DEFAULT now()
 );
 
--- Enable RLS
+-- Create indexes for performance before enabling RLS
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read);
+CREATE INDEX IF NOT EXISTS idx_notifications_global ON notifications(user_id) WHERE user_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_notifications_priority ON notifications(priority);
+CREATE INDEX IF NOT EXISTS idx_notifications_expires_at ON notifications(expires_at) WHERE expires_at IS NOT NULL;
+
+-- Create function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Create trigger to automatically update updated_at
+CREATE TRIGGER update_notifications_updated_at
+  BEFORE UPDATE ON notifications
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS after table and indexes are created
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for users to read their notifications and global notifications
@@ -93,30 +118,7 @@ CREATE POLICY "Admins can read all notifications"
     auth.uid() IS NOT NULL
   );
 
--- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);
-CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
-CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read);
-CREATE INDEX IF NOT EXISTS idx_notifications_global ON notifications(user_id) WHERE user_id IS NULL;
-CREATE INDEX IF NOT EXISTS idx_notifications_priority ON notifications(priority);
-CREATE INDEX IF NOT EXISTS idx_notifications_expires_at ON notifications(expires_at) WHERE expires_at IS NOT NULL;
 
--- Create function to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Create trigger to automatically update updated_at
-CREATE TRIGGER update_notifications_updated_at
-  BEFORE UPDATE ON notifications
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert some sample notifications for testing
 INSERT INTO notifications (type, title, message, priority, user_id) VALUES
