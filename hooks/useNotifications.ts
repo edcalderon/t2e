@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { notificationService, Notification, NotificationStats } from '../lib/notificationService';
+import { notificationService, Notification, NotificationStats, NotificationType } from '../lib/notificationService';
 import { useAuth } from '../contexts/AuthContext';
 
 export const useNotifications = () => {
@@ -15,42 +15,77 @@ export const useNotifications = () => {
   const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
+    let isMounted = true;
     let unsubscribe: (() => void) | undefined;
     let statusCheckInterval: NodeJS.Timeout | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+
+    const updateNotifications = () => {
+      if (!isMounted) return;
+      const currentNotifications = notificationService.getNotifications();
+      setNotifications(currentNotifications);
+      setStats(notificationService.getStats());
+    };
+
+    const handleError = (error: Error) => {
+      console.error('❌ Notification subscription error:', error);
+      if (!isMounted) return;
+      setConnectionStatus(false);
+      
+      // Clear any existing reconnect timeout
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      
+      // Attempt to reconnect after a delay
+      reconnectTimeout = setTimeout(() => {
+        if (isMounted) {
+          initializeNotifications();
+        }
+      }, 5000);
+    };
 
     const initializeNotifications = async () => {
-      if (!isAuthenticated) {
-        console.log('ℹ️ User not authenticated, skipping notification initialization');
-        setIsLoading(false);
+      if (!isMounted || !isAuthenticated) {
+        console.log(isMounted ? 'ℹ️ User not authenticated' : 'ℹ️ Component unmounted');
+        if (isMounted) setIsLoading(false);
         return;
       }
 
       try {
         console.log('🔔 Initializing notifications for user:', user?.id);
+        setIsLoading(true);
         
         await notificationService.initialize();
         
         // Subscribe to notification updates
-        unsubscribe = notificationService.subscribe((updatedNotifications) => {
-          setNotifications(updatedNotifications);
-          setStats(notificationService.getStats());
-        });
-
-        // Get initial notifications
-        setNotifications(notificationService.getNotifications());
-        setStats(notificationService.getStats());
+        unsubscribe = notificationService.subscribe(updateNotifications);
         
-        // Monitor connection status
+        // Get initial notifications
+        updateNotifications();
+        
+        // Monitor connection status more frequently
         statusCheckInterval = setInterval(() => {
-          setConnectionStatus(notificationService.getConnectionStatus());
-        }, 5000);
+          if (!isMounted) return;
+          const currentStatus = notificationService.getConnectionStatus();
+          setConnectionStatus(currentStatus);
+          
+          // If disconnected, try to reinitialize
+          if (!currentStatus) {
+            console.log('🔄 Connection lost, attempting to reconnect...');
+            initializeNotifications();
+          }
+        }, 3000);
         
         setConnectionStatus(notificationService.getConnectionStatus());
         
       } catch (error) {
         console.error('❌ Failed to initialize notifications:', error);
+        handleError(error instanceof Error ? error : new Error(String(error)));
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -70,7 +105,9 @@ export const useNotifications = () => {
     }
 
     return () => {
+      isMounted = false;
       if (unsubscribe) {
+        console.log('🧹 Cleaning up notification subscription');
         unsubscribe();
       }
       if (statusCheckInterval) {
@@ -147,7 +184,7 @@ export const useAdminNotifications = () => {
   const sendGlobalNotification = async (notification: {
     title: string;
     message: string;
-    type?: string;
+    type?: NotificationType;
     priority?: 'low' | 'medium' | 'high' | 'urgent';
     actionUrl?: string;
     imageUrl?: string;
@@ -164,7 +201,7 @@ export const useAdminNotifications = () => {
   const sendUserNotification = async (userId: string, notification: {
     title: string;
     message: string;
-    type?: string;
+    type?: NotificationType;
     priority?: 'low' | 'medium' | 'high' | 'urgent';
     actionUrl?: string;
     imageUrl?: string;
